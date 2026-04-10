@@ -7,6 +7,8 @@ build/
 *.tsbuildinfo
 
 # Data
+data/*
+!data/schema.md
 
 # Environment
 .env
