@@ -6,13 +6,14 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
+    "build": "tsc && cp ../.env dist/",
+    "start": "cd dist && node index.js"
   },
   "dependencies": {
     "@openrouter/ai-sdk-provider": "^2.5.1",
     "ai": "^6.0.0",
     "better-sqlite3": "^12.8.0",
+    "dotenv": "^17.4.1",
     "express": "^5.2.1",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
