@@ -9,9 +9,6 @@ export default function Layout() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">LLM Wiki</h1>
           <nav className="flex gap-6 flex-wrap">
             <Link to="/" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium">
-              Home
-            </Link>
-            <Link to="/wiki" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium">
               Wiki
             </Link>
             <Link to="/ingest" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium">

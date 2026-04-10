@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
-import Home from './pages/Home';
 import IngestPage from './pages/IngestPage';
 import ChatPage from './pages/ChatPage';
 import WikiPage from './pages/WikiPage';
@@ -14,10 +13,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<WikiPage />} />
           <Route path="/ingest" element={<IngestPage />} />
           <Route path="/chat" element={<ChatPage />} />
-          <Route path="/wiki" element={<WikiPage />} />
           <Route path="/wiki/:slug" element={<WikiPageDetail />} />
           <Route path="/raw/:id" element={<RawSourcePage />} />
           <Route path="/graph" element={<GraphPage />} />

@@ -40,7 +40,7 @@ export default function RawSourcePage() {
   return (
     <div className="max-w-3xl">
       <div className="mb-4">
-        <Link to="/wiki" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">Wiki</Link>
+        <Link to="/" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">Wiki</Link>
         <span className="text-gray-400 mx-2 text-sm">/</span>
         <span className="text-sm text-gray-500">Raw Source #{source.id}</span>
       </div>

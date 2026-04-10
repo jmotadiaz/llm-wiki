@@ -53,7 +53,7 @@ export default function WikiPageDetail() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
-          <Link to="/wiki" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">Wiki</Link>
+          <Link to="/" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">Wiki</Link>
           <span className="text-gray-400 text-sm">/</span>
           <span className="text-sm text-gray-500">{slug}</span>
         </div>
