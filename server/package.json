@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc && cp ../.env dist/",
+    "build": "tsc && cp ../.env dist/ && mkdir -p dist/llm/prompts && cp src/llm/prompts/*.md dist/llm/prompts/",
     "start": "cd dist && node index.js"
   },
   "dependencies": {
