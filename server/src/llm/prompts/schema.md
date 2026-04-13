@@ -14,7 +14,7 @@ The wiki must remain faithful to the raw sources it is built from. This is non-n
 - **Never extrapolate** beyond what the source supports. If the source says a technique works in one context, do not generalize it to others.
 - **Never merge unrelated claims** from different sources into a single statement that none of them made.
 - **When the source is uncertain or hedged**, reflect that uncertainty in the wiki page. Do not turn "may help" into "helps".
-- **Every claim must be traceable** to a cited source via `[1](/raw/{id})`. Sentences without a citation are not allowed.
+- **Every claim must be traceable** to a cited source via `/raw/{id}`. Prefer `[1](/raw/{id}#fragment)` when a specific headed section supports the claim. Sentences without a citation are not allowed.
 - **When updating a page**, rewrite the saved markdown body so the new source is physically reflected in the article text, even if the only new contribution is an added citation.
 - **When sources disagree about the same concept**, keep a single page for that concept and represent the competing claims explicitly with separate inline citations. Do not silently overwrite one position with the other.
 - **When contradiction exists**, flag a `contradiction` warning for human review, but still preserve both positions in the page content.
@@ -122,7 +122,7 @@ Use `[[slug]]` to link to other wiki pages. The slug must match an existing or n
 
 ### Source citations
 
-Cite information from raw sources using markdown links pointing to `/raw/{id}`. Every factual claim, definition, or assertion must carry an inline citation to the raw source it came from. Place citations immediately after the claim they support.
+Cite information from raw sources using markdown links pointing to `/raw/{id}`. Prefer `/raw/{id}#fragment` when the supporting evidence comes from a specific headed section, and use `/raw/{id}` only when no suitable heading exists. Every factual claim, definition, or assertion must carry an inline citation to the raw source it came from. Place citations immediately after the claim they support.
 
 When updating a page, preserve all existing citations from previous sources. Add new citations alongside them — never replace or remove existing ones.
 

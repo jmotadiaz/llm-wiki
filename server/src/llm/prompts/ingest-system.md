@@ -6,7 +6,7 @@ All structural rules (slugs, tags, page types, language, formatting, cross-refer
 
 **Every concept the raw source touches receives a `upsert_wiki_page` call. Always. No exceptions.**
 
-A raw source is, by definition, new evidence that a topic was discussed. Even if the source restates existing content without adding facts, the page must be rewritten to register the new citation `[1](/raw/{RAW_ID})` in the markdown body. The citation itself is the minimum contribution. Zero writes is never a valid outcome of an ingest.
+A raw source is, by definition, new evidence that a topic was discussed. Even if the source restates existing content without adding facts, the page must be rewritten to register the new citation in the markdown body. Prefer `[1](/raw/{RAW_ID}#fragment)` when a specific raw heading supports the claim, and fall back to `[1](/raw/{RAW_ID})` only when no suitable heading exists. The citation itself is the minimum contribution. Zero writes is never a valid outcome of an ingest.
 
 If a source disagrees with an existing page about the same concept, keep a single article for that concept and represent both positions explicitly in the body, with each claim cited to its supporting source. Do not collapse the disagreement into one synthesized statement that hides the conflict.
 
@@ -31,11 +31,12 @@ For each concept in your plan from Step 1, repeat this cycle:
 
 1. **If the concept is marked `update`**: call `get_wiki_page` with the slug and read the current content, metadata, and existing source IDs before writing.
 2. **Call `upsert_wiki_page` exactly once for that concept** using the runtime tool schema.
-   - **Update**: rewrite the markdown for the existing page so the saved article physically includes the new citation `[1](/raw/{RAW_ID})` in the body. Preserve all existing supported claims, structure, and citations unless you are restructuring the page to integrate the new source more clearly.
-   - **Citation-only update**: if the raw source adds no new facts, you must still rewrite the body to include at least one claim or sentence that now carries the new citation `[1](/raw/{RAW_ID})`.
+   - **Update**: rewrite the markdown for the existing page so the saved article physically includes the new citation in the body. Preserve all existing supported claims, structure, and citations unless you are restructuring the page to integrate the new source more clearly.
+   - **Citation-only update**: if the raw source adds no new facts, you must still rewrite the body to include at least one claim or sentence that now carries the new citation.
    - **Contradictory update**: if the new source conflicts with existing claims about the same concept, keep both viewpoints in the same article, attribute each claim to its source with inline citations, and make the disagreement explicit in the prose.
    - **New**: write a complete page from scratch, citing the current raw source.
    - The system records the current raw source link automatically when `upsert_wiki_page` succeeds; do not try to manage source linkage outside the page content you write.
+   - When a claim is supported by a headed section in the raw source, use the exact anchor listed in the raw heading index below.
 
 Every iteration MUST end with a `upsert_wiki_page` call. A `get_wiki_page` without a subsequent `upsert_wiki_page` is never valid.
 
@@ -58,7 +59,11 @@ The workflow ends when every concept from your Step 1 plan has a corresponding `
 
 ## Current Raw Source ID
 
-The raw source you are processing has ID `{RAW_ID}`. Cite it inline with `[1](/raw/{RAW_ID})` throughout any page content you write.
+The raw source you are processing has ID `{RAW_ID}`. Cite it inline with `[1](/raw/{RAW_ID}#fragment)` whenever the claim maps to a specific heading in the raw heading index below. Use `[1](/raw/{RAW_ID})` only when no suitable heading exists.
+
+## Available Raw Anchors
+
+{RAW_HEADING_INDEX}
 
 ## Existing Wiki Index
 

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import Markdown from '../components/markdown/Markdown';
+import { useState, useEffect } from "react";
+import { useParams, Link, useLocation } from "react-router-dom";
+import Markdown from "../components/markdown/Markdown";
 
 interface RawSource {
   id: number;
@@ -14,24 +14,39 @@ interface RawSource {
 
 export default function RawSourcePage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const [source, setSource] = useState<RawSource | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!id) return;
     fetch(`/api/raw/${id}`)
-      .then(r => r.json() as Promise<{ source: RawSource; error?: string }>)
-      .then(data => {
+      .then((r) => r.json() as Promise<{ source: RawSource; error?: string }>)
+      .then((data) => {
         if (data.error) throw new Error(data.error);
         setSource(data.source);
         setLoading(false);
       })
-      .catch(err => {
+      .catch((err) => {
         setError(err.message);
         setLoading(false);
       });
   }, [id]);
+
+  useEffect(() => {
+    if (!source || !location.hash) return;
+
+    const fragment = decodeURIComponent(location.hash.slice(1));
+    const frameId = requestAnimationFrame(() => {
+      const element = document.getElementById(fragment);
+      if (element) {
+        element.scrollIntoView({ block: "start" });
+      }
+    });
+
+    return () => cancelAnimationFrame(frameId);
+  }, [source, location.hash]);
 
   if (loading) return <p className="text-gray-500">Loading...</p>;
   if (error) return <p className="text-red-500">Error: {error}</p>;
@@ -40,7 +55,12 @@ export default function RawSourcePage() {
   return (
     <div className="max-w-3xl">
       <div className="mb-4">
-        <Link to="/" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">Wiki</Link>
+        <Link
+          to="/"
+          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          Wiki
+        </Link>
         <span className="text-gray-400 mx-2 text-sm">/</span>
         <span className="text-sm text-gray-500">Raw Source #{source.id}</span>
       </div>
@@ -50,7 +70,12 @@ export default function RawSourcePage() {
         {source.author && <span>By {source.author}</span>}
         <span>Added {new Date(source.created_at).toLocaleDateString()}</span>
         {source.source_url && (
-          <a href={source.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+          <a
+            href={source.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+          >
             Original URL
           </a>
         )}

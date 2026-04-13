@@ -91,7 +91,7 @@ export const createIngestTools = (
         content: z
           .string()
           .describe(
-            "Full markdown content (Spanish). Include citations using [1](/raw/{RAW_ID}).",
+            "Full markdown content (Spanish). Include citations using [1](/raw/{RAW_ID}#fragment) when a relevant raw heading anchor is available, otherwise [1](/raw/{RAW_ID}).",
           ),
       }),
       execute: async (page) => {
