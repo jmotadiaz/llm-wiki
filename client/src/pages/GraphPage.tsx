@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ForceGraph2D from 'react-force-graph-2d';
 
@@ -71,8 +71,18 @@ export default function GraphPage() {
     return colors[node.type] || '#6b7280';
   }, []);
 
+  const graphData = useMemo<GraphData | null>(() => {
+    if (!data) return null;
+
+    const validIds = new Set(data.nodes.map(node => node.id));
+    return {
+      nodes: data.nodes,
+      links: data.links.filter(link => validIds.has(link.source) && validIds.has(link.target)),
+    };
+  }, [data]);
+
   if (loading) return <p className="text-gray-500">Loading graph...</p>;
-  if (!data || data.nodes.length === 0) {
+  if (!graphData || graphData.nodes.length === 0) {
     return (
       <div>
         <h2 className="text-2xl font-bold mb-4">Wiki Graph</h2>
@@ -85,7 +95,7 @@ export default function GraphPage() {
     <div>
       <h2 className="text-2xl font-bold mb-4">Wiki Graph</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-        {data.nodes.length} pages, {data.links.length} links. Click a node to view the page.
+        {graphData.nodes.length} pages, {graphData.links.length} links. Click a node to view the page.
       </p>
       <div className="flex gap-3 mb-3 text-xs">
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-500 inline-block"></span> concept</span>
@@ -95,7 +105,7 @@ export default function GraphPage() {
       </div>
       <div ref={containerRef} className="border border-gray-200 dark:border-gray-800 rounded overflow-hidden bg-white dark:bg-gray-950">
         <ForceGraph2D
-          graphData={data}
+          graphData={graphData}
           width={dimensions.width}
           height={dimensions.height}
           nodeLabel={nodeLabel}

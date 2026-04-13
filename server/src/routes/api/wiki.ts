@@ -13,6 +13,7 @@ export function createWikiRoutes(db: Database.Database): Router {
   router.get('/graph', (req: Request, res: Response) => {
     try {
       const pages = queries.getAllWikiPages();
+      const validSlugs = new Set(pages.map(page => page.slug));
       const nodes = pages.map(page => ({
         id: page.slug,
         label: page.title,
@@ -26,6 +27,8 @@ export function createWikiRoutes(db: Database.Database): Router {
       for (const page of pages) {
         const links = queries.getOutgoingLinks(page.id);
         for (const linkSlug of links) {
+          if (!validSlugs.has(linkSlug)) continue;
+
           const edgeKey = `${page.slug}->${linkSlug}`;
           if (!edgeSet.has(edgeKey)) {
             edges.push({
