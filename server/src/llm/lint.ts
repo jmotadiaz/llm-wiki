@@ -44,10 +44,39 @@ function loadLintQueue(): string {
 }
 
 function loadSystemPrompt(l1Index: string, lintQueue: string): string {
-  const promptPath = path.join(__dirname, 'prompts', 'tier3-audit-system.md');
-  let prompt = fs.readFileSync(promptPath, 'utf-8');
-  prompt = prompt.replace('{L1_INDEX}', l1Index);
-  prompt = prompt.replace('{LINT_QUEUE}', lintQueue);
+  const promptPath = path.join(__dirname, "prompts", "tier3-audit-system.md");
+
+  if (!fs.existsSync(promptPath)) {
+    // Fallback: try to see if we are in dist and prompts are in src (for dev-like execution of dist)
+    const fallbackPath = path.join(
+      __dirname,
+      "..",
+      "..",
+      "src",
+      "llm",
+      "prompts",
+      "tier3-audit-system.md",
+    );
+    if (fs.existsSync(fallbackPath)) {
+      return loadAndReplace(fallbackPath, l1Index, lintQueue);
+    }
+
+    throw new Error(
+      `System prompt not found at ${promptPath}. Please ensure 'npm run build' has been run and the prompts directory exists in dist/llm/prompts/`,
+    );
+  }
+
+  return loadAndReplace(promptPath, l1Index, lintQueue);
+}
+
+function loadAndReplace(
+  filePath: string,
+  l1Index: string,
+  lintQueue: string,
+): string {
+  let prompt = fs.readFileSync(filePath, "utf-8");
+  prompt = prompt.replace("{L1_INDEX}", l1Index);
+  prompt = prompt.replace("{LINT_QUEUE}", lintQueue);
   return prompt;
 }
 

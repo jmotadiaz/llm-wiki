@@ -1,17 +1,40 @@
-import "dotenv/config";
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Try to load .env from current directory or parent directory
+// This handles running from 'server/' (dev) or 'server/dist/' (prod)
+const envPaths = [
+  path.join(process.cwd(), '.env'),
+  path.join(__dirname, '.env'),
+  path.join(__dirname, '../.env'),
+  path.join(__dirname, '../../.env'),
+];
+
+let envFound = false;
+for (const envPath of envPaths) {
+  const result = dotenv.config({ path: envPath });
+  if (!result.error) {
+    console.log(`[INIT] Loaded environment from: ${envPath}`);
+    envFound = true;
+    break;
+  }
+}
+
+if (!envFound) {
+  console.warn('[WARNING] No .env file found in expected locations. Using system environment variables.');
+}
 import express, { Express, Request, Response, NextFunction } from "express";
-import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import { getDatabase } from "./db/schema.js";
 import { createIngestRoutes } from "./routes/ingest.js";
 import { createWikiRoutes } from "./routes/api/wiki.js";
 import { createRawRoutes } from "./routes/api/raw.js";
 import { createChatRoutes } from "./routes/api/chat.js";
 import { initScheduler } from "./services/scheduler.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 function ensureDataDirectory() {
   const dataDir = path.join(__dirname, "../../data");

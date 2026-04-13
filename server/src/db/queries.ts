@@ -11,6 +11,11 @@ export class Queries {
     return stmt.get(checksum) as any;
   }
 
+  getRawSourceById(id: number) {
+    const stmt = this.db.prepare("SELECT * FROM raw_sources WHERE id = ?");
+    return stmt.get(id) as any;
+  }
+
   getAllRawSources() {
     const stmt = this.db.prepare(
       "SELECT * FROM raw_sources ORDER BY created_at DESC",
@@ -40,6 +45,11 @@ export class Queries {
       publishedAt || null,
     );
     return result.lastInsertRowid as number;
+  }
+
+  deleteRawSource(id: number) {
+    const stmt = this.db.prepare("DELETE FROM raw_sources WHERE id = ?");
+    stmt.run(id);
   }
 
   // Wiki Pages
