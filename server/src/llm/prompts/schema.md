@@ -19,6 +19,15 @@ The wiki must remain faithful to the raw sources it is built from. This is non-n
 - **When sources disagree about the same concept**, keep a single page for that concept and represent the competing claims explicitly with separate inline citations. Do not silently overwrite one position with the other.
 - **When contradiction exists**, flag a `contradiction` warning for human review, but still preserve both positions in the page content.
 
+## Synthesis Quality
+
+A valid page follows all the rules above. A good page is useful to someone who has never read the source.
+
+- **Compress, don't transcribe**: Restate claims in concise, clear prose. Do not copy source sentences verbatim unless the exact wording is essential (a named principle, a precise definition, a formula). A page that reads like a lightly reformatted excerpt has not been compiled — it has been copied.
+- **Organize around the concept, not the source**: Structure sections around the concept's own identity — definition, mechanism, implications, related ideas — not the source article's narrative order or section names.
+- **Aim for density**: One focused paragraph is better than three diluted ones. A page should be as short as it can be while remaining complete and citable.
+- **Link proactively**: The value of the wiki is in its graph. Identify every related wiki concept mentioned and link it with `[[slug]]`. A page with no outbound links is usually under-linked.
+
 ## What to Extract
 
 When processing a raw source, extract content into wiki pages using these categories:
