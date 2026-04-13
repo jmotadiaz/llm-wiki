@@ -16,7 +16,11 @@ function extractWikiLinks(content: string): string[] {
   let match;
 
   while ((match = linkRegex.exec(content)) !== null) {
-    links.push(match[1]);
+    // Strip pipe alias syntax: [[slug|display text]] → slug
+    const slug = match[1].split("|")[0].trim();
+    if (slug) {
+      links.push(slug);
+    }
   }
 
   return links;
