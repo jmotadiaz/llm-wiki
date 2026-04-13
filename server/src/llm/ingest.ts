@@ -1,11 +1,12 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { llmClient, config } from "./client.js";
+import { llmClient } from "./client.js";
 import { createIngestTools } from "./ingest-tools.js";
 import { Queries } from "../db/queries.js";
 import Database from "better-sqlite3";
 import { buildRawHeadingIndex } from "./raw-headings.js";
+import { debugLog, isDebugEnabled } from "../utils/debug.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,13 +31,44 @@ function loadSchema(): string {
   return fs.readFileSync(schemaPath, "utf-8");
 }
 
+function summarizeToolCalls(toolCalls: any[] = []): any[] {
+  return toolCalls.map((toolCall) => ({
+    toolName: toolCall.toolName,
+    input:
+      toolCall.input ??
+      toolCall.args ??
+      toolCall.arguments ??
+      toolCall.parameters,
+  }));
+}
+
+function summarizeToolResults(toolResults: any[] = []): any[] {
+  return toolResults.map((toolResult) => ({
+    toolName: toolResult.toolName,
+    output:
+      toolResult.output ?? toolResult.result ?? toolResult.value ?? toolResult,
+  }));
+}
+
+function summarizeStep(event: any) {
+  return {
+    stepNumber: event.stepNumber,
+    finishReason: event.finishReason,
+    text: event.text || undefined,
+    toolCalls: summarizeToolCalls(event.toolCalls),
+    toolResults: summarizeToolResults(event.toolResults),
+    usage: event.usage,
+  };
+}
+
 export async function ingestRawSource(
   db: Database.Database,
   rawSourceId: number,
   rawContent: string,
 ): Promise<{ pagesWritten: number; warnings: number }> {
+  const debugEnabled = isDebugEnabled();
   const queries = new Queries(db);
-  console.log(
+  debugLog(
     `[INGEST] Pipeline starting for raw-${rawSourceId}: content length=${rawContent.length}`,
   );
 
@@ -45,7 +77,7 @@ export async function ingestRawSource(
   const l1Schema = loadSchema();
   const rawHeadingIndex = buildRawHeadingIndex(rawContent, rawSourceId);
 
-  console.log(
+  debugLog(
     `[INGEST] L1 context loaded: pages=${queries.getAllWikiPages().length}, schema length=${l1Schema.length}`,
   );
 
@@ -66,7 +98,12 @@ export async function ingestRawSource(
   const tools = createIngestTools(db, rawSourceId);
 
   try {
-    console.log(`[INGEST] Agent loop starting for raw-${rawSourceId}`);
+    debugLog(`[INGEST] Agent loop starting for raw-${rawSourceId}`);
+    debugLog(
+      `[INGEST] Raw heading index for raw-${rawSourceId}`,
+      rawHeadingIndex,
+    );
+    debugLog(`[INGEST] System prompt for raw-${rawSourceId}`, systemPrompt);
 
     const result = await llmClient.generate({
       system: systemPrompt,
@@ -79,6 +116,14 @@ export async function ingestRawSource(
       tools,
       maxSteps: 15,
       temperature: 0.5,
+      onStepFinish: debugEnabled
+        ? (event: any) => {
+            debugLog(
+              `[INGEST] Step finished for raw-${rawSourceId}`,
+              summarizeStep(event),
+            );
+          }
+        : undefined,
     });
 
     // Count results from tool calls
@@ -89,6 +134,14 @@ export async function ingestRawSource(
     const warnings = toolCalls.filter(
       (tc) => tc.toolName === "report_warning",
     ).length;
+
+    debugLog(`[INGEST] Final result for raw-${rawSourceId}`, {
+      finishReason: (result as any).finishReason,
+      text: result.text || undefined,
+      usage: (result as any).usage,
+      steps: result.steps?.length ?? 0,
+      toolCalls: summarizeToolCalls(toolCalls),
+    });
 
     console.log(
       `[INGEST] Agent loop complete for raw-${rawSourceId}: ${pagesWritten} pages written, ${warnings} warnings`,

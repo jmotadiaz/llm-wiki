@@ -5,6 +5,7 @@ import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { debugLog } from "../utils/debug.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -90,7 +91,7 @@ export const createIngestTools = (
         slug: z.string().describe("The slug of the wiki page to read."),
       }),
       execute: async ({ slug }) => {
-        console.log(`[Tool: get_wiki_page] reading: ${slug}`);
+        debugLog(`[Tool: get_wiki_page] reading: ${slug}`);
         const page = queries.getWikiPageBySlug(slug);
         if (!page) {
           const allPages = queries.getAllWikiPages();
@@ -171,13 +172,13 @@ export const createIngestTools = (
           };
         }
 
-        console.log(`[Tool: upsert_wiki_page] writing: ${page.slug}`);
+        debugLog(`[Tool: upsert_wiki_page] writing: ${page.slug}`);
 
         const existingPage = queries.getWikiPageBySlug(page.slug);
         let pageId: number;
 
         if (existingPage) {
-          console.log(
+          debugLog(
             `[Tool: upsert_wiki_page] Updating existing page: ${page.slug}`,
           );
           queries.updateWikiPage(
@@ -189,9 +190,7 @@ export const createIngestTools = (
           );
           pageId = existingPage.id;
         } else {
-          console.log(
-            `[Tool: upsert_wiki_page] Creating new page: ${page.slug}`,
-          );
+          debugLog(`[Tool: upsert_wiki_page] Creating new page: ${page.slug}`);
           pageId = queries.insertWikiPage(
             page.slug,
             page.title,
@@ -234,7 +233,7 @@ export const createIngestTools = (
         message: z.string().describe("A detailed description of the issue."),
       }),
       execute: async ({ type, message }) => {
-        console.log(`[Tool: report_warning] ${type}: ${message}`);
+        debugLog(`[Tool: report_warning] ${type}: ${message}`);
         queries.insertLintWarning(null, type, message, "warning");
         return { success: true };
       },

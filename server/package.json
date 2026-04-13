@@ -7,11 +7,12 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "clean": "rm -rf dist",
-    "build": "npm run clean && tsc && cp ../.env dist/ && mkdir -p dist/llm/prompts && cp src/llm/prompts/*.md dist/llm/prompts/",
+    "build": "npm run clean && tsc && cp .env dist/ && mkdir -p dist/llm/prompts && cp src/llm/prompts/*.md dist/llm/prompts/",
     "start": "cd dist && node index.js"
   },
   "dependencies": {
     "@ai-sdk/deepinfra": "^2.0.45",
+    "@ai-sdk/google": "^3.0.62",
     "@openrouter/ai-sdk-provider": "^2.5.1",
     "ai": "^6.0.0",
     "better-sqlite3": "^12.8.0",

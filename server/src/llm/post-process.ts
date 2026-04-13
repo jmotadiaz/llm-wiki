@@ -1,9 +1,10 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { Queries } from '../db/queries.js';
-import { runTier1Lint } from '../services/lint-deterministic.js';
-import Database from 'better-sqlite3';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { Queries } from "../db/queries.js";
+import { runTier1Lint } from "../services/lint-deterministic.js";
+import Database from "better-sqlite3";
+import { debugLog } from "../utils/debug.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,8 +16,8 @@ const __dirname = path.dirname(__filename);
 function regenerateIndex(db: Database.Database): void {
   const queries = new Queries(db);
   const pages = queries.getAllWikiPages();
-  const indexPath = path.join(__dirname, '../../..', 'data', 'index.md');
-  
+  const indexPath = path.join(__dirname, "../../..", "data", "index.md");
+
   const header = `# Wiki Index
 
 This is the master index of all wiki pages. Pages are listed with their slug, title, summary, and tags.
@@ -31,11 +32,13 @@ This is the master index of all wiki pages. Pages are listed with their slug, ti
 
 `;
 
-  const entries = pages.map(page => {
-    const tags = page.tags || 'untagged';
-    return `- \`${page.slug}\`: ${page.title} | tags: ${tags}`;
-  }).join('\n');
-  
+  const entries = pages
+    .map((page) => {
+      const tags = page.tags || "untagged";
+      return `- \`${page.slug}\`: ${page.title} | tags: ${tags}`;
+    })
+    .join("\n");
+
   fs.writeFileSync(indexPath, header + entries);
 }
 
@@ -46,9 +49,11 @@ This is the master index of all wiki pages. Pages are listed with their slug, ti
 export async function postIngestCleanup(
   db: Database.Database,
   rawSourceId: number,
-  pagesWritten: number
+  pagesWritten: number,
 ): Promise<void> {
-  console.log(`[INGEST] Post-ingest cleanup starting for raw-${rawSourceId}: pagesWritten=${pagesWritten}`);
+  debugLog(
+    `[INGEST] Post-ingest cleanup starting for raw-${rawSourceId}: pagesWritten=${pagesWritten}`,
+  );
 
   // Regenerate index.md from database
   regenerateIndex(db);
@@ -57,10 +62,10 @@ export async function postIngestCleanup(
   const lintIssues = runTier1Lint(db);
 
   // Log the ingest operation
-  const logPath = path.join(__dirname, '../../..', 'data', 'log.md');
+  const logPath = path.join(__dirname, "../../..", "data", "log.md");
   const timestamp = new Date().toISOString();
   const logEntry = `- [${timestamp}] INGEST raw-${rawSourceId} OK Written ${pagesWritten} pages, ${lintIssues.length} lint issues\n`;
   fs.appendFileSync(logPath, logEntry);
 
-  console.log(`[INGEST] Post-ingest cleanup complete for raw-${rawSourceId}`);
+  debugLog(`[INGEST] Post-ingest cleanup complete for raw-${rawSourceId}`);
 }
