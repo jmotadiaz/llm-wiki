@@ -17,7 +17,7 @@ The wiki must remain faithful to the raw sources it is built from. This is non-n
 - **Every claim must be traceable** to a cited source via `/raw/{id}`. Sentences without a citation are not allowed.
 - **When updating a page**, rewrite the saved markdown body so the new source is physically reflected in the article text, even if the only new contribution is an added citation.
 - **When sources disagree about the same concept**, keep a single page for that concept and represent the competing claims explicitly with separate inline citations. Do not silently overwrite one position with the other.
-- **When contradiction exists**, flag a `contradiction` warning for human review, but still preserve both positions in the page content.
+- **When contradiction exists**, flag a `contradiction` warning for human review, but still preserve both positions in the page content. Where either source includes a publication date or references a specific time period, surface that context explicitly in the prose so readers can assess recency without having to follow the citation link: `"Según [fuente de 2024](/raw/3)... Sin embargo, [una fuente posterior](/raw/7) sostiene..."`. The inline citation is the ground truth for temporal ordering.
 
 ## What to Extract
 
@@ -146,6 +146,8 @@ When a new source touches an existing concept, the article body itself must be r
 When two sources support different interpretations or conflicting claims about the same concept, write both claims explicitly and attach each citation to the exact statement it supports.
 
 **Citation as contribution**: every raw source that touches a concept must appear as a citation in that concept's wiki page. When a raw source mentions a topic that already has a wiki page, the new raw source ID is added to the page's citations even if no new factual content is introduced. The citation itself is a valid contribution — it records that this source also discusses the concept, which is information future queries and audits will need. Pages are never left untouched when their concept is mentioned by a new source.
+
+When adding a citation-only contribution, attach the new citation inline immediately after an existing claim that the new raw source also supports — not loosely at the end of a section or paragraph where it backs nothing specific. If no existing claim is actually supported by the new source, then the source does introduce new content: write a new sentence or section that captures what it says and cite it there.
 
 ## Formatting Rules
 
