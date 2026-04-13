@@ -21,6 +21,47 @@ function extractWikiLinks(content: string): string[] {
   return links;
 }
 
+function findMalformedRawCitations(content: string): string[] {
+  const malformed = content.match(/\[(?:\s*)\/raw\/[^\]\s]+(?:\s*)\]/g) || [];
+  return malformed;
+}
+
+function extractRawMarkdownLinks(
+  content: string,
+): Array<{ label: string; href: string }> {
+  const linkRegex = /\[([^\]]+)\]\((\/raw\/[^)]+)\)/g;
+  const links: Array<{ label: string; href: string }> = [];
+  let match;
+
+  while ((match = linkRegex.exec(content)) !== null) {
+    links.push({ label: match[1].trim(), href: match[2] });
+  }
+
+  return links;
+}
+
+function normalizePotentialSlug(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function findRawLinksThatShouldBeWikiLinks(
+  content: string,
+  knownSlugs: Set<string>,
+): Array<{ label: string; href: string; slug: string }> {
+  return extractRawMarkdownLinks(content)
+    .map((link) => ({
+      ...link,
+      slug: normalizePotentialSlug(link.label),
+    }))
+    .filter((link) => link.slug.length > 0 && knownSlugs.has(link.slug));
+}
+
 function ensureWikiDirectory(): string {
   const wikiDir = path.join(__dirname, "../../..", "data", "wiki");
   if (!fs.existsSync(wikiDir)) {
@@ -91,7 +132,7 @@ export const createIngestTools = (
         content: z
           .string()
           .describe(
-            "Full markdown content (Spanish). Include citations using [1](/raw/{RAW_ID}#fragment) when a relevant raw heading anchor is available, otherwise [1](/raw/{RAW_ID}).",
+            "Full markdown content (Spanish). Use [[slug]] for wiki cross-references. Reserve /raw links for citations only: [1](/raw/{RAW_ID}#fragment) when a relevant raw heading anchor is available, otherwise [1](/raw/{RAW_ID}).",
           ),
       }),
       execute: async (page) => {
@@ -104,6 +145,29 @@ export const createIngestTools = (
         if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(page.slug)) {
           return {
             error: `Slug rejected: "${page.slug}" is not valid kebab-case. Must be lowercase letters, numbers, and hyphens only (e.g., "harness-engineering").`,
+          };
+        }
+
+        const malformedRawCitations = findMalformedRawCitations(page.content);
+        if (malformedRawCitations.length > 0) {
+          return {
+            error: `Raw citation syntax rejected. Use markdown links like "[1](/raw/${rawSourceId})" or "[1](/raw/${rawSourceId}#user-content-fragment)", not bare bracketed paths like "${malformedRawCitations[0]}".`,
+          };
+        }
+
+        const knownSlugs = new Set(
+          queries.getAllWikiPages().map((wikiPage) => wikiPage.slug),
+        );
+        knownSlugs.add(page.slug);
+
+        const rawLinksThatShouldBeWikiLinks = findRawLinksThatShouldBeWikiLinks(
+          page.content,
+          knownSlugs,
+        );
+        if (rawLinksThatShouldBeWikiLinks.length > 0) {
+          const offender = rawLinksThatShouldBeWikiLinks[0];
+          return {
+            error: `Wiki cross-reference rejected. "[${offender.label}](${offender.href})" points to a known wiki concept. Use [[${offender.slug}]] for the concept mention and keep the /raw link only as a separate citation after the supported claim.`,
           };
         }
 
@@ -146,6 +210,7 @@ export const createIngestTools = (
         queries.insertPageSource(pageId, rawSourceId);
 
         // Extract and index wiki links
+        queries.deleteWikiLinksForPage(pageId);
         const wikiLinks = extractWikiLinks(page.content);
         for (const linkSlug of wikiLinks) {
           queries.insertWikiLink(pageId, linkSlug);

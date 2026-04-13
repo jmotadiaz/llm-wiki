@@ -18,7 +18,7 @@ function loadL1Index(queries: Queries): string {
 
   const entries = pages
     .map((page) => {
-      return `- \`${page.slug}\`: ${page.title} | ${page.tags || "untagged"}`;
+      return `- [[${page.slug}]]: ${page.title} | ${page.tags || "untagged"}`;
     })
     .join("\n");
 
@@ -78,7 +78,7 @@ export async function ingestRawSource(
       ],
       tools,
       maxSteps: 15,
-      temperature: 0.7,
+      temperature: 0.5,
     });
 
     // Count results from tool calls
