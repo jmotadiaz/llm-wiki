@@ -11,6 +11,7 @@
     "start": "cd dist && node index.js"
   },
   "dependencies": {
+    "@ai-sdk/deepinfra": "^2.0.45",
     "@openrouter/ai-sdk-provider": "^2.5.1",
     "ai": "^6.0.0",
     "better-sqlite3": "^12.8.0",

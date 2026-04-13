@@ -7,15 +7,12 @@ import {
   StreamTextResult,
   ToolLoopAgent,
   stepCountIs,
+  LanguageModel,
 } from "ai";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { getLLMConfig } from "./config.js";
 import { z } from "zod";
 
 export const config = getLLMConfig();
-export const openrouter = createOpenRouter({
-  apiKey: config.apiKey,
-});
 
 interface GenerateOptions {
   system?: string;
@@ -42,11 +39,11 @@ interface StreamOptions extends GenerateOptions {
 
 export class LLMClient {
   private createToolLoopAgent(
-    modelId: string,
+    model: LanguageModel,
     options: GenerateOptions,
   ): ToolLoopAgent<never, Record<string, any>> {
     return new ToolLoopAgent({
-      model: openrouter(modelId),
+      model,
       instructions: options.system,
       tools: options.tools,
       stopWhen: options.stopWhen ?? stepCountIs(options.maxSteps ?? 20),
@@ -76,7 +73,7 @@ export class LLMClient {
         return await agent.generate({ messages: options.messages });
       }
       return await generateText({
-        model: openrouter(config.primaryModel),
+        model: config.primaryModel,
         ...commonOptions,
       });
     } catch (error) {
@@ -95,7 +92,7 @@ export class LLMClient {
         return await agent.generate({ messages: options.messages });
       }
       return await generateText({
-        model: openrouter(config.fallbackModel),
+        model: config.fallbackModel,
         ...commonOptions,
       });
     } catch (error) {
@@ -124,7 +121,7 @@ export class LLMClient {
         `[LLM] Using primary model (structured): ${config.primaryModel}`,
       );
       const { object } = await generateObject({
-        model: openrouter(config.primaryModel),
+        model: config.primaryModel,
         ...commonOptions,
       });
       return object;
@@ -142,7 +139,7 @@ export class LLMClient {
         `[LLM] Using fallback model (structured): ${config.fallbackModel}`,
       );
       const { object } = await generateObject({
-        model: openrouter(config.fallbackModel),
+        model: config.fallbackModel,
         ...commonOptions,
       });
       return object;
@@ -171,7 +168,7 @@ export class LLMClient {
         return await agent.stream({ messages: options.messages });
       }
       const result = streamText({
-        model: openrouter(config.primaryModel),
+        model: config.primaryModel,
         ...commonOptions,
       });
 
@@ -199,7 +196,7 @@ export class LLMClient {
         return await agent.stream({ messages: options.messages });
       }
       const result = streamText({
-        model: openrouter(config.fallbackModel),
+        model: config.fallbackModel,
         ...commonOptions,
       });
 

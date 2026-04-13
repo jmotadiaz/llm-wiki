@@ -1,7 +1,11 @@
+import { openrouter } from "@openrouter/ai-sdk-provider";
+import { deepinfra } from "@ai-sdk/deepinfra";
+import { LanguageModel } from "ai";
+
 export interface LLMConfig {
   apiKey: string;
-  primaryModel: string;
-  fallbackModel: string;
+  primaryModel: LanguageModel;
+  fallbackModel: LanguageModel;
   maxRetries: number;
 }
 
@@ -13,8 +17,8 @@ export function getLLMConfig(): LLMConfig {
 
   return {
     apiKey,
-    primaryModel: process.env.PRIMARY_MODEL || "google/gemini-3-flash-preview",
-    fallbackModel: process.env.FALLBACK_MODEL || "z-ai/glm-4.7-flash",
+    primaryModel: deepinfra("zai-org/GLM-4.7-Flash"),
+    fallbackModel: openrouter("z-ai/glm-4.7-flash"),
     maxRetries: parseInt(process.env.MAX_RETRIES || "2", 10),
   };
 }
