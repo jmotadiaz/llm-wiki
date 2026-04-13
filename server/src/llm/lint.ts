@@ -92,22 +92,22 @@ export async function runTier3Audit(db: Database.Database): Promise<Verification
   const systemPrompt = loadSystemPrompt(l1Index, lintQueue);
 
   // Phase 1: Triage - identify high-risk pairs
-  const triageText = await llmClient.generate({
+  const triageResult = await llmClient.generate({
     system: systemPrompt,
     messages: [{ role: 'user', content: 'Perform Phase 1 triage. Analyze the wiki index and lint queue to identify high-risk page pairs that may contain contradictions, duplications, or inconsistencies. Return the triage JSON.' }],
     temperature: 0.3,
     maxOutputTokens: 2048,
   });
 
-  const triageResult = parseJSON<TriageResult>(triageText);
+  const triageData = parseJSON<TriageResult>(triageResult.text);
 
-  if (!triageResult.high_risk_pairs || triageResult.high_risk_pairs.length === 0) {
+  if (!triageData.high_risk_pairs || triageData.high_risk_pairs.length === 0) {
     return [];
   }
 
   // Collect unique slugs to fetch
   const slugsToFetch = new Set<string>();
-  for (const pair of triageResult.high_risk_pairs) {
+  for (const pair of triageData.high_risk_pairs) {
     for (const slug of pair.slugs) {
       slugsToFetch.add(slug);
     }
@@ -131,7 +131,7 @@ export async function runTier3Audit(db: Database.Database): Promise<Verification
     .map(([slug, content]) => `## Page: ${slug}\n\n${content}`)
     .join('\n\n---\n\n');
 
-  const verifyText = await llmClient.generate({
+  const verifyResult = await llmClient.generate({
     system: systemPrompt,
     messages: [
       {
@@ -143,8 +143,8 @@ export async function runTier3Audit(db: Database.Database): Promise<Verification
     maxOutputTokens: 4096,
   });
 
-  const verifyResult = parseJSON<VerificationResult>(verifyText);
-  const findings = verifyResult.findings || [];
+  const verifyData = parseJSON<VerificationResult>(verifyResult.text);
+  const findings = verifyData.findings || [];
 
   // Append results to log.md
   appendToLog(findings);

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { JinaReader } from '../services/jina.js';
 import { Queries } from '../db/queries.js';
 import { ingestRawSource } from '../llm/ingest.js';
-import { postProcessIngest } from '../llm/post-process.js';
+import { postIngestCleanup } from '../llm/post-process.js';
 import Database from 'better-sqlite3';
 import multer from 'multer';
 
@@ -21,9 +21,9 @@ const upload = multer({ storage: multer.memoryStorage() });
 async function triggerIngest(db: Database.Database, sourceId: number, content: string): Promise<void> {
   console.log(`[INGEST] Pipeline triggered for raw-${sourceId}`);
   try {
-    const ingestResult = await ingestRawSource(db, sourceId, content);
-    await postProcessIngest(db, sourceId, ingestResult);
-    console.log(`[INGEST] Completed for raw-${sourceId}: ${ingestResult.pages.length} pages created/updated`);
+    const { pagesWritten, warnings } = await ingestRawSource(db, sourceId, content);
+    await postIngestCleanup(db, sourceId, pagesWritten);
+    console.log(`[INGEST] Completed for raw-${sourceId}: ${pagesWritten} pages written, ${warnings} warnings`);
   } catch (error: any) {
     console.error(`[INGEST ERROR] raw-${sourceId}:`, error.stack || error.message);
     // Log error but don't fail the HTTP request

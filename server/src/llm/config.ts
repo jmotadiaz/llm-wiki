@@ -14,7 +14,7 @@ export function getLLMConfig(): LLMConfig {
   return {
     apiKey,
     primaryModel: process.env.PRIMARY_MODEL || "google/gemini-3-flash-preview",
-    fallbackModel: process.env.FALLBACK_MODEL || "minimax/minimax-m2.5",
+    fallbackModel: process.env.FALLBACK_MODEL || "z-ai/glm-4.7-flash",
     maxRetries: parseInt(process.env.MAX_RETRIES || "2", 10),
   };
 }

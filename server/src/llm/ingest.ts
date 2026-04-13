@@ -1,118 +1,135 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { z } from 'zod';
-import { llmClient } from './client.js';
-import { Queries } from '../db/queries.js';
-import Database from 'better-sqlite3';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { llmClient, config } from "./client.js";
+import { createIngestTools } from "./ingest-tools.js";
+import { Queries } from "../db/queries.js";
+import Database from "better-sqlite3";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const IngestPageSchema = z.object({
-  slug: z.string(),
-  title: z.string(),
-  type: z.enum(['concept', 'technique', 'reference', 'index']),
-  status: z.enum(['draft', 'published', 'archived']),
-  tags: z.array(z.string()),
-  summary: z.string(),
-  content: z.string(),
-  source_ids: z.array(z.number()),
-});
-
-const IngestIndexEntrySchema = z.object({
-  slug: z.string(),
-  title: z.string(),
-  summary: z.string(),
-  tags: z.array(z.string()),
-});
-
-const IngestWarningSchema = z.object({
-  type: z.string(),
-  message: z.string(),
-});
-
-const IngestResultSchema = z.object({
-  pages: z.array(IngestPageSchema),
-  index_entries: z.array(IngestIndexEntrySchema).default([]),
-  warnings: z.array(IngestWarningSchema).default([]),
-});
-
-export type IngestPage = z.infer<typeof IngestPageSchema>;
-export type IngestIndexEntry = z.infer<typeof IngestIndexEntrySchema>;
-export type IngestWarning = z.infer<typeof IngestWarningSchema>;
-export type IngestResult = z.infer<typeof IngestResultSchema>;
-
 function loadL1Index(queries: Queries): string {
   const pages = queries.getAllWikiPages();
   if (pages.length === 0) {
-    return '(No pages in wiki yet)';
+    return "(No pages in wiki yet)";
   }
 
-  const entries = pages.map(page => {
-    return `- \`${page.slug}\`: ${page.title} | ${page.tags || 'untagged'}`;
-  }).join('\n');
+  const entries = pages
+    .map((page) => {
+      return `- \`${page.slug}\`: ${page.title} | ${page.tags || "untagged"}`;
+    })
+    .join("\n");
 
   return entries;
 }
 
 function loadSchema(): string {
-  const schemaPath = path.join(__dirname, '../../..', 'data', 'schema.md');
-  return fs.readFileSync(schemaPath, 'utf-8');
-}
-
-async function callIngestLLM(rawContent: string, l1Index: string, l1Schema: string, rawSourceId: number): Promise<IngestResult> {
-  const systemPromptPath = path.join(__dirname, 'prompts', 'ingest-system.md');
-  let systemPrompt = fs.readFileSync(systemPromptPath, 'utf-8');
-
-  // Inject L1 context
-  systemPrompt = systemPrompt.replace('{L1_INDEX}', l1Index);
-  systemPrompt = systemPrompt.replace('{L1_SCHEMA}', l1Schema);
-  systemPrompt = systemPrompt.replace('{RAW_ID}', rawSourceId.toString());
-
-  console.log(`[INGEST] LLM call starting for raw-${rawSourceId}`);
-
-  const userMessage = `Process this raw source document:\n\n${rawContent}`;
-
-  try {
-    const result = await llmClient.generateStructured({
-      schema: IngestResultSchema,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: userMessage,
-        },
-      ],
-      temperature: 0.7,
-      maxOutputTokens: 4096,
-    });
-
-    console.log(`[INGEST] Structured output for raw-${rawSourceId}: pages=${result.pages.length}, index_entries=${result.index_entries.length}, warnings=${result.warnings.length}`);
-
-    return result;
-  } catch (error: any) {
-    console.error(`[INGEST] Ingest LLM failed for raw-${rawSourceId}: ${error.message}`);
-    throw new Error(`Ingest LLM failed: ${error.message}`);
-  }
+  const schemaPath = path.join(__dirname, "prompts", "schema.md");
+  return fs.readFileSync(schemaPath, "utf-8");
 }
 
 export async function ingestRawSource(
   db: Database.Database,
   rawSourceId: number,
-  rawContent: string
-): Promise<IngestResult> {
+  rawContent: string,
+): Promise<{ pagesWritten: number; warnings: number }> {
   const queries = new Queries(db);
-  console.log(`[INGEST] Pipeline starting for raw-${rawSourceId}: content length=${rawContent.length}`);
+  console.log(
+    `[INGEST] Pipeline starting for raw-${rawSourceId}: content length=${rawContent.length}`,
+  );
 
   // Load L1 context
   const l1Index = loadL1Index(queries);
   const l1Schema = loadSchema();
 
-  console.log(`[INGEST] L1 context loaded: pages=${queries.getAllWikiPages().length}, schema length=${l1Schema.length}`);
+  console.log(
+    `[INGEST] L1 context loaded: pages=${queries.getAllWikiPages().length}, schema length=${l1Schema.length}`,
+  );
 
-  // Call LLM for ingest
-  const result = await callIngestLLM(rawContent, l1Index, l1Schema, rawSourceId);
+  // Load and prepare system prompt
+  const systemPromptPath = path.join(__dirname, "prompts", "ingest-system.md");
+  let systemPrompt = fs.readFileSync(systemPromptPath, "utf-8");
+  systemPrompt = systemPrompt.replaceAll("{L1_INDEX}", () => l1Index);
+  systemPrompt = systemPrompt.replaceAll("{L1_SCHEMA}", () => l1Schema);
+  systemPrompt = systemPrompt.replaceAll("{RAW_ID}", () =>
+    rawSourceId.toString(),
+  );
 
-  return result;
+  // Create tools
+  const tools = createIngestTools(db, rawSourceId);
+
+  try {
+    console.log(`[INGEST] Agent loop starting for raw-${rawSourceId}`);
+
+    const result = await llmClient.generate({
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: `Procesa este documento fuente (raw source ID: ${rawSourceId}):\n\n${rawContent}`,
+        },
+      ],
+      tools,
+      maxSteps: 15,
+      onStepFinish: (event) => {
+        const toolCallCount = event.toolCalls?.length || 0;
+        const toolResultCount = event.toolResults?.length || 0;
+        console.log(
+          `[INGEST] onStepFinish raw-${rawSourceId}: finishReason=${event.finishReason || "unknown"} toolCalls=${toolCallCount} toolResults=${toolResultCount} textLength=${event.text?.length || 0}`,
+        );
+      },
+      temperature: 0.7,
+      maxOutputTokens: 4096,
+    });
+
+    console.log(`[INGEST] === DIAGNOSTIC for raw-${rawSourceId} ===`);
+    console.log(`[INGEST] Steps: ${result.steps.length}`);
+    console.log(`[INGEST] Finish reason: ${result.finishReason || "unknown"}`);
+    console.log(`[INGEST] Final text: "${result.text || ""}"`);
+    console.log(`[INGEST] Usage: ${JSON.stringify(result.usage || null)}`);
+
+    // Log each step
+    for (let i = 0; i < result.steps.length; i++) {
+      const step = result.steps[i];
+      const toolNames = step.toolCalls?.map((tc) => tc.toolName) || [];
+      const finishReason = step.finishReason || "unknown";
+      const toolResultCount = step.toolResults?.length || 0;
+      const toolCallDetails = (step.toolCalls || []).map((toolCall) => ({
+        name: toolCall.toolName,
+        args: "input" in toolCall ? toolCall.input : undefined,
+      }));
+      const textPreview =
+        step.text?.substring(0, 150).replace(/\n/g, " ") || "(no text)";
+      console.log(`[INGEST] --- Step ${i + 1} ---`);
+      console.log(`[INGEST]   text: "${step.text || "(empty)"}"`);
+      console.log(`[INGEST]   finishReason: ${finishReason}`);
+      console.log(`[INGEST]   toolCalls: ${JSON.stringify(toolCallDetails)}`);
+      console.log(`[INGEST]   toolResults count: ${toolResultCount}`);
+      console.log(
+        `[INGEST] Step ${i + 1}: finishReason=${finishReason} tools=[${toolNames.join(", ")}] toolResults=${toolResultCount} text="${textPreview}"`,
+      );
+    }
+    console.log(`[INGEST] === END DIAGNOSTIC ===`);
+
+    // Count results from tool calls
+    const toolCalls = result.steps.flatMap((s) => s.toolCalls || []);
+    const pagesWritten = toolCalls.filter(
+      (tc) => tc.toolName === "upsert_wiki_page",
+    ).length;
+    const warnings = toolCalls.filter(
+      (tc) => tc.toolName === "report_warning",
+    ).length;
+
+    console.log(
+      `[INGEST] Agent loop complete for raw-${rawSourceId}: ${pagesWritten} pages written, ${warnings} warnings`,
+    );
+
+    return { pagesWritten, warnings };
+  } catch (error: any) {
+    console.error(
+      `[INGEST] Ingest agent failed for raw-${rawSourceId}: ${error.message}`,
+    );
+    throw new Error(`Ingest agent failed: ${error.message}`);
+  }
 }

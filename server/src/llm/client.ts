@@ -1,4 +1,13 @@
-import { generateText, streamText, generateObject, ModelMessage } from "ai";
+import {
+  generateText,
+  streamText,
+  generateObject,
+  ModelMessage,
+  GenerateTextResult,
+  StreamTextResult,
+  ToolLoopAgent,
+  stepCountIs,
+} from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { getLLMConfig } from "./config.js";
 import { z } from "zod";
@@ -13,9 +22,17 @@ interface GenerateOptions {
   messages: ModelMessage[];
   temperature?: number;
   maxOutputTokens?: number;
+  tools?: Record<string, any>;
+  maxSteps?: number;
+  stopWhen?: (event: any) => boolean;
+  onStepFinish?: (event: any) => Promise<void> | void;
 }
 
-interface GenerateObjectOptions<T extends z.ZodType> extends GenerateOptions {
+interface GenerateObjectOptions<T extends z.ZodType> {
+  system?: string;
+  messages: ModelMessage[];
+  temperature?: number;
+  maxOutputTokens?: number;
   schema: T;
 }
 
@@ -24,20 +41,44 @@ interface StreamOptions extends GenerateOptions {
 }
 
 export class LLMClient {
-  async generate(options: GenerateOptions): Promise<string> {
+  private createToolLoopAgent(
+    modelId: string,
+    options: GenerateOptions,
+  ): ToolLoopAgent<never, Record<string, any>> {
+    return new ToolLoopAgent({
+      model: openrouter(modelId),
+      instructions: options.system,
+      tools: options.tools,
+      stopWhen: options.stopWhen ?? stepCountIs(options.maxSteps ?? 20),
+      temperature: options.temperature ?? 0.7,
+      maxOutputTokens: options.maxOutputTokens ?? 2048,
+      onStepFinish: options.onStepFinish,
+    });
+  }
+
+  async generate(
+    options: GenerateOptions,
+  ): Promise<GenerateTextResult<any, any>> {
     let lastError: Error | null = null;
+
+    const commonOptions = {
+      system: options.system,
+      messages: options.messages,
+      temperature: options.temperature ?? 0.7,
+      maxOutputTokens: options.maxOutputTokens ?? 2048,
+    };
 
     // Try primary model first
     try {
       console.log(`[LLM] Using primary model: ${config.primaryModel}`);
-      const result = await generateText({
+      if (options.tools) {
+        const agent = this.createToolLoopAgent(config.primaryModel, options);
+        return await agent.generate({ messages: options.messages });
+      }
+      return await generateText({
         model: openrouter(config.primaryModel),
-        system: options.system,
-        messages: options.messages,
-        temperature: options.temperature ?? 0.7,
-        maxOutputTokens: options.maxOutputTokens ?? 2048,
+        ...commonOptions,
       });
-      return result.text;
     } catch (error) {
       lastError = error as Error;
       console.warn(
@@ -48,14 +89,15 @@ export class LLMClient {
 
     // Try fallback model
     try {
-      const result = await generateText({
+      console.log(`[LLM] Using fallback model: ${config.fallbackModel}`);
+      if (options.tools) {
+        const agent = this.createToolLoopAgent(config.fallbackModel, options);
+        return await agent.generate({ messages: options.messages });
+      }
+      return await generateText({
         model: openrouter(config.fallbackModel),
-        system: options.system,
-        messages: options.messages,
-        temperature: options.temperature ?? 0.7,
-        maxOutputTokens: options.maxOutputTokens ?? 2048,
+        ...commonOptions,
       });
-      return result.text;
     } catch (error) {
       throw new Error(
         `LLM generation failed on both models: ${lastError?.message}, ${(error as Error).message}`,
@@ -63,19 +105,27 @@ export class LLMClient {
     }
   }
 
-  async generateStructured<T extends z.ZodType>(options: GenerateObjectOptions<T>): Promise<z.infer<T>> {
+  async generateStructured<T extends z.ZodType>(
+    options: GenerateObjectOptions<T>,
+  ): Promise<z.infer<T>> {
     let lastError: Error | null = null;
+
+    const commonOptions = {
+      schema: options.schema,
+      system: options.system,
+      messages: options.messages,
+      temperature: options.temperature ?? 0.7,
+      maxOutputTokens: options.maxOutputTokens ?? 2048,
+    };
 
     // Try primary model first
     try {
-      console.log(`[LLM] Using primary model (structured): ${config.primaryModel}`);
+      console.log(
+        `[LLM] Using primary model (structured): ${config.primaryModel}`,
+      );
       const { object } = await generateObject({
         model: openrouter(config.primaryModel),
-        schema: options.schema,
-        system: options.system,
-        messages: options.messages,
-        temperature: options.temperature ?? 0.7,
-        maxOutputTokens: options.maxOutputTokens ?? 2048,
+        ...commonOptions,
       });
       return object;
     } catch (error) {
@@ -88,13 +138,12 @@ export class LLMClient {
 
     // Try fallback model
     try {
+      console.log(
+        `[LLM] Using fallback model (structured): ${config.fallbackModel}`,
+      );
       const { object } = await generateObject({
         model: openrouter(config.fallbackModel),
-        schema: options.schema,
-        system: options.system,
-        messages: options.messages,
-        temperature: options.temperature ?? 0.7,
-        maxOutputTokens: options.maxOutputTokens ?? 2048,
+        ...commonOptions,
       });
       return object;
     } catch (error) {
@@ -104,49 +153,78 @@ export class LLMClient {
     }
   }
 
-  async stream(options: StreamOptions): Promise<void> {
+  async stream(options: StreamOptions): Promise<StreamTextResult<any, any>> {
     let lastError: Error | null = null;
+
+    const commonOptions = {
+      system: options.system,
+      messages: options.messages,
+      temperature: options.temperature ?? 0.7,
+      maxOutputTokens: options.maxOutputTokens ?? 2048,
+    };
 
     // Try primary model first
     try {
-      const stream = streamText({
+      console.log(`[LLM] Using primary model (stream): ${config.primaryModel}`);
+      if (options.tools) {
+        const agent = this.createToolLoopAgent(config.primaryModel, options);
+        return await agent.stream({ messages: options.messages });
+      }
+      const result = streamText({
         model: openrouter(config.primaryModel),
-        system: options.system,
-        messages: options.messages,
-        temperature: options.temperature ?? 0.7,
-        maxOutputTokens: options.maxOutputTokens ?? 2048,
+        ...commonOptions,
       });
 
-      for await (const chunk of stream.textStream) {
-        options.onChunk?.(chunk);
+      // We need to iterate over the text stream if onChunk is provided
+      if (options.onChunk) {
+        this.consumeStream(result, options.onChunk);
       }
-      return;
+
+      return result;
     } catch (error) {
       lastError = error as Error;
       console.warn(
-        `Primary model (${config.primaryModel}) failed:`,
+        `Primary model stream (${config.primaryModel}) failed:`,
         lastError.message,
       );
     }
 
     // Try fallback model
     try {
-      const stream = streamText({
+      console.log(
+        `[LLM] Using fallback model (stream): ${config.fallbackModel}`,
+      );
+      if (options.tools) {
+        const agent = this.createToolLoopAgent(config.fallbackModel, options);
+        return await agent.stream({ messages: options.messages });
+      }
+      const result = streamText({
         model: openrouter(config.fallbackModel),
-        system: options.system,
-        messages: options.messages,
-        temperature: options.temperature ?? 0.7,
-        maxOutputTokens: options.maxOutputTokens ?? 2048,
+        ...commonOptions,
       });
 
-      for await (const chunk of stream.textStream) {
-        options.onChunk?.(chunk);
+      if (options.onChunk) {
+        this.consumeStream(result, options.onChunk);
       }
-      return;
+
+      return result;
     } catch (error) {
       throw new Error(
         `LLM stream failed on both models: ${lastError?.message}, ${(error as Error).message}`,
       );
+    }
+  }
+
+  private async consumeStream(
+    result: StreamTextResult<any, any>,
+    onChunk: (chunk: string) => void,
+  ) {
+    try {
+      for await (const chunk of result.textStream) {
+        onChunk(chunk);
+      }
+    } catch (error) {
+      console.error("[LLM] Error consuming text stream:", error);
     }
   }
 }

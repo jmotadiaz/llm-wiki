@@ -28,7 +28,7 @@ export function createChatRoutes(db: Database.Database): Router {
       const modelMessages = await convertToModelMessages(messages);
 
       // Initiates the agent loop and streaming
-      const result = streamChat(db, modelMessages);
+      const result = await streamChat(db, modelMessages);
 
       // Pipes the stream directly to the Express response
       // This handles necessary headers (SSE) and data formatting in the Vercel AI Data Stream Protocol
