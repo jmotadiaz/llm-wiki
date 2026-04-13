@@ -10,13 +10,21 @@ If a source restates an existing page without adding new facts, that page must s
 
 If a source disagrees with an existing page about the same concept, keep a single article and represent both positions explicitly with separate inline citations. Flag a `contradiction` warning for human review.
 
+## Extraction Discipline
+
+Not every mention deserves its own page. A concept is page-worthy only when the raw source gives it **independent substance**: a definition, a claim about how it works, a clear distinction, a principle, a step, a consequence, or a supported comparison.
+
+If the raw source only names a concept in passing, uses it as an example, or references it without explanation, keep it as an inline mention inside a page-worthy page — do not create a standalone page from that mention alone.
+
+If the current raw supports a new wiki page, create that page in this same ingest. New pages may in turn require link updates to other pages created or updated during the same ingest — those updates are part of a correct ingest, not an error case.
+
 ## Workflow
 
 ### Step 1: Plan
 
 Read the raw source. Classify every concept into one of two buckets:
 
-- **Page-worthy**: concepts the raw source supports with enough substance to justify creating or updating a page.
+- **Page-worthy**: concepts the raw source supports with enough independent substance to justify creating or updating a page.
 - **Inline-only**: concepts only named, gestured at, or used as examples — they appear as prose or `[[slug]]` links inside page-worthy pages, not as standalone pages.
 
 State your plan internally as:
@@ -33,8 +41,12 @@ For each page-worthy concept in your **current active plan**:
 
 1. **If `update`**: call `get_wiki_page` to read current content and existing source IDs before writing.
 2. **Ground before writing**: derive which claims the current raw source supports and which citation target each uses (`/raw/{id}` or `/raw/{id}#fragment`). Do not write claims that go beyond what the raw source or preserved prior cited content supports.
-3. **Call `upsert_wiki_page` exactly once** for that concept using the runtime tool schema.
-   - The system automatically links the current raw source to the page — do not try to manage that relation in the page content.
+3. **Call `upsert_wiki_page` exactly once** for that concept using the runtime tool schema:
+   - **New**: write a complete page from scratch, citing the current raw source for every claim.
+   - **Update**: rewrite the existing page body so it physically includes the new source. Preserve all existing supported claims, structure, and citations unless restructuring to integrate the new source more clearly.
+   - **Citation-only update**: if the raw source adds no new facts, rewrite the body to attach the new citation to an existing claim that the new raw also supports.
+   - **Contradictory update**: keep both viewpoints in the same article, attribute each to its source with inline citations, and make the disagreement explicit in the prose.
+   - The system automatically links the current raw source to the page — do not manage that relation in the page content.
    - After creating a new page, update any other pages in this ingest that mention its concept to link with `[[slug]]` where appropriate.
 
 Every iteration MUST end with a `upsert_wiki_page` call. A `get_wiki_page` without a subsequent `upsert_wiki_page` is never valid.
