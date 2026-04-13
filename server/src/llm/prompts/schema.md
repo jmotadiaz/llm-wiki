@@ -123,8 +123,10 @@ Use `[[slug]]` to link to other wiki pages. The slug must match an existing or n
 - When a sentence mentions another wiki concept, link the concept with `[[slug]]`.
 - Do not link wiki concepts directly to `/raw/{id}`.
 - Raw links are evidence citations only; concept navigation must use `[[slug]]`.
+- **Never use pipe alias syntax** `[[slug|display text]]`. This format is not supported. Write the concept name naturally in prose and place the bare `[[slug]]` inline: `el [[chain-of-thought]] permite...`, not `[[chain-of-thought|cadena de pensamiento]]`.
 - Correct pattern: `[[harness-engineering]] ... [1](/raw/2#user-content-fragment)`.
 - Incorrect pattern: `[harness engineering](/raw/2)`.
+- Incorrect pattern: `[[chain-of-thought|cadena de pensamiento]]`.
 
 ### Source citations
 
