@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { llmClient } from "./client.js";
+import { llmClient, config } from "./client.js";
 import {
   createIngestPlannerTools,
   createIngestTools,
@@ -178,6 +178,7 @@ export async function ingestRawSource(
         },
       ],
       tools,
+      model: config.writerModel,
       maxSteps: 15,
       temperature: 0.5,
       onStepFinish: debugEnabled

@@ -19,6 +19,7 @@ interface GenerateOptions {
   messages: ModelMessage[];
   temperature?: number;
   maxOutputTokens?: number;
+  model?: LanguageModel;
   tools?: Record<string, any>;
   maxSteps?: number;
   stopWhen?: (event: any) => boolean;
@@ -30,6 +31,7 @@ interface GenerateObjectOptions<T extends z.ZodType> {
   messages: ModelMessage[];
   temperature?: number;
   maxOutputTokens?: number;
+  model?: LanguageModel;
   schema: T;
 }
 
@@ -48,7 +50,7 @@ export class LLMClient {
       tools: options.tools,
       stopWhen: options.stopWhen ?? stepCountIs(options.maxSteps ?? 20),
       temperature: options.temperature ?? 0.7,
-      maxOutputTokens: options.maxOutputTokens ?? 2048,
+      maxOutputTokens: options.maxOutputTokens,
       onStepFinish: options.onStepFinish,
     });
   }
@@ -58,28 +60,29 @@ export class LLMClient {
   ): Promise<GenerateTextResult<any, any>> {
     let lastError: Error | null = null;
 
+    const primary = options.model ?? config.primaryModel;
     const commonOptions = {
       system: options.system,
       messages: options.messages,
       temperature: options.temperature ?? 0.7,
-      maxOutputTokens: options.maxOutputTokens ?? 2048,
+      maxOutputTokens: options.maxOutputTokens,
     };
 
     // Try primary model first
     try {
-      console.log(`[LLM] Using primary model: ${config.primaryModel}`);
+      console.log(`[LLM] Using primary model: ${primary}`);
       if (options.tools) {
-        const agent = this.createToolLoopAgent(config.primaryModel, options);
+        const agent = this.createToolLoopAgent(primary, options);
         return await agent.generate({ messages: options.messages });
       }
       return await generateText({
-        model: config.primaryModel,
+        model: primary,
         ...commonOptions,
       });
     } catch (error) {
       lastError = error as Error;
       console.warn(
-        `Primary model (${config.primaryModel}) failed:`,
+        `Primary model (${primary}) failed:`,
         lastError.message,
       );
     }
@@ -107,28 +110,27 @@ export class LLMClient {
   ): Promise<z.infer<T>> {
     let lastError: Error | null = null;
 
+    const primary = options.model ?? config.primaryModel;
     const commonOptions = {
       schema: options.schema,
       system: options.system,
       messages: options.messages,
       temperature: options.temperature ?? 0.7,
-      maxOutputTokens: options.maxOutputTokens ?? 2048,
+      maxOutputTokens: options.maxOutputTokens,
     };
 
     // Try primary model first
     try {
-      console.log(
-        `[LLM] Using primary model (structured): ${config.primaryModel}`,
-      );
+      console.log(`[LLM] Using primary model (structured): ${primary}`);
       const { object } = await generateObject({
-        model: config.primaryModel,
+        model: primary,
         ...commonOptions,
       });
       return object;
     } catch (error) {
       lastError = error as Error;
       console.warn(
-        `Primary model structured (${config.primaryModel}) failed:`,
+        `Primary model structured (${primary}) failed:`,
         lastError.message,
       );
     }
@@ -153,22 +155,23 @@ export class LLMClient {
   async stream(options: StreamOptions): Promise<StreamTextResult<any, any>> {
     let lastError: Error | null = null;
 
+    const primary = options.model ?? config.primaryModel;
     const commonOptions = {
       system: options.system,
       messages: options.messages,
       temperature: options.temperature ?? 0.7,
-      maxOutputTokens: options.maxOutputTokens ?? 2048,
+      maxOutputTokens: options.maxOutputTokens,
     };
 
     // Try primary model first
     try {
-      console.log(`[LLM] Using primary model (stream): ${config.primaryModel}`);
+      console.log(`[LLM] Using primary model (stream): ${primary}`);
       if (options.tools) {
-        const agent = this.createToolLoopAgent(config.primaryModel, options);
+        const agent = this.createToolLoopAgent(primary, options);
         return await agent.stream({ messages: options.messages });
       }
       const result = streamText({
-        model: config.primaryModel,
+        model: primary,
         ...commonOptions,
       });
 
@@ -181,7 +184,7 @@ export class LLMClient {
     } catch (error) {
       lastError = error as Error;
       console.warn(
-        `Primary model stream (${config.primaryModel}) failed:`,
+        `Primary model stream (${primary}) failed:`,
         lastError.message,
       );
     }

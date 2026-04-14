@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { ModelMessage } from "ai";
-import { llmClient } from "./client.js";
+import { llmClient, config } from "./client.js";
 import { createTools } from "./tools.js";
 import { Queries } from "../db/queries.js";
 import Database from "better-sqlite3";
@@ -61,6 +61,7 @@ export async function streamChat(
     system: systemPrompt,
     messages,
     tools,
+    model: config.chatModel,
     maxSteps: 10,
     temperature: 0.2, // Keep it focused and deterministic
   });
