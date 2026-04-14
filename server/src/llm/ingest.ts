@@ -1,7 +1,8 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { llmClient, config } from "./client.js";
+import { openrouter } from "@openrouter/ai-sdk-provider";
+import { llmClient } from "./client.js";
 import {
   createIngestPlannerTools,
   createIngestTools,
@@ -178,7 +179,7 @@ export async function ingestRawSource(
         },
       ],
       tools,
-      model: config.writerModel,
+      model: openrouter("google/gemini-3.1-flash-lite-preview"),
       maxSteps: 15,
       temperature: 0.5,
       onStepFinish: debugEnabled

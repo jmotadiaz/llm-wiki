@@ -6,8 +6,6 @@ export interface LLMConfig {
   apiKey: string;
   primaryModel: LanguageModel;
   fallbackModel: LanguageModel;
-  writerModel: LanguageModel;
-  chatModel: LanguageModel;
   maxRetries: number;
 }
 
@@ -21,8 +19,6 @@ export function getLLMConfig(): LLMConfig {
     apiKey,
     primaryModel: openrouter("minimax/minimax-m2.7"),
     fallbackModel: openrouter("z-ai/glm-4.7-flash"),
-    writerModel: openrouter("google/gemini-3.1-flash-lite-preview"),
-    chatModel: openrouter("google/gemini-3.1-flash-lite-preview"),
     maxRetries: parseInt(process.env.MAX_RETRIES || "2", 10),
   };
 }
