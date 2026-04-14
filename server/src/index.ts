@@ -1,4 +1,4 @@
-import "./utils/load-env";
+import "./utils/load-env.js";
 import path from "path";
 import express, { Express, Request, Response, NextFunction } from "express";
 import fs from "fs";

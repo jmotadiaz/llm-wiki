@@ -1,4 +1,4 @@
-import "./load-env";
+import "./load-env.js";
 
 const DEBUG_ENABLED = process.env.DEBUG_ENABLED === "1";
 
