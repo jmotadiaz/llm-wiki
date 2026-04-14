@@ -1,8 +1,12 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { openrouter } from "@openrouter/ai-sdk-provider";
 import { llmClient } from "./client.js";
-import { createIngestTools } from "./ingest-tools.js";
+import {
+  createIngestPlannerTools,
+  createIngestTools,
+} from "./ingest-tools.js";
 import { Queries } from "../db/queries.js";
 import Database from "better-sqlite3";
 import { buildRawHeadingIndex } from "./raw-headings.js";
@@ -113,6 +117,8 @@ export async function ingestRawSource(
   debugLog(`[INGEST] Planner agent starting for raw-${rawSourceId}`);
   debugLog(`[INGEST] Planner system prompt for raw-${rawSourceId}`, plannerPrompt);
 
+  const plannerTools = createIngestPlannerTools(db);
+
   let plan: string;
   try {
     const plannerResult = await llmClient.generate({
@@ -123,7 +129,8 @@ export async function ingestRawSource(
           content: `Analiza este documento fuente (raw source ID: ${rawSourceId}) y genera el plan de ingesta:\n\n${rawContent}`,
         },
       ],
-      maxSteps: 1,
+      tools: plannerTools,
+      maxSteps: 10,
       temperature: 0.3,
       onStepFinish: debugEnabled
         ? (event: any) => {
@@ -172,6 +179,7 @@ export async function ingestRawSource(
         },
       ],
       tools,
+      model: openrouter("google/gemini-3.1-flash-lite-preview"),
       maxSteps: 15,
       temperature: 0.5,
       onStepFinish: debugEnabled
