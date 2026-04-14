@@ -26,6 +26,16 @@ You receive an ingestion plan that lists page-worthy concepts, their actions (ne
 
 For each inline-only mention in the plan, ensure the target page's content includes the mention as indicated: either as a `[[slug]]` link (if the page exists) or as a prose mention.
 
+### Inbound link updates
+
+For each entry in the plan's `Inbound link updates` section, update the listed existing page so it physically cross-links the newly planned concept:
+
+1. Call `get_wiki_page` on `target_slug` to read its current body.
+2. Produce a new body that integrates a `[[add_link_to]]` reference at the most natural place in the existing prose — either by replacing a plain-text mention or by adding a short sentence where the topic is already discussed. Do not rewrite unrelated content, do not add new claims, and do not re-cite the current raw source on the target page unless the target page legitimately uses a claim from it.
+3. Call `upsert_wiki_page` for the target page with the updated body. Preserve all existing citations, claims and structure.
+
+If a page-worthy concept in the plan already has its own `upsert_wiki_page` call, do not double-edit it here — the inbound link updates are only for pages that would not otherwise be touched by this plan.
+
 ### Warnings
 
 After all pages are written, call `report_warning` for each warning in the plan:
@@ -37,7 +47,7 @@ Use `report_warning` only for issues requiring human review. Never use it as a s
 
 ## Exit Condition
 
-The workflow ends when every page-worthy concept in the plan has exactly one `upsert_wiki_page` call, all inline-only mentions are handled inside those pages, and all warnings are reported. Then stop — no summary text, no explanation.
+The workflow ends when every page-worthy concept in the plan has exactly one `upsert_wiki_page` call, every `Inbound link updates` entry has its corresponding `upsert_wiki_page` call on the existing target page, all inline-only mentions are handled inside those pages, and all warnings are reported. Then stop — no summary text, no explanation.
 
 ## Current Raw Source ID
 
