@@ -61,6 +61,22 @@ function summarizeStep(event: any) {
   };
 }
 
+function loadPromptTemplate(filename: string): string {
+  const promptPath = path.join(__dirname, "prompts", filename);
+  return fs.readFileSync(promptPath, "utf-8");
+}
+
+function interpolatePrompt(
+  template: string,
+  vars: Record<string, string>,
+): string {
+  let result = template;
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replaceAll(`{${key}}`, () => value);
+  }
+  return result;
+}
+
 export async function ingestRawSource(
   db: Database.Database,
   rawSourceId: number,
@@ -72,7 +88,7 @@ export async function ingestRawSource(
     `[INGEST] Pipeline starting for raw-${rawSourceId}: content length=${rawContent.length}`,
   );
 
-  // Load L1 context
+  // Load shared context
   const l1Index = loadL1Index(queries);
   const l1Schema = loadSchema();
   const rawHeadingIndex = buildRawHeadingIndex(rawContent, rawSourceId);
@@ -81,36 +97,78 @@ export async function ingestRawSource(
     `[INGEST] L1 context loaded: pages=${queries.getAllWikiPages().length}, schema length=${l1Schema.length}`,
   );
 
-  // Load and prepare system prompt
-  const systemPromptPath = path.join(__dirname, "prompts", "ingest-system.md");
-  let systemPrompt = fs.readFileSync(systemPromptPath, "utf-8");
-  systemPrompt = systemPrompt.replaceAll("{L1_INDEX}", () => l1Index);
-  systemPrompt = systemPrompt.replaceAll("{L1_SCHEMA}", () => l1Schema);
-  systemPrompt = systemPrompt.replaceAll(
-    "{RAW_HEADING_INDEX}",
-    () => rawHeadingIndex,
-  );
-  systemPrompt = systemPrompt.replaceAll("{RAW_ID}", () =>
-    rawSourceId.toString(),
+  const sharedVars: Record<string, string> = {
+    L1_INDEX: l1Index,
+    L1_SCHEMA: l1Schema,
+    RAW_HEADING_INDEX: rawHeadingIndex,
+    RAW_ID: rawSourceId.toString(),
+  };
+
+  // ── Agent 1: Planner ─────────────────────────────────────────────────
+  const plannerPrompt = interpolatePrompt(
+    loadPromptTemplate("ingest-planner.md"),
+    sharedVars,
   );
 
-  // Create tools
-  const tools = createIngestTools(db, rawSourceId);
+  debugLog(`[INGEST] Planner agent starting for raw-${rawSourceId}`);
+  debugLog(`[INGEST] Planner system prompt for raw-${rawSourceId}`, plannerPrompt);
 
+  let plan: string;
   try {
-    debugLog(`[INGEST] Agent loop starting for raw-${rawSourceId}`);
-    debugLog(
-      `[INGEST] Raw heading index for raw-${rawSourceId}`,
-      rawHeadingIndex,
-    );
-    debugLog(`[INGEST] System prompt for raw-${rawSourceId}`, systemPrompt);
-
-    const result = await llmClient.generate({
-      system: systemPrompt,
+    const plannerResult = await llmClient.generate({
+      system: plannerPrompt,
       messages: [
         {
           role: "user",
-          content: `Procesa este documento fuente (raw source ID: ${rawSourceId}):\n\n${rawContent}`,
+          content: `Analiza este documento fuente (raw source ID: ${rawSourceId}) y genera el plan de ingesta:\n\n${rawContent}`,
+        },
+      ],
+      maxSteps: 1,
+      temperature: 0.3,
+      onStepFinish: debugEnabled
+        ? (event: any) => {
+            debugLog(
+              `[INGEST] Planner step finished for raw-${rawSourceId}`,
+              summarizeStep(event),
+            );
+          }
+        : undefined,
+    });
+
+    plan = plannerResult.text;
+    if (!plan || plan.trim().length === 0) {
+      throw new Error("Planner agent returned an empty plan");
+    }
+
+    debugLog(`[INGEST] Plan generated for raw-${rawSourceId}`, plan);
+    console.log(
+      `[INGEST] Planner complete for raw-${rawSourceId}: plan length=${plan.length}`,
+    );
+  } catch (error: any) {
+    console.error(
+      `[INGEST] Planner agent failed for raw-${rawSourceId}: ${error.message}`,
+    );
+    throw new Error(`Ingest planner failed: ${error.message}`);
+  }
+
+  // ── Agent 2: Writer ───────────────────────────────────────────────────
+  const writerPrompt = interpolatePrompt(
+    loadPromptTemplate("ingest-writer.md"),
+    { ...sharedVars, INGESTION_PLAN: plan },
+  );
+
+  const tools = createIngestTools(db, rawSourceId);
+
+  debugLog(`[INGEST] Writer agent starting for raw-${rawSourceId}`);
+  debugLog(`[INGEST] Writer system prompt for raw-${rawSourceId}`, writerPrompt);
+
+  try {
+    const result = await llmClient.generate({
+      system: writerPrompt,
+      messages: [
+        {
+          role: "user",
+          content: `Ejecuta el plan de ingesta para el raw source ID: ${rawSourceId}.\n\nDocumento fuente:\n\n${rawContent}`,
         },
       ],
       tools,
@@ -119,7 +177,7 @@ export async function ingestRawSource(
       onStepFinish: debugEnabled
         ? (event: any) => {
             debugLog(
-              `[INGEST] Step finished for raw-${rawSourceId}`,
+              `[INGEST] Writer step finished for raw-${rawSourceId}`,
               summarizeStep(event),
             );
           }
@@ -144,14 +202,14 @@ export async function ingestRawSource(
     });
 
     console.log(
-      `[INGEST] Agent loop complete for raw-${rawSourceId}: ${pagesWritten} pages written, ${warnings} warnings`,
+      `[INGEST] Writer complete for raw-${rawSourceId}: ${pagesWritten} pages written, ${warnings} warnings`,
     );
 
     return { pagesWritten, warnings };
   } catch (error: any) {
     console.error(
-      `[INGEST] Ingest agent failed for raw-${rawSourceId}: ${error.message}`,
+      `[INGEST] Writer agent failed for raw-${rawSourceId}: ${error.message}`,
     );
-    throw new Error(`Ingest agent failed: ${error.message}`);
+    throw new Error(`Ingest writer failed: ${error.message}`);
   }
 }

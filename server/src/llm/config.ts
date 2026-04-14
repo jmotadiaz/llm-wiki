@@ -17,7 +17,7 @@ export function getLLMConfig(): LLMConfig {
 
   return {
     apiKey,
-    primaryModel: google("gemini-3-flash-preview"),
+    primaryModel: openrouter("minimax/minimax-m2.7"),
     fallbackModel: openrouter("z-ai/glm-4.7-flash"),
     maxRetries: parseInt(process.env.MAX_RETRIES || "2", 10),
   };

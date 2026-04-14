@@ -1,10 +1,8 @@
-# LLM Wiki Schema
-
-## Purpose
+### Purpose
 
 This wiki is a **concept-oriented knowledge base** focused on AI, software engineering, architecture, and adjacent technical domains. Each page covers ONE concept, technique, pattern, or reference that can be independently linked from other pages via `[[slug]]`.
 
-## Fidelity to Sources
+### Fidelity to Sources
 
 The wiki must remain faithful to the raw sources it is built from. This is non-negotiable.
 
@@ -17,7 +15,7 @@ The wiki must remain faithful to the raw sources it is built from. This is non-n
 - **When sources disagree about the same concept**, keep a single page for that concept and represent the competing claims explicitly with separate inline citations. Do not silently overwrite one position with the other.
 - **When contradiction exists**, flag a `contradiction` warning for human review, but still preserve both positions in the page content. Where either source includes a publication date or references a specific time period, surface that context explicitly in the prose so readers can assess recency without having to follow the citation link: `"Según [fuente de 2024](/raw/3)... Sin embargo, [una fuente posterior](/raw/7) sostiene..."`. The inline citation is the ground truth for temporal ordering.
 
-## What to Extract
+### What to Extract
 
 When processing a raw source, extract content into wiki pages using these categories:
 
@@ -32,7 +30,7 @@ What NOT to extract:
 - Article navigation, prefaces, acknowledgments
 - Marketing language or product pitches
 
-## Page Types
+### Page Types
 
 Every page has exactly one type:
 
@@ -43,24 +41,24 @@ Every page has exactly one type:
 | `reference` | Summaries of external resources, standards, tools, libraries |
 | `index`     | Curated collections that link related pages under a theme    |
 
-## Language Policy
+### Language Policy
 
 - **Body text, titles, summaries, section headings**: Spanish
 - **Technical terms inline**: keep in English when they are the established industry term in the source domain
 - **Slugs and tags**: always English, regardless of content language
 
-## Slug Rules
+### Slug Rules
 
 Slugs are URL-safe identifiers used for cross-referencing (`[[slug]]`). They must be consistent and predictable.
 
-### Format
+#### Format
 
 - **Regex**: `^[a-z0-9]+(-[a-z0-9]+)*$`
 - **Max 60 characters**
 - **Lowercase kebab-case**: letters, numbers, single hyphens
 - **English only**, 2-4 words, short and descriptive
 
-### Naming conventions
+#### Naming conventions
 
 1. **One concept per slug** — never concatenate multiple concepts
 2. **Name the concept, not the article** it came from
@@ -69,11 +67,11 @@ Slugs are URL-safe identifiers used for cross-referencing (`[[slug]]`). They mus
 5. **No trailing fragments** or article-title remnants
 6. **No author names, publication names, or dates** in the slug
 
-## Tag Taxonomy
+### Tag Taxonomy
 
 Use only these tags. Do not invent new ones.
 
-### Domain Tags
+#### Domain Tags
 
 - `ai` — Artificial Intelligence (broad)
 - `llm` — Large Language Models
@@ -87,26 +85,26 @@ Use only these tags. Do not invent new ones.
 - `testing` — Testing strategies and frameworks
 - `data` — Data engineering, databases, pipelines
 
-### Depth Tags
+#### Depth Tags
 
 - `fundamentals` — Beginner-friendly introduction
 - `advanced` — Requires prior knowledge
 - `research` — Active research area, evolving
 
-### Practical Tags
+#### Practical Tags
 
 - `implementation` — How-to and code guidance
 - `troubleshooting` — Debugging and problem-solving
 - `performance` — Optimization and efficiency
 
-### Content Tags
+#### Content Tags
 
 - `tutorial` — Step-by-step learning
 - `theory` — Conceptual foundation
 - `case-study` — Real-world example
 - `tool` — Description of a library/tool
 
-## Page Structure
+### Page Structure
 
 Every page follows this structure:
 
@@ -116,21 +114,18 @@ Every page follows this structure:
 - **No YAML frontmatter** in content (metadata is stored separately via tool parameters)
 - **No "Fuentes" or "Referencias" section** (the system renders sources automatically from metadata)
 
-## Cross-References
+### Cross-References
 
-### Wiki links
+#### Wiki links
 
 Use `[[slug]]` to link to other wiki pages. The slug must match an existing or newly created page.
 
 - When a sentence mentions another wiki concept, link the concept with `[[slug]]`.
-- Do not link wiki concepts directly to `/raw/{id}`.
 - Raw links are evidence citations only; concept navigation must use `[[slug]]`.
-- **Never use pipe alias syntax** `[[slug|display text]]`. This format is not supported. Write the concept name naturally in prose and place the bare `[[slug]]` inline: `el [[chain-of-thought]] permite...`, not `[[chain-of-thought|cadena de pensamiento]]`.
-- Correct pattern: `[[harness-engineering]] ... [1](/raw/2#user-content-fragment)`.
-- Incorrect pattern: `[harness engineering](/raw/2)`.
-- Incorrect pattern: `[[chain-of-thought|cadena de pensamiento]]`.
+- Write the concept name naturally in prose and place the bare `[[slug]]` inline: `el [[chain-of-thought]] permite...`.
+- Correct pattern for wiki links: `[[harness-engineering]]`.
 
-### Source citations
+#### Source citations
 
 Cite information from raw sources using markdown links pointing to `/raw/{id}`. Every factual claim, definition, or assertion must carry an inline citation to the raw source it came from. Place citations immediately after the claim they support.
 
@@ -140,9 +135,6 @@ Reference style:
 - Use `/raw/{id}#fragment` when the supporting evidence comes from a specific section heading in the raw source.
 - Use `/raw/{id}` when no suitable section heading exists.
 - Use only valid section-heading fragments from the raw source.
-- Do not invent fragments.
-- Do not use the document title or top-level H1 as a citation fragment.
-- Do not write bare bracketed paths such as `[/raw/{id}]` or `[/raw/{id}#fragment]`.
 
 When updating a page, preserve all existing citations from previous sources. Add new citations alongside them — never replace or remove existing ones.
 
@@ -154,14 +146,14 @@ When two sources support different interpretations or conflicting claims about t
 
 When adding a citation-only contribution, attach the new citation inline immediately after an existing claim that the new raw source also supports — not loosely at the end of a section or paragraph where it backs nothing specific. If no existing claim is actually supported by the new source, then the source does introduce new content: write a new sentence or section that captures what it says and cite it there.
 
-## Formatting Rules
+### Formatting Rules
 
 - `**bold**` for key terms being defined
 - `*italic*` for emphasis or alternatives
 - `` `code` `` for technical terms, function names, filenames, identifiers
 - Triple backticks with language spec for code blocks
 
-## Granularity Guide
+### Granularity Guide
 
 **Create a separate page** when the concept:
 
