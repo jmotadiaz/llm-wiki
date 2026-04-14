@@ -1,7 +1,5 @@
 # LLM Wiki Schema
 
-This schema is the single source of truth for the structure, rules, and conventions of all wiki pages. Any tool or agent that reads, writes, or references wiki content must follow these rules.
-
 ## Purpose
 
 This wiki is a **concept-oriented knowledge base** focused on AI, software engineering, architecture, and adjacent technical domains. Each page covers ONE concept, technique, pattern, or reference that can be independently linked from other pages via `[[slug]]`.
@@ -38,12 +36,12 @@ What NOT to extract:
 
 Every page has exactly one type:
 
-| Type | Use for |
-|------|---------|
-| `concept` | Core ideas, definitions, principles, mental models |
-| `technique` | Methods, procedures, patterns, step-by-step approaches |
+| Type        | Use for                                                      |
+| ----------- | ------------------------------------------------------------ |
+| `concept`   | Core ideas, definitions, principles, mental models           |
+| `technique` | Methods, procedures, patterns, step-by-step approaches       |
 | `reference` | Summaries of external resources, standards, tools, libraries |
-| `index` | Curated collections that link related pages under a theme |
+| `index`     | Curated collections that link related pages under a theme    |
 
 ## Language Policy
 
@@ -76,6 +74,7 @@ Slugs are URL-safe identifiers used for cross-referencing (`[[slug]]`). They mus
 Use only these tags. Do not invent new ones.
 
 ### Domain Tags
+
 - `ai` — Artificial Intelligence (broad)
 - `llm` — Large Language Models
 - `nlp` — Natural Language Processing
@@ -89,16 +88,19 @@ Use only these tags. Do not invent new ones.
 - `data` — Data engineering, databases, pipelines
 
 ### Depth Tags
+
 - `fundamentals` — Beginner-friendly introduction
 - `advanced` — Requires prior knowledge
 - `research` — Active research area, evolving
 
 ### Practical Tags
+
 - `implementation` — How-to and code guidance
 - `troubleshooting` — Debugging and problem-solving
 - `performance` — Optimization and efficiency
 
 ### Content Tags
+
 - `tutorial` — Step-by-step learning
 - `theory` — Conceptual foundation
 - `case-study` — Real-world example
@@ -133,6 +135,7 @@ Use `[[slug]]` to link to other wiki pages. The slug must match an existing or n
 Cite information from raw sources using markdown links pointing to `/raw/{id}`. Every factual claim, definition, or assertion must carry an inline citation to the raw source it came from. Place citations immediately after the claim they support.
 
 Reference style:
+
 - Write citations as markdown links, for example `[1](/raw/{id})` or `[1](/raw/{id}#user-content-fragment)`.
 - Use `/raw/{id}#fragment` when the supporting evidence comes from a specific section heading in the raw source.
 - Use `/raw/{id}` when no suitable section heading exists.
@@ -161,12 +164,14 @@ When adding a citation-only contribution, attach the new citation inline immedia
 ## Granularity Guide
 
 **Create a separate page** when the concept:
+
 - Has its own established name or term in the field
 - Can stand alone with its own definition, principles, and examples
 - Could be meaningfully linked from other pages via `[[slug]]`
 - Has enough substance in the source to support a page (not just a passing mention)
 
 **Do NOT create a separate page** when:
+
 - It's a passing mention or illustrative example within a broader concept
 - It's a synonym or minor variation of an existing page
 - It has no independent substance beyond the parent concept — reference it inline with `[[slug]]` from the parent page instead

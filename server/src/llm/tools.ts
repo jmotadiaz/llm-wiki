@@ -50,7 +50,7 @@ export const createTools = (db: Database.Database) => {
     }),
 
     get_recent_ingests: tool({
-      description: 'Retrieve metadata for the N most recent raw sources added to the wiki. Helpful for answering "what was added recently" or "what did I just ingest".',
+      description: 'Retrieve metadata for the N most recently ingested raw source documents (NOT wiki pages). Raw sources are the original documents (blog posts, PDFs, URLs) that were processed to create wiki pages. Use this ONLY when the user asks about raw ingestion history, NOT when they ask about wiki pages or articles.',
       inputSchema: z.object({
         n: z.number().optional().default(5).describe('The number of recent ingests to retrieve.'),
       }),

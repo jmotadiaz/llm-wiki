@@ -1,3 +1,5 @@
+import "./load-env";
+
 const DEBUG_ENABLED = process.env.DEBUG_ENABLED === "1";
 
 console.log("DEBUG_ENABLED", DEBUG_ENABLED);
