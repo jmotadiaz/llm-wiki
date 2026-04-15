@@ -6,6 +6,7 @@ interface JinaResponse {
     publishedTime: string | null;
     metadata: {
       author: string | null;
+      "og:article:modified_time": string | null;
     };
   };
 }
@@ -31,9 +32,6 @@ const DEFAULT_EXCLUDE = [
   "[role='banner']",
   "[role='complementary']",
   "[role='contentinfo']",
-  ".cookie-banner",
-  ".cookie-bar",
-  ".cookie-consent",
   "[class*='cookie']",
   "[id*='cookie']",
   "[class*='consent']",
@@ -51,7 +49,6 @@ const DEFAULT_EXCLUDE = [
   "[role='dialog']",
   "[aria-modal='true']",
   ".sidebar",
-  "[class*='sidebar']",
   ".widget",
   ".share-bar",
   ".social-share",
@@ -70,7 +67,10 @@ const DEFAULT_EXCLUDE = [
 export class JinaReader {
   private baseUrl = "https://r.jina.ai/";
 
-  async extractUrl(url: string, options?: JinaOptions): Promise<{
+  async extractUrl(
+    url: string,
+    options?: JinaOptions,
+  ): Promise<{
     title: string | null;
     description: string | null;
     content: string;
@@ -114,11 +114,14 @@ export class JinaReader {
     }
 
     const data = (await response.json()) as JinaResponse;
+    console.log(data.data.publishedTime);
+    const modifiedDate =
+      data.data.metadata["og:article:modified_time"] || data.data.publishedTime;
     return {
       title: data.data.title || null,
       description: data.data.description || null,
       content: data.data.content,
-      publishedTime: data.data.publishedTime || null,
+      publishedTime: modifiedDate ? new Date(modifiedDate).toISOString() : null,
       author: data.data.metadata?.author || null,
     };
   }
