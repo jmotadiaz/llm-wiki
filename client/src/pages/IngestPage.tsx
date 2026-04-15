@@ -223,7 +223,7 @@ export default function IngestPage() {
               Content fetched from: {url}
             </div>
           )}
-          <div className="flex gap-3">
+          <div className="flex flex-col md:flex-row gap-3">
             <div className="flex-1">
               <label className="block text-sm font-medium mb-1">Title</label>
               <input

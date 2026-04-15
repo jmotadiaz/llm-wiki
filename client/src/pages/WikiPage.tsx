@@ -57,7 +57,7 @@ export default function WikiPage() {
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{pages.length} pages</p>
 
       {/* Search & filter */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col md:flex-row gap-3 mb-6">
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -67,7 +67,7 @@ export default function WikiPage() {
         <select
           value={tagFilter}
           onChange={e => setTagFilter(e.target.value || null)}
-          className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
+          className="md:w-auto px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
         >
           <option value="">All tags</option>
           {allTags.map(t => <option key={t} value={t}>{t}</option>)}
