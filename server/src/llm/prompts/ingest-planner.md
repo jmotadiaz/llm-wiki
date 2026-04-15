@@ -18,7 +18,7 @@ If the raw source only names a concept in passing, uses it as an example, or ref
 
 You have two read-only tools. Use them liberally; they never mutate state.
 
-- `get_wiki_page(slug)` — returns the full content, tags, type, status and source IDs of an existing wiki page. Use this to compare the raw source against what the page already says. If the slug does not exist, the tool returns `{ error, available_slugs }` — treat that as confirmation that the concept is `new`.
+- `get_wiki_page(slug)` — returns the full content, tags, type, status and source IDs of an existing wiki page. **Only call this for slugs that appear in the Existing Wiki Index below.** Use it to compare the raw source against what the page already says. Do NOT call it for slugs you are planning to create — if a slug is absent from the Existing Wiki Index, it is `new` by definition.
 - `get_backlinks(slug)` — returns the list of existing wiki pages that already link to a given slug. Use this to understand the neighborhood of an existing concept and to discover which existing pages should cross-link to a newly planned concept.
 
 You are not allowed to write, upsert, or delete anything. You have no tool for that by design.
@@ -32,7 +32,7 @@ Work in two phases.
 1. Read the raw source. For every concept mentioned, classify it into one of two buckets:
    - **Page-worthy**: concepts the raw source supports with enough independent substance to justify creating or updating a page.
    - **Inline-only**: concepts only named, gestured at, or used as examples — they appear as prose or `[[slug]]` links inside page-worthy pages, not as standalone pages.
-2. For each page-worthy concept, check the Existing Wiki Index to see whether a matching slug is already present.
+2. For each page-worthy concept, check the **Existing Wiki Index** section of this system prompt to see whether a matching slug is already listed. If the slug is not in the index it is `new` — do not call `get_wiki_page` to verify this; the index is the authoritative source of truth.
 3. **For every page-worthy concept whose slug already exists in the index, you MUST call `get_wiki_page` on that slug before classifying it.** Do not decide `update` vs `new` from title/tags alone. Compare the existing page body against the raw source to determine:
    - Does the raw source introduce new claims? → `update` that adds claims.
    - Does the raw source restate existing claims without new facts? → `update` (Citation-as-Contribution: the body must still physically include the new citation).

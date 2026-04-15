@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ai-sdk/deepinfra": "^2.0.45",
+    "@ai-sdk/deepseek": "^2.0.29",
     "@ai-sdk/google": "^3.0.62",
     "@openrouter/ai-sdk-provider": "^2.5.1",
     "ai": "^6.0.0",

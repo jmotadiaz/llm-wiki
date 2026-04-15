@@ -3,14 +3,12 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { openrouter } from "@openrouter/ai-sdk-provider";
 import { llmClient } from "./client.js";
-import {
-  createIngestPlannerTools,
-  createIngestTools,
-} from "./ingest-tools.js";
+import { createIngestPlannerTools, createIngestTools } from "./ingest-tools.js";
 import { Queries } from "../db/queries.js";
 import Database from "better-sqlite3";
 import { buildRawHeadingIndex } from "./raw-headings.js";
 import { debugLog, isDebugEnabled } from "../utils/debug.js";
+import { deepseek } from "@ai-sdk/deepseek";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -115,7 +113,10 @@ export async function ingestRawSource(
   );
 
   debugLog(`[INGEST] Planner agent starting for raw-${rawSourceId}`);
-  debugLog(`[INGEST] Planner system prompt for raw-${rawSourceId}`, plannerPrompt);
+  debugLog(
+    `[INGEST] Planner system prompt for raw-${rawSourceId}`,
+    plannerPrompt,
+  );
 
   const plannerTools = createIngestPlannerTools(db);
 
@@ -129,6 +130,7 @@ export async function ingestRawSource(
           content: `Analiza este documento fuente (raw source ID: ${rawSourceId}) y genera el plan de ingesta:\n\n${rawContent}`,
         },
       ],
+      model: deepseek("deepseek-reasoner"),
       tools: plannerTools,
       maxSteps: 10,
       temperature: 0.3,
@@ -167,7 +169,10 @@ export async function ingestRawSource(
   const tools = createIngestTools(db, rawSourceId);
 
   debugLog(`[INGEST] Writer agent starting for raw-${rawSourceId}`);
-  debugLog(`[INGEST] Writer system prompt for raw-${rawSourceId}`, writerPrompt);
+  debugLog(
+    `[INGEST] Writer system prompt for raw-${rawSourceId}`,
+    writerPrompt,
+  );
 
   try {
     const result = await llmClient.generate({
@@ -179,7 +184,7 @@ export async function ingestRawSource(
         },
       ],
       tools,
-      model: openrouter("google/gemini-3.1-flash-lite-preview"),
+      model: openrouter("xiaomi/mimo-v2-flash"),
       maxSteps: 15,
       temperature: 0.5,
       onStepFinish: debugEnabled
