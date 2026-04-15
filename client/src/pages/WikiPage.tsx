@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useQueryState } from 'nuqs';
 
 interface WikiPageEntry {
   slug: string;
@@ -13,7 +14,8 @@ export default function WikiPage() {
   const [pages, setPages] = useState<WikiPageEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [tagFilter, setTagFilter] = useState('');
+  const [tagFilter, setTagFilter] = useQueryState('tag', { defaultValue: '' });
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch('/api/wiki')
@@ -41,6 +43,12 @@ export default function WikiPage() {
     (grouped[group] ??= []).push(p);
   }
 
+  function handleTagClick(e: React.MouseEvent, tag: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    setTagFilter(tagFilter === tag ? '' : tag);
+  }
+
   if (loading) return <p className="text-gray-500">Loading...</p>;
 
   return (
@@ -58,7 +66,7 @@ export default function WikiPage() {
         />
         <select
           value={tagFilter}
-          onChange={e => setTagFilter(e.target.value)}
+          onChange={e => setTagFilter(e.target.value || null)}
           className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
         >
           <option value="">All tags</option>
@@ -81,9 +89,19 @@ export default function WikiPage() {
                 >
                   <span className="font-medium">{p.title}</span>
                   <span className="text-gray-400 ml-2 text-xs">{p.type}</span>
-                  {p.tags.length > 0 && (
-                    <span className="ml-2 text-xs text-gray-400">{p.tags.join(', ')}</span>
-                  )}
+                  {p.tags.map(tag => (
+                    <button
+                      key={tag}
+                      onClick={e => handleTagClick(e, tag)}
+                      className={`ml-1 text-xs px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+                        tagFilter === tag
+                          ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                          : 'text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
                 </Link>
               ))}
             </div>
