@@ -122,6 +122,29 @@ export class Queries {
     return stmt.all(pageId) as any[];
   }
 
+  getPagesForSource(sourceId: number) {
+    const stmt = this.db.prepare(`
+      SELECT wp.id, wp.slug, wp.title, wp.type, wp.tags, wp.status, wp.updated_at
+      FROM wiki_pages wp
+      JOIN page_sources ps ON wp.id = ps.page_id
+      WHERE ps.source_id = ?
+      ORDER BY wp.updated_at DESC
+    `);
+    return stmt.all(sourceId) as any[];
+  }
+
+  searchRawSources(query: string) {
+    const stmt = this.db.prepare(`
+      SELECT id, title, author, source_url, description, created_at
+      FROM raw_sources
+      WHERE title LIKE ? OR description LIKE ?
+      ORDER BY created_at DESC
+      LIMIT 10
+    `);
+    const pattern = `%${query}%`;
+    return stmt.all(pattern, pattern) as any[];
+  }
+
   // Wiki Links
   insertWikiLink(fromPageId: number, toPageSlug: string) {
     const stmt = this.db.prepare(

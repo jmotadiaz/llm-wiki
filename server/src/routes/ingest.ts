@@ -5,54 +5,20 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { JinaReader } from "../services/jina.js";
 import { Queries } from "../db/queries.js";
-import { ingestRawSource } from "../llm/ingest.js";
-import { postIngestCleanup } from "../llm/post-process.js";
+import { IngestQueue } from "../services/ingest-queue.js";
 import Database from "better-sqlite3";
 import multer from "multer";
-import { debugLog } from "../utils/debug.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const router = Router();
 const jina = new JinaReader();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Async ingest process (non-blocking)
-async function triggerIngest(
-  db: Database.Database,
-  sourceId: number,
-  content: string,
-): Promise<void> {
-  debugLog(`[INGEST] Pipeline triggered for raw-${sourceId}`);
-  try {
-    const { pagesWritten, warnings } = await ingestRawSource(
-      db,
-      sourceId,
-      content,
-    );
-    await postIngestCleanup(db, sourceId, pagesWritten);
-    debugLog(
-      `[INGEST] Completed for raw-${sourceId}: ${pagesWritten} pages written, ${warnings} warnings`,
-    );
-  } catch (error: any) {
-    console.error(
-      `[INGEST ERROR] raw-${sourceId}:`,
-      error.stack || error.message,
-    );
-    // Log error but don't fail the HTTP request
-    const queries = new Queries(db);
-    queries.insertLintWarning(
-      null,
-      "ingest_error",
-      `Failed to process raw source: ${error.message}`,
-      "error",
-    );
-  }
-}
-
 export function createIngestRoutes(db: Database.Database): Router {
+  const router = Router();
   const queries = new Queries(db);
+  const ingestQueue = new IngestQueue(db);
   const dataDir = path.join(__dirname, "../../..", "data");
   const rawDir = path.join(dataDir, "raw");
 
@@ -60,6 +26,11 @@ export function createIngestRoutes(db: Database.Database): Router {
   if (!fs.existsSync(rawDir)) {
     fs.mkdirSync(rawDir, { recursive: true });
   }
+
+  // GET /api/ingest/queue - Queue status
+  router.get("/queue", (_req: Request, res: Response) => {
+    res.json(ingestQueue.getStatus());
+  });
 
   // POST /api/ingest/url - Extract URL to markdown and return preview
   router.post("/url", async (req: Request, res: Response) => {
@@ -136,16 +107,15 @@ export function createIngestRoutes(db: Database.Database): Router {
       const filepath = path.join(rawDir, filename);
       fs.writeFileSync(filepath, content);
 
-      // Trigger ingest pipeline asynchronously
-      triggerIngest(db, sourceId, content).catch((err) => {
-        console.error("Async ingest error:", err);
-      });
+      // Enqueue ingest pipeline (sequential, non-blocking)
+      const job = ingestQueue.enqueue(sourceId);
 
       res.json({
         success: true,
         sourceId,
         filename,
-        message: "Raw source saved. Ingest pipeline is processing...",
+        jobId: job.jobId,
+        message: "Raw source saved. Ingest pipeline queued for processing.",
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -198,16 +168,15 @@ export function createIngestRoutes(db: Database.Database): Router {
         const filepath = path.join(rawDir, filename);
         fs.writeFileSync(filepath, content);
 
-        // Trigger ingest pipeline asynchronously
-        triggerIngest(db, sourceId, content).catch((err) => {
-          console.error("Async ingest error:", err);
-        });
+        // Enqueue ingest pipeline (sequential, non-blocking)
+        const job = ingestQueue.enqueue(sourceId);
 
         res.json({
           success: true,
           sourceId,
           filename,
-          message: "Raw source uploaded. Ingest pipeline is processing...",
+          jobId: job.jobId,
+          message: "Raw source uploaded. Ingest pipeline queued for processing.",
         });
       } catch (error: any) {
         res.status(500).json({ error: error.message });
