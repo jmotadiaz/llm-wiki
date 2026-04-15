@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { NuqsAdapter } from 'nuqs/adapters/react-router/v6';
 import Layout from './components/Layout';
 import IngestPage from './pages/IngestPage';
 import ChatPage from './pages/ChatPage';
@@ -11,6 +12,7 @@ import DashboardPage from './pages/DashboardPage';
 export default function App() {
   return (
     <BrowserRouter>
+    <NuqsAdapter>
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<WikiPage />} />
@@ -22,6 +24,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
         </Route>
       </Routes>
+    </NuqsAdapter>
     </BrowserRouter>
   );
 }
