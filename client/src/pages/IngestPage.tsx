@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 
-type IngestTab = 'url' | 'upload';
+type IngestTab = 'url' | 'upload' | 'paste';
 type IngestStatus = 'idle' | 'fetching' | 'preview' | 'saving' | 'done' | 'error';
 
 export default function IngestPage() {
@@ -13,7 +13,7 @@ export default function IngestPage() {
   const [url, setUrl] = useState('');
   const [selector, setSelector] = useState('');
 
-  // Shared form state (used for both URL preview and upload)
+  // Shared form state (used for both URL preview and paste)
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [description, setDescription] = useState('');
@@ -50,15 +50,14 @@ export default function IngestPage() {
       });
       const data = await res.json() as any;
       if (!res.ok) throw new Error(data.error || 'Failed to fetch URL');
-      
+
       const { title: fetchedTitle, description: fetchedDesc, author: fetchedAuthor, publishedTime, fullContent } = data.preview;
-      
+
       setContent(fullContent);
       setTitle(fetchedTitle || url.trim());
       setDescription(fetchedDesc || '');
       setAuthor(fetchedAuthor || '');
-      
-      // Try to format date for input[type="date"]
+
       if (publishedTime) {
         try {
           const date = new Date(publishedTime);
@@ -69,15 +68,16 @@ export default function IngestPage() {
           console.error('Failed to parse date:', publishedTime);
         }
       }
-      
+
       setStatus('preview');
+      setTab('paste'); // Switch to paste tab to show the fetched content
     } catch (err: any) {
       setError(err.message);
       setStatus('error');
     }
   };
 
-  // Step 2: Save content (from URL preview or direct)
+  // Step 2: Save content (from URL preview or direct paste)
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) {
       setError('Title and content are required');
@@ -89,13 +89,13 @@ export default function IngestPage() {
       const res = await fetch('/api/ingest/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title: title.trim(), 
-          author: author.trim() || undefined, 
+        body: JSON.stringify({
+          title: title.trim(),
+          author: author.trim() || undefined,
           description: description.trim() || undefined,
           publishedAt: publishedAt || undefined,
-          sourceUrl: url.trim(),
-          content 
+          sourceUrl: url.trim() || undefined,
+          content,
         }),
       });
       const data = await res.json() as any;
@@ -155,6 +155,12 @@ export default function IngestPage() {
         >
           Upload File
         </button>
+        <button
+          onClick={() => { setTab('paste'); resetForm(); }}
+          className={`px-4 py-2 rounded font-medium ${tab === 'paste' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
+        >
+          Paste Text
+        </button>
       </div>
 
       {/* Error display */}
@@ -177,109 +183,112 @@ export default function IngestPage() {
 
       {/* URL Tab */}
       {tab === 'url' && status !== 'done' && (
-        <div className="space-y-4">
-          {/* Step 1: URL input */}
-          {(status === 'idle' || status === 'fetching' || status === 'error') && (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium mb-1">URL</label>
-                <input
-                  type="url"
-                  value={url}
-                  onChange={e => setUrl(e.target.value)}
-                  placeholder="https://example.com/article"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">CSS Selector (optional)</label>
-                <input
-                  type="text"
-                  value={selector}
-                  onChange={e => setSelector(e.target.value)}
-                  placeholder="article.post-content"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-                />
-              </div>
-              <button
-                onClick={handleFetchUrl}
-                disabled={!url.trim() || status === 'fetching'}
-                className="px-4 py-2 bg-blue-600 text-white rounded font-medium disabled:opacity-50"
-              >
-                {status === 'fetching' ? 'Fetching...' : 'Generate Preview'}
-              </button>
-            </div>
-          )}
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">URL</label>
+            <input
+              type="url"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleFetchUrl()}
+              placeholder="https://example.com/article"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">CSS Selector (optional)</label>
+            <input
+              type="text"
+              value={selector}
+              onChange={e => setSelector(e.target.value)}
+              placeholder="article.post-content"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
+            />
+          </div>
+          <button
+            onClick={handleFetchUrl}
+            disabled={!url.trim() || status === 'fetching'}
+            className="px-4 py-2 bg-blue-600 text-white rounded font-medium disabled:opacity-50"
+          >
+            {status === 'fetching' ? 'Fetching...' : 'Generate Preview'}
+          </button>
+        </div>
+      )}
 
-          {/* Step 2: Preview & Edit */}
-          {(status === 'preview' || status === 'saving') && (
-            <div className="space-y-3">
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium mb-1">Title</label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={e => setTitle(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium mb-1">Author (optional)</label>
-                  <input
-                    type="text"
-                    value={author}
-                    onChange={e => setAuthor(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium mb-1">Published Date (optional)</label>
-                  <input
-                    type="date"
-                    value={publishedAt}
-                    onChange={e => setPublishedAt(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Description (optional)</label>
-                <input
-                  type="text"
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Content ({content.length.toLocaleString()} chars)
-                </label>
-                <textarea
-                  value={content}
-                  onChange={e => setContent(e.target.value)}
-                  rows={20}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm font-mono"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSave}
-                  disabled={status === 'saving'}
-                  className="px-4 py-2 bg-green-600 text-white rounded font-medium disabled:opacity-50"
-                >
-                  {status === 'saving' ? 'Saving & Ingesting...' : 'Save & Ingest'}
-                </button>
-                <button
-                  onClick={resetForm}
-                  className="px-4 py-2 bg-gray-200 dark:bg-gray-800 rounded font-medium"
-                >
-                  Cancel
-                </button>
-              </div>
+      {/* Paste Text Tab */}
+      {tab === 'paste' && status !== 'done' && (
+        <div className="space-y-3">
+          {status === 'preview' && url && (
+            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-blue-700 dark:text-blue-400 text-xs">
+              Content fetched from: {url}
             </div>
           )}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-1">Title</label>
+              <input
+                type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Document title"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-1">Author (optional)</label>
+              <input
+                type="text"
+                value={author}
+                onChange={e => setAuthor(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-1">Published Date (optional)</label>
+              <input
+                type="date"
+                value={publishedAt}
+                onChange={e => setPublishedAt(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Description (optional)</label>
+            <input
+              type="text"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Content ({content.length.toLocaleString()} chars)
+            </label>
+            <textarea
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              rows={20}
+              placeholder="Paste your text or markdown here..."
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm font-mono"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={status === 'saving'}
+              className="px-4 py-2 bg-green-600 text-white rounded font-medium disabled:opacity-50"
+            >
+              {status === 'saving' ? 'Saving & Ingesting...' : 'Save & Ingest'}
+            </button>
+            <button
+              onClick={resetForm}
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-800 rounded font-medium"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
