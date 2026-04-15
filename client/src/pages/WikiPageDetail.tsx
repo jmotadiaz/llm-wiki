@@ -64,7 +64,7 @@ export default function WikiPageDetail() {
             {page.status}
           </span>
           {page.tags.map(t => (
-            <span key={t} className="px-2 py-0.5 text-xs rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">{t}</span>
+            <Link key={t} to={`/?tag=${encodeURIComponent(t)}`} className="px-2 py-0.5 text-xs rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60">{t}</Link>
           ))}
         </div>
       </div>
