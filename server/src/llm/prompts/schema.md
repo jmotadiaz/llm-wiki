@@ -80,10 +80,15 @@ Use only these tags. Do not invent new ones.
 - `rag` — Retrieval-Augmented Generation
 - `agents` — AI Agents and Tool Use
 - `software-engineering` — Software development practices and methodologies
+- `frontend` — UI frameworks, web standards, browser APIs
+- `backend` — Server-side frameworks, APIs, routing
 - `architecture` — System and software architecture patterns
+- `systems` — Operating systems, networking, low-level mechanics
+- `security` — Authentication, cryptography, security best practices
 - `devops` — CI/CD, infrastructure, deployment
 - `testing` — Testing strategies and frameworks
 - `data` — Data engineering, databases, pipelines
+- `design` — UI/UX design, visual patterns, accessibility
 
 #### Depth Tags
 
@@ -102,7 +107,8 @@ Use only these tags. Do not invent new ones.
 - `tutorial` — Step-by-step learning
 - `theory` — Conceptual foundation
 - `case-study` — Real-world example
-- `tool` — Description of a library/tool
+- `tool` — Third-party libraries, frameworks, or software products (e.g., React, Express, Docker)
+- `standard` — Specifications, protocols, and built-in APIs (e.g., HTTP, Promise, Cookies)
 
 ### Page Structure
 
