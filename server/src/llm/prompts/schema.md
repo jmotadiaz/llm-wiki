@@ -120,6 +120,15 @@ Every page follows this structure:
 - **No YAML frontmatter** in content (metadata is stored separately via tool parameters)
 - **No "Fuentes" or "Referencias" section** (the system renders sources automatically from metadata)
 
+#### Coherence requirement
+
+A page built from multiple sources must read as a single unified article, not as a collage of excerpts. When multiple sources contribute to the same page:
+
+- The section structure must reflect the concept's natural anatomy, not the ingestion order of sources.
+- Claims from different sources on the same sub-topic must be merged into one cohesive paragraph with inline citations to each source — not kept as separate paragraphs that happen to be adjacent.
+- Each section must have logical prose transitions; a reader should not be able to detect where one source ends and another begins.
+- If existing sections were shaped by a single early source and a later source adds a substantially different angle, redesign the section layout so both angles are integrated naturally.
+
 ### Cross-References
 
 #### Wiki links
