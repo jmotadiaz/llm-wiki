@@ -21,7 +21,9 @@ function loadL1Index(queries: Queries): string {
 
   const entries = pages
     .map((page) => {
-      return `- [[${page.slug}]]: ${page.title} | ${page.tags || "untagged"}`;
+      const tags = page.tags || "untagged";
+      const summary = page.summary ? ` | summary: ${page.summary}` : "";
+      return `- [[${page.slug}]]: ${page.title} | tags: ${tags}${summary}`;
     })
     .join("\n");
 

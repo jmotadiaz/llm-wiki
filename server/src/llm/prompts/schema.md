@@ -43,8 +43,8 @@ Every page has exactly one type:
 
 ### Language Policy
 
-- **Body text, titles, summaries, section headings**: Spanish
-- **Technical terms inline**: keep in English when they are the established industry term in the source domain
+- **Body text, titles, summaries, section headings**: In Spanish, with the exception of technical terms
+- **Technical terms**: ALWAYS keep in English when they are the established industry term in the source domain (e.g., "embeddings", "RAG", "agents", "tokenization", "fine-tuning"). Do NOT translate these terms to Spanish.
 - **Slugs and tags**: always English, regardless of content language
 
 ### Slug Rules

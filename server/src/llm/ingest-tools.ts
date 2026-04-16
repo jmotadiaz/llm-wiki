@@ -188,6 +188,7 @@ export const createIngestTools = (
           queries.updateWikiPage(
             existingPage.id,
             page.title,
+            page.summary,
             page.content,
             page.tags.join(","),
             page.status,
@@ -198,6 +199,7 @@ export const createIngestTools = (
           pageId = queries.insertWikiPage(
             page.slug,
             page.title,
+            page.summary,
             page.content,
             page.type,
             page.tags.join(","),
@@ -229,7 +231,7 @@ export const createIngestTools = (
 
     report_warning: tool({
       description:
-        "Report a consistency issue, missing context, or any other warning detected during ingestion.",
+        "Report an ACTUAL content issue or warning. NEVER call this to report success or the absence of warnings.",
       inputSchema: z.object({
         type: z
           .string()

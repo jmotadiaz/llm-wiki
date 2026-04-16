@@ -25,6 +25,19 @@ export function initializeDatabase(): Database.Database {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS wiki_pages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      summary TEXT,
+      content TEXT NOT NULL,
+      type TEXT DEFAULT 'concept',
+      tags TEXT,
+      status TEXT DEFAULT 'published',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   // Migration: Add columns to existing tables
@@ -39,19 +52,13 @@ export function initializeDatabase(): Database.Database {
     db.exec('ALTER TABLE raw_sources ADD COLUMN published_at TEXT');
   }
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS wiki_pages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      slug TEXT NOT NULL UNIQUE,
-      title TEXT NOT NULL,
-      content TEXT NOT NULL,
-      type TEXT DEFAULT 'concept',
-      tags TEXT,
-      status TEXT DEFAULT 'published',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+  const wikiPageInfo = db.prepare("PRAGMA table_info(wiki_pages)").all() as any[];
+  const hasSummary = wikiPageInfo.some(col => col.name === 'summary');
+  if (!hasSummary) {
+    db.exec('ALTER TABLE wiki_pages ADD COLUMN summary TEXT');
+  }
 
+  db.exec(`
     CREATE TABLE IF NOT EXISTS page_sources (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       page_id INTEGER NOT NULL,

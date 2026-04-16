@@ -130,7 +130,7 @@ export function createWikiRoutes(db: Database.Database): Router {
         type: page.type,
         tags: (page.tags || '').split(',').filter((t: string) => t.trim()),
         status: page.status,
-        summary: '', // Could extract from first paragraph of content
+        summary: page.summary || '',
       }));
 
       res.json({
@@ -164,6 +164,7 @@ export function createWikiRoutes(db: Database.Database): Router {
         page: {
           slug: page.slug,
           title: page.title,
+          summary: page.summary || '',
           type: page.type,
           status: page.status,
           tags: (page.tags || '').split(',').filter((t: string) => t.trim()),

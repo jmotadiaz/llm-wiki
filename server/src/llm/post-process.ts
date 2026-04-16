@@ -25,7 +25,7 @@ This is the master index of all wiki pages. Pages are listed with their slug, ti
 ## Format
 
 \`\`\`
-- \`slug\`: Page title | tags: tag1, tag2
+- \`slug\`: Page title | tags: tag1, tag2 | summary: Short summary text
 \`\`\`
 
 ## Pages
@@ -35,7 +35,8 @@ This is the master index of all wiki pages. Pages are listed with their slug, ti
   const entries = pages
     .map((page) => {
       const tags = page.tags || "untagged";
-      return `- \`${page.slug}\`: ${page.title} | tags: ${tags}`;
+      const summary = page.summary ? ` | summary: ${page.summary}` : "";
+      return `- \`${page.slug}\`: ${page.title} | tags: ${tags}${summary}`;
     })
     .join("\n");
 

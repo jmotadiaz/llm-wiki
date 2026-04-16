@@ -28,7 +28,7 @@ function ensureDataDirectory() {
     {
       path: path.join(dataDir, "index.md"),
       content:
-        "This is the master index of all wiki pages. Pages are listed with their slug, title, summary, and tags.\n\n### Format\n\n```\n- `slug`: Page title | Summary text | tags: tag1, tag2\n```\n\n### Pages\n",
+        "This is the master index of all wiki pages. Pages are listed with their slug, title, summary, and tags.\n\n## Format\n\n```\n- `slug`: Page title | tags: tag1, tag2 | summary: Short summary text\n```\n\n## Pages\n",
     },
     {
       path: path.join(dataDir, "log.md"),

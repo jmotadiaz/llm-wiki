@@ -13,8 +13,8 @@ You receive an ingestion plan that lists page-worthy concepts, their actions (ne
 1. **If `update`**: call `get_wiki_page` first to read current content and existing source IDs before writing.
 2. **Ground before writing**: derive which claims the current raw source supports and which citation target each uses (`/raw/{id}` or `/raw/{id}#fragment`). Do not write claims that go beyond what the raw source or preserved prior cited content supports.
 3. **Call `upsert_wiki_page` exactly once** for that concept:
-   - **New**: write a complete page from scratch, citing the current raw source for every claim. Use the `key_claims` from the plan as the basis.
-   - **Update**: rewrite the existing page body so it physically includes the new source. Preserve all existing supported claims, structure, and citations unless restructuring to integrate the new source more clearly.
+   - **New**: write a complete page from scratch, citing the current raw source for every claim. Use the `key_claims` and `summary` from the plan as the basis.
+   - **Update**: rewrite the existing page body so it physically includes the new source. Preserve all existing supported claims, structure, and citations unless restructuring to integrate the new source more clearly. Use the `summary` from the plan.
    - **Citation-only update**: if the raw source adds no new facts, rewrite the body to attach the new citation to an existing claim that the new raw also supports.
    - **Contradictory update**: if the plan flags `contradiction: true`, keep both viewpoints in the same article, attribute each to its source with inline citations, and make the disagreement explicit in the prose.
    - The system automatically links the current raw source to the page — do not manage that relation in the page content.
@@ -43,7 +43,7 @@ After all pages are written, call `report_warning` for each warning in the plan:
 - `contradiction` — the raw source directly contradicts an existing wiki page (still preserve both positions in the page)
 - `ambiguous_content` — the source is unclear or self-contradictory
 
-Use `report_warning` only for issues requiring human review. Never use it as a substitute for a page write that can be done faithfully.
+**Only call `report_warning` if the plan explicitly contains a warning or if you encounter a critical inconsistency during execution. NEVER call it to report success or absence of warnings.**
 
 ## Exit Condition
 

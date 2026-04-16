@@ -73,17 +73,19 @@ export class Queries {
   insertWikiPage(
     slug: string,
     title: string,
+    summary: string | null,
     content: string,
     type: string,
     tags?: string,
     status?: string,
   ) {
     const stmt = this.db.prepare(
-      "INSERT INTO wiki_pages (slug, title, content, type, tags, status) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO wiki_pages (slug, title, summary, content, type, tags, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
     );
     const result = stmt.run(
       slug,
       title,
+      summary || null,
       content,
       type,
       tags || null,
@@ -95,14 +97,15 @@ export class Queries {
   updateWikiPage(
     id: number,
     title: string,
+    summary: string | null,
     content: string,
     tags?: string,
     status?: string,
   ) {
     const stmt = this.db.prepare(
-      "UPDATE wiki_pages SET title = ?, content = ?, tags = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      "UPDATE wiki_pages SET title = ?, summary = ?, content = ?, tags = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
     );
-    stmt.run(title, content, tags || null, status, id);
+    stmt.run(title, summary || null, content, tags || null, status, id);
   }
 
   // Page Sources
