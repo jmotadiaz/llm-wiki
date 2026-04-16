@@ -8,6 +8,10 @@ You receive an ingestion plan that lists page-worthy concepts, their actions (ne
 
 ## Execution Rules
 
+### Efficiency & Batching
+
+When you need to call the same tool for multiple items (e.g., calling `get_wiki_page` for several update candidates, or `upsert_wiki_page` for several new pages), **batch them**: emit all independent calls in a single step rather than one per step. This allows the system to execute them in parallel and reduces token costs.
+
 ### For each page-worthy concept in the plan:
 
 1. **If `update`**: call `get_wiki_page` first to read current content and existing source IDs before writing.

@@ -63,7 +63,7 @@ Produce your plan in exactly this structure:
     - <claim 2 supported by the raw source>
   citations:
     - <"/raw/{id}" or "/raw/{id}#fragment" for each claim>
-  summary: <short summary in Spanish, 1-2 sentences, KEEP technical terms in English>
+  summary: <short summary in Spanish, 1 sentence, KEEP technical terms in English>
   contradiction: <true|false>
   existing_backlinks: [<slugs that already link here, from get_backlinks; empty list for new concepts unless there are red links>]
 
