@@ -37,11 +37,12 @@ Work in two phases.
    - Does the raw source introduce new claims? → `update` that adds claims.
    - Does the raw source restate existing claims without new facts? → `update` (Citation-as-Contribution: the body must still physically include the new citation).
    - Does the raw source contradict an existing claim? → `update` with `contradiction: true`.
-4. **For every page-worthy concept you classify (new or update), call `get_backlinks` on its slug.** A not-yet-created slug legitimately returns an empty list; that is expected for `new` concepts. Use the result to populate the `Inbound link updates` section of the plan (see Output Format).
+4. **For every page-worthy concept you classify (new or update), call `get_backlinks` on its slug.** A not-yet-created slug legitimately returns an empty list (unless there are dangling links to it); that is expected. Use the result to populate the `Inbound link updates` section of the plan.
+5. When you need to call the same tool for multiple slugs, batch them: emit all calls in a single step rather than one per step. This reduces cost.
 
 **Phase 2 — Produce the plan.**
 
-After your investigation, emit the plan in the exact format below as your final message. The final message must contain only the plan — no tool calls, no preamble, no explanation.
+After your investigation, emit the plan in the exact format below as your FINAL message. You MUST output the plan as text — do not end with only reasoning. The final message must contain only the plan — no tool calls, no preamble, no explanation.
 
 If a source disagrees with an existing page, plan it as `update` with `contradiction: true`.
 
@@ -64,7 +65,7 @@ Produce your plan in exactly this structure:
     - <"/raw/{id}" or "/raw/{id}#fragment" for each claim>
   summary: <short summary in Spanish, 1-2 sentences, KEEP technical terms in English>
   contradiction: <true|false>
-  existing_backlinks: [<slugs that already link here, from get_backlinks; empty list for new concepts>]
+  existing_backlinks: [<slugs that already link here, from get_backlinks; empty list for new concepts unless there are red links>]
 
 ## Inline-only mentions
 
