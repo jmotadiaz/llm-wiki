@@ -18,7 +18,12 @@ When you need to call the same tool for multiple items (e.g., calling `get_wiki_
 2. **Ground before writing**: derive which claims the current raw source supports and which citation target each uses (`/raw/{id}` or `/raw/{id}#fragment`). Do not write claims that go beyond what the raw source or preserved prior cited content supports.
 3. **Call `upsert_wiki_page` exactly once** for that concept:
    - **New**: write a complete page from scratch, citing the current raw source for every claim. Use the `key_claims` and `summary` from the plan as the basis.
-   - **Update**: rewrite the existing page body so it physically includes the new source. Preserve all existing supported claims, structure, and citations unless restructuring to integrate the new source more clearly. Use the `summary` from the plan.
+   - **Update**: synthesize the existing page and the new source into a single, coherent article. Treat both the existing page's cited claims and the new source's claims as raw material — your task is to produce the best possible article about the concept using all of it. The result must read as if written by one author who had access to all sources simultaneously, never as layered additions from separate ingestions. Concretely:
+     - **Preserve every cited claim from prior sources and every existing citation.** Do not drop or silently overwrite them.
+     - **Redesign the section structure** around the concept's natural anatomy (e.g. definition → how it works → key considerations → related concepts), not around the order in which sources arrived.
+     - **Integrate each new claim into the most appropriate existing section** — never append new content as a new section simply because it is "new". Merge, reorder, and rewrite prose freely; the only hard constraint is that every prior citation is retained somewhere in the new body.
+     - **If two sources cover the same sub-topic from complementary angles**, merge them into one cohesive paragraph that cites both inline rather than keeping two separate paragraphs.
+     - Use the `summary` from the plan as the guiding intent, not as a writing template.
    - **Citation-only update**: if the raw source adds no new facts, rewrite the body to attach the new citation to an existing claim that the new raw also supports.
    - **Contradictory update**: if the plan flags `contradiction: true`, keep both viewpoints in the same article, attribute each to its source with inline citations, and make the disagreement explicit in the prose.
    - The system automatically links the current raw source to the page — do not manage that relation in the page content.
