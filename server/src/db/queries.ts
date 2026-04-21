@@ -201,12 +201,12 @@ export class Queries {
   getLintWarnings(pageId?: number) {
     if (pageId) {
       const stmt = this.db.prepare(
-        "SELECT * FROM lint_warnings WHERE page_id = ? AND resolved = 0",
+        "SELECT lw.*, wp.slug FROM lint_warnings lw LEFT JOIN wiki_pages wp ON lw.page_id = wp.id WHERE lw.page_id = ? AND lw.resolved = 0",
       );
       return stmt.all(pageId) as any[];
     }
     const stmt = this.db.prepare(
-      "SELECT * FROM lint_warnings WHERE resolved = 0 ORDER BY created_at DESC",
+      "SELECT lw.*, wp.slug FROM lint_warnings lw LEFT JOIN wiki_pages wp ON lw.page_id = wp.id WHERE lw.resolved = 0 ORDER BY lw.created_at DESC",
     );
     return stmt.all() as any[];
   }

@@ -75,6 +75,7 @@ export function createWikiRoutes(db: Database.Database): Router {
             message: w.message,
             severity: w.severity,
             pageId: w.page_id,
+            slug: w.slug,
           })),
         },
       });
