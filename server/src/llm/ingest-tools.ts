@@ -137,7 +137,7 @@ export const createIngestTools = (
         content: z
           .string()
           .describe(
-            "Full markdown content (Spanish). Use [[slug]] for wiki cross-references. Reserve /raw links for citations only: [1](/raw/{RAW_ID}#fragment) when a relevant raw heading anchor is available, otherwise [1](/raw/{RAW_ID}).",
+            "Full markdown content (Spanish). Use [[slug]] for wiki cross-references. Reserve /raw links for citations only: [1](/raw/{RAW_ID}#fragment) when a relevant raw heading anchor is available, otherwise [1](/raw/{RAW_ID}). WARNING: ensure citation links are closed with ')' and NOT ']' (incorrect: [1](/raw/4]).",
           ),
       }),
       execute: async (page) => {

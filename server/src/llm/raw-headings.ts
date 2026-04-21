@@ -1,22 +1,9 @@
+import { getHeadingId } from "@llm-wiki/shared";
+
 interface RawHeading {
   depth: number;
   text: string;
   fragment: string;
-}
-
-function slugifyHeading(text: string): string {
-  const normalized = text
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^\p{Letter}\p{Number}\s-]/gu, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  return normalized || "section";
 }
 
 function stripInlineMarkdown(text: string): string {
@@ -30,15 +17,11 @@ function stripInlineMarkdown(text: string): string {
     .trim();
 }
 
-function toDomFragment(fragment: string): string {
-  return `user-content-${fragment}`;
-}
-
 export function extractRawHeadings(rawContent: string): RawHeading[] {
   const lines = rawContent.split(/\r?\n/);
-  const seenFragments = new Map<string, number>();
   const headings: RawHeading[] = [];
   let inCodeFence = false;
+  let headingIndex = 0;
 
   for (const line of lines) {
     if (/^```/.test(line.trim())) {
@@ -61,17 +44,14 @@ export function extractRawHeadings(rawContent: string): RawHeading[] {
       continue;
     }
 
-    const baseFragment = slugifyHeading(text);
-    const duplicateCount = seenFragments.get(baseFragment) ?? 0;
-    seenFragments.set(baseFragment, duplicateCount + 1);
+    // Use absolute index for deterministic IDs: user-content-[idx]-[slug]
+    const fragment = getHeadingId(text, headingIndex);
+    headingIndex++;
 
     headings.push({
       depth,
       text,
-      fragment:
-        duplicateCount === 0
-          ? baseFragment
-          : `${baseFragment}-${duplicateCount}`,
+      fragment,
     });
   }
 
@@ -93,7 +73,7 @@ export function buildRawHeadingIndex(
   return headings
     .map(
       (heading) =>
-        `- /raw/${rawSourceId}#${toDomFragment(heading.fragment)} -> ${heading.text} (H${heading.depth})`,
+        `- /raw/${rawSourceId}#${heading.fragment} -> ${heading.text} (H${heading.depth})`,
     )
     .join("\n");
 }

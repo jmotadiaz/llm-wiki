@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import Markdown from "../components/markdown/Markdown";
 
@@ -19,6 +19,43 @@ export default function RawSourcePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const userInteractedRef = useRef(false);
+
+  // Set up interaction listeners only once
+  useEffect(() => {
+    const handleInteraction = () => {
+      if (!userInteractedRef.current) {
+        userInteractedRef.current = true;
+      }
+    };
+
+    // Use capture phase to catch interactions even if stopped elsewhere
+    window.addEventListener("wheel", handleInteraction, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener("touchmove", handleInteraction, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener("mousedown", handleInteraction, { capture: true });
+    window.addEventListener("keydown", handleInteraction, { capture: true });
+
+    return () => {
+      window.removeEventListener("wheel", handleInteraction, { capture: true });
+      window.removeEventListener("touchmove", handleInteraction, {
+        capture: true,
+      });
+      window.removeEventListener("mousedown", handleInteraction, {
+        capture: true,
+      });
+      window.removeEventListener("keydown", handleInteraction, {
+        capture: true,
+      });
+    };
+  }, []);
+
   useEffect(() => {
     if (!id) return;
     fetch(`/api/raw/${id}`)
@@ -34,18 +71,48 @@ export default function RawSourcePage() {
       });
   }, [id]);
 
+  // Reset interaction flag when navigated to a NEW hash or page
   useEffect(() => {
-    if (!source || !location.hash) return;
+    userInteractedRef.current = false;
+  }, [location.hash, id]);
+
+  useEffect(() => {
+    if (!source || !location.hash || !containerRef.current) return;
 
     const fragment = decodeURIComponent(location.hash.slice(1));
-    const frameId = requestAnimationFrame(() => {
+
+    const scrollToFragment = () => {
+      if (userInteractedRef.current) return;
       const element = document.getElementById(fragment);
       if (element) {
         element.scrollIntoView({ block: "start" });
       }
+    };
+
+    // Use ResizeObserver to handle layout shifts (images, streaming components, etc.)
+    const resizeObserver = new ResizeObserver(() => {
+      scrollToFragment();
     });
 
-    return () => cancelAnimationFrame(frameId);
+    // Also use MutationObserver to handle elements appearing in the DOM
+    const mutationObserver = new MutationObserver(() => {
+      scrollToFragment();
+    });
+
+    resizeObserver.observe(containerRef.current);
+    mutationObserver.observe(containerRef.current, {
+      childList: true,
+      subtree: true,
+    });
+
+    // Initial attempt
+    const frameId = requestAnimationFrame(scrollToFragment);
+
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      cancelAnimationFrame(frameId);
+    };
   }, [source, location.hash]);
 
   if (loading) return <p className="text-gray-500">Loading...</p>;
@@ -81,7 +148,10 @@ export default function RawSourcePage() {
         )}
       </div>
 
-      <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded p-4">
+      <div
+        ref={containerRef}
+        className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded p-4"
+      >
         <Markdown content={source.content} />
       </div>
     </div>

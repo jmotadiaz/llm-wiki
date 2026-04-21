@@ -6,7 +6,8 @@
   "type": "module",
   "workspaces": [
     "server",
-    "client"
+    "client",
+    "shared"
   ],
   "scripts": {
     "dev": "npm run dev -w server & npm run dev -w client",

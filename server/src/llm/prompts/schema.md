@@ -151,6 +151,15 @@ Reference style:
 - Use `/raw/{id}` when no suitable section heading exists.
 - Use only valid section-heading fragments from the raw source.
 
+#### Sintaxis de citación (Correcto vs. Incorrecto)
+
+| Correcto                                     | Incorrecto (NO USAR)                         | Motivo                                |
+| -------------------------------------------- | -------------------------------------------- | ------------------------------------- |
+| `[1](/raw/4#user-content-post-training)`     | `[1](/raw/4#user-content-post-training]`     | Cierre incorrecto con `]`             |
+| `[1](/raw/2)`                                | `[/raw/2]`                                   | Falta sintaxis de enlace Markdown     |
+| `el [[metodo-rag]]`                          | `el [metodo-rag]`                            | Enlaces wiki usan `[[ ]]` siempre     |
+| `la arquitectura [[rag]] [1](/raw/3)`        | `la arquitectura [rag](/raw/3)`              | Mezcla de concepto y cita en un enlace |
+
 When updating a page, preserve all existing citations from previous sources. Add new citations alongside them — never replace or remove existing ones.
 
 When a new source touches an existing concept, the article body itself must be rewritten so the new citation appears in the markdown content, not only in metadata or relational storage.

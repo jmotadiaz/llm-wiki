@@ -1,4 +1,5 @@
 import { visit } from "unist-util-visit";
+import { getHeadingId } from "@llm-wiki/shared";
 
 interface MarkdownNode {
   type?: string;
@@ -9,21 +10,6 @@ interface MarkdownNode {
     id?: string;
     hProperties?: Record<string, unknown>;
   };
-}
-
-function slugifyHeading(text: string): string {
-  const normalized = text
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^\p{Letter}\p{Number}\s-]/gu, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  return normalized || "section";
 }
 
 function extractNodeText(node: MarkdownNode): string {
@@ -40,7 +26,7 @@ function extractNodeText(node: MarkdownNode): string {
 
 export default function remarkHeadingAnchors() {
   return (tree: any) => {
-    const seenFragments = new Map<string, number>();
+    let headingIndex = 0;
 
     visit(tree, "heading", (node: any) => {
       const text = extractNodeText(node).trim();
@@ -48,14 +34,9 @@ export default function remarkHeadingAnchors() {
         return;
       }
 
-      const baseFragment = slugifyHeading(text);
-      const duplicateCount = seenFragments.get(baseFragment) ?? 0;
-      seenFragments.set(baseFragment, duplicateCount + 1);
-
-      const fragment =
-        duplicateCount === 0
-          ? baseFragment
-          : `${baseFragment}-${duplicateCount}`;
+      // Use absolute index for deterministic IDs: user-content-[idx]-[slug]
+      const fragment = getHeadingId(text, headingIndex);
+      headingIndex++;
 
       node.data ??= {};
       node.data.id = fragment;

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@llm-wiki/shared": "*",
     "@ai-sdk/react": "^3.0.156",
     "ai": "^6.0.0",
     "nuqs": "^2.8.9",
@@ -31,6 +32,6 @@
     "tailwindcss": "^3.4.1",
     "terser": "^5.46.1",
     "typescript": "^5.3.3",
-    "vite": "^7.3.2"
+    "vite": "npm:rolldown-vite@latest"
   }
 }

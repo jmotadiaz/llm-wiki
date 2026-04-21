@@ -11,6 +11,7 @@
     "start": "cd dist && node index.js"
   },
   "dependencies": {
+    "@llm-wiki/shared": "*",
     "@ai-sdk/deepinfra": "^2.0.45",
     "@ai-sdk/deepseek": "^2.0.29",
     "@ai-sdk/google": "^3.0.62",
