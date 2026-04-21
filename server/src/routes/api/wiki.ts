@@ -1,8 +1,8 @@
-import { Router, Request, Response } from 'express';
-import { Queries } from '../../db/queries.js';
-import { runTier1Lint } from '../../services/lint-deterministic.js';
-import { runTier3Audit } from '../../llm/lint.js';
-import Database from 'better-sqlite3';
+import { Router, Request, Response } from "express";
+import { Queries } from "../../db/queries.js";
+import { runTier1Lint } from "../../services/lint-deterministic.js";
+import { runTier3Audit } from "../../llm/lint.js";
+import Database from "better-sqlite3";
 
 export function createWikiRoutes(db: Database.Database): Router {
   const router = Router();
@@ -10,15 +10,15 @@ export function createWikiRoutes(db: Database.Database): Router {
 
   // Specific routes BEFORE :slug catch-all
   // 8.4 GET /api/wiki/graph - Return nodes (wiki pages) and edges (wiki_links) for graph visualization
-  router.get('/graph', (req: Request, res: Response) => {
+  router.get("/graph", (req: Request, res: Response) => {
     try {
       const pages = queries.getAllWikiPages();
-      const validSlugs = new Set(pages.map(page => page.slug));
-      const nodes = pages.map(page => ({
+      const validSlugs = new Set(pages.map((page) => page.slug));
+      const nodes = pages.map((page) => ({
         id: page.slug,
         label: page.title,
         type: page.type,
-        tags: (page.tags || '').split(',').filter((t: string) => t.trim()),
+        tags: (page.tags || "").split(",").filter((t: string) => t.trim()),
       }));
 
       const edges: any[] = [];
@@ -53,7 +53,7 @@ export function createWikiRoutes(db: Database.Database): Router {
   });
 
   // 8.5 GET /api/wiki/lint/status - Return lint warnings summary and last run timestamps
-  router.get('/lint/status', (req: Request, res: Response) => {
+  router.get("/lint/status", (req: Request, res: Response) => {
     try {
       const summary = queries.getLintSummary();
       const warnings = queries.getLintWarnings();
@@ -84,7 +84,7 @@ export function createWikiRoutes(db: Database.Database): Router {
   });
 
   // 8.6 POST /api/wiki/lint - Trigger manual Tier 3 semantic audit (also runs Tier 1)
-  router.post('/lint', async (req: Request, res: Response) => {
+  router.post("/lint", async (req: Request, res: Response) => {
     try {
       // Run Tier 1 deterministic lint first
       const tier1Issues = runTier1Lint(db);
@@ -94,10 +94,10 @@ export function createWikiRoutes(db: Database.Database): Router {
 
       res.json({
         success: true,
-        message: 'Full audit completed (Tier 1 + Tier 3)',
+        message: "Full audit completed (Tier 1 + Tier 3)",
         tier1: {
           issuesFound: tier1Issues.length,
-          issues: tier1Issues.map(issue => ({
+          issues: tier1Issues.map((issue) => ({
             type: issue.type,
             pageId: issue.pageId,
             message: issue.message,
@@ -106,7 +106,7 @@ export function createWikiRoutes(db: Database.Database): Router {
         },
         tier3: {
           findingsFound: tier3Findings.length,
-          findings: tier3Findings.map(f => ({
+          findings: tier3Findings.map((f) => ({
             type: f.type,
             slugs: f.slugs,
             message: f.message,
@@ -121,16 +121,16 @@ export function createWikiRoutes(db: Database.Database): Router {
 
   // General routes after specific ones
   // 8.1 GET /api/wiki - Return parsed index.md data (all pages with metadata)
-  router.get('/', (req: Request, res: Response) => {
+  router.get("/", (req: Request, res: Response) => {
     try {
       const pages = queries.getAllWikiPages();
-      const pageList = pages.map(page => ({
+      const pageList = pages.map((page) => ({
         slug: page.slug,
         title: page.title,
         type: page.type,
-        tags: (page.tags || '').split(',').filter((t: string) => t.trim()),
+        tags: (page.tags || "").split(",").filter((t: string) => t.trim()),
         status: page.status,
-        summary: page.summary || '',
+        summary: "", // Could extract from first paragraph of content
       }));
 
       res.json({
@@ -144,13 +144,13 @@ export function createWikiRoutes(db: Database.Database): Router {
   });
 
   // 8.2 GET /api/wiki/:slug - Return wiki page content + metadata + backlinks + lint status
-  router.get('/:slug', (req: Request, res: Response) => {
+  router.get("/:slug", (req: Request, res: Response) => {
     try {
       const slug = req.params.slug as string;
       const page = queries.getWikiPageBySlug(slug);
 
       if (!page) {
-        res.status(404).json({ error: 'Page not found' });
+        res.status(404).json({ error: "Page not found" });
         return;
       }
 
@@ -164,10 +164,9 @@ export function createWikiRoutes(db: Database.Database): Router {
         page: {
           slug: page.slug,
           title: page.title,
-          summary: page.summary || '',
           type: page.type,
           status: page.status,
-          tags: (page.tags || '').split(',').filter((t: string) => t.trim()),
+          tags: (page.tags || "").split(",").filter((t: string) => t.trim()),
           content: page.content,
           created_at: page.created_at,
           updated_at: page.updated_at,

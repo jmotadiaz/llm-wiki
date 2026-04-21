@@ -62,7 +62,7 @@ export async function streamChat(
     system: systemPrompt,
     messages,
     tools,
-    model: openrouter("google/gemini-3.1-flash-lite-preview"),
+    model: openrouter("nvidia/nemotron-3-nano-30b-a3b:free"),
     maxSteps: 10,
     temperature: 0.2, // Keep it focused and deterministic
   });

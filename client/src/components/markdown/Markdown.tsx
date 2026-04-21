@@ -7,11 +7,13 @@ import remarkHeadingAnchors from "./remarkHeadingAnchors";
 
 interface MarkdownProps {
   content: string;
+  className?: string;
   streaming?: boolean;
 }
 
 export default function Markdown({
   content,
+  className = "",
   streaming = false,
 }: MarkdownProps) {
   const navigate = useNavigate();
@@ -36,7 +38,7 @@ export default function Markdown({
   );
 
   return (
-    <div className="prose dark:prose-invert max-w-none">
+    <div className={`prose dark:prose-invert max-w-none ${className}`}>
       <Streamdown
         remarkPlugins={remarkPlugins as any}
         components={{

@@ -58,6 +58,28 @@ export function initializeDatabase(): Database.Database {
     db.exec('ALTER TABLE wiki_pages ADD COLUMN summary TEXT');
   }
 
+  // Migration: page_comments table
+  const pageCommentsInfo = db.prepare("PRAGMA table_info(page_comments)").all() as any[];
+  if (pageCommentsInfo.length === 0) {
+    db.exec(`
+      CREATE TABLE page_comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        page_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        reply TEXT,
+        status TEXT DEFAULT 'pending',
+        pages_edited TEXT,
+        error TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        answered_at DATETIME,
+        FOREIGN KEY (page_id) REFERENCES wiki_pages(id) ON DELETE CASCADE
+      )
+    `);
+  }
+
+  // Startup reset: reset any processing comments back to pending
+  db.exec('UPDATE page_comments SET status = \'pending\' WHERE status = \'processing\'');
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS page_sources (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -87,6 +109,19 @@ export function initializeDatabase(): Database.Database {
       resolved BOOLEAN DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (page_id) REFERENCES wiki_pages(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS page_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      page_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      reply TEXT,
+      status TEXT DEFAULT 'pending',
+      pages_edited TEXT,
+      error TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      answered_at DATETIME,
+      FOREIGN KEY (page_id) REFERENCES wiki_pages(id) ON DELETE CASCADE
     );
 
     CREATE INDEX IF NOT EXISTS idx_raw_sources_checksum ON raw_sources(checksum);

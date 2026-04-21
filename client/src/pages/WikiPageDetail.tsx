@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Markdown from '../components/markdown/Markdown';
+import CommentSection from '../components/CommentSection';
 
 interface PageData {
   page: {
@@ -115,6 +116,9 @@ export default function WikiPageDetail() {
       <div className="mt-4 text-xs text-gray-400">
         Created: {new Date(page.created_at).toLocaleDateString()} | Updated: {new Date(page.updated_at).toLocaleDateString()}
       </div>
+
+      {/* Comment section */}
+      <CommentSection slug={slug!} />
     </div>
   );
 }

@@ -224,4 +224,52 @@ export class Queries {
     `);
     return stmt.all() as any[];
   }
+
+  // Page Comments
+  insertComment(pageId: number, content: string) {
+    const stmt = this.db.prepare(
+      "INSERT INTO page_comments (page_id, content) VALUES (?, ?)",
+    );
+    const result = stmt.run(pageId, content);
+    return result.lastInsertRowid as number;
+  }
+
+  getCommentsByPageId(pageId: number) {
+    const stmt = this.db.prepare(
+      "SELECT * FROM page_comments WHERE page_id = ? AND status != 'archived' ORDER BY created_at DESC",
+    );
+    return stmt.all(pageId) as any[];
+  }
+
+  updateCommentStatus(commentId: number, status: string) {
+    const stmt = this.db.prepare(
+      "UPDATE page_comments SET status = ? WHERE id = ?",
+    );
+    stmt.run(status, commentId);
+  }
+
+  setCommentAnswered(
+    commentId: number,
+    reasoning: string,
+    pagesEdited: string[],
+  ) {
+    const stmt = this.db.prepare(
+      "UPDATE page_comments SET status = ?, reply = ?, pages_edited = ?, answered_at = CURRENT_TIMESTAMP WHERE id = ?",
+    );
+    stmt.run("answered", reasoning, JSON.stringify(pagesEdited), commentId);
+  }
+
+  setCommentFailed(commentId: number, errorMessage: string) {
+    const stmt = this.db.prepare(
+      "UPDATE page_comments SET status = ?, error = ?, answered_at = CURRENT_TIMESTAMP WHERE id = ?",
+    );
+    stmt.run("failed", errorMessage, commentId);
+  }
+
+  archiveComment(commentId: number) {
+    const stmt = this.db.prepare(
+      "UPDATE page_comments SET status = ? WHERE id = ?",
+    );
+    stmt.run("archived", commentId);
+  }
 }

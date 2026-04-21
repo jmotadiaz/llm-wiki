@@ -8,7 +8,10 @@ import { createIngestRoutes } from "./routes/ingest.js";
 import { createWikiRoutes } from "./routes/api/wiki.js";
 import { createRawRoutes } from "./routes/api/raw.js";
 import { createChatRoutes } from "./routes/api/chat.js";
+import { createCommentRoutes } from "./routes/api/comments.js";
 import { initScheduler } from "./services/scheduler.js";
+import { ReviewQueue } from "./services/review-queue.js";
+import { Queries } from "./db/queries.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,6 +61,14 @@ const PORT = process.env.PORT || 3005;
 // Initialize database
 const db = getDatabase();
 
+// Initialize review queue and re-enqueue pending comments
+const reviewQueue = new ReviewQueue(db);
+const queries = new Queries(db);
+const pendingComments = db.prepare("SELECT id FROM page_comments WHERE status = 'pending'").all() as any[];
+for (const comment of pendingComments) {
+  reviewQueue.enqueue(comment.id);
+}
+
 // Initialize scheduler
 initScheduler(db);
 
@@ -68,6 +79,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // API routes
 app.use("/api/ingest", createIngestRoutes(db));
 app.use("/api/wiki", createWikiRoutes(db));
+app.use("/api/wiki", createCommentRoutes(db, reviewQueue));
 app.use("/api/raw", createRawRoutes(db));
 app.use("/api/chat", createChatRoutes(db));
 

@@ -1,7 +1,6 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { openrouter } from "@openrouter/ai-sdk-provider";
 import { llmClient } from "./client.js";
 import { createIngestPlannerTools, createIngestTools } from "./ingest-tools.js";
 import { Queries } from "../db/queries.js";
@@ -186,7 +185,7 @@ export async function ingestRawSource(
         },
       ],
       tools,
-      model: openrouter("xiaomi/mimo-v2-flash"),
+      model: deepseek("deepseek-chat"),
       maxSteps: 15,
       temperature: 0.5,
       onStepFinish: debugEnabled
