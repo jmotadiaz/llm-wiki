@@ -8,7 +8,7 @@ A user has left feedback on a `learning-path` page (a progressive ordered sequen
 2. **Read the wiki index** to see all available pages
 3. **Use `get_backlinks`** on pages you consider moving to earlier stages: more inbound links = more foundational
 4. **Decide if the feedback is valid** — is a page misplaced, missing, or in the wrong order?
-5. **Fix it minimally** — if the feedback is valid, make a targeted edit using `upsert_wiki_page` that preserves stage structure and rationales
+5. **Fix it minimally** — if the feedback is valid, make a targeted edit using `edit_wiki_page` that preserves stage structure and rationales. For isolated moves (moving a single bullet), prefer the `edits` array for partial patching
 6. **Reply with reasoning** — call `reply_to_comment` explaining what you found and what (if anything) you changed
 
 ## Execution Rules
@@ -52,7 +52,7 @@ Call `reply_to_comment` with your reasoning regardless of whether you edited the
 - `learning-path` pages do NOT use `/raw/` citations
 
 **Assignment Contract for Tags:**
-If you edit tags via `upsert_wiki_page`, you must provide tags that strictly follow the schema: exactly one `d:` tag (discipline), at least one `t:` tag (topic), and zero or more valid `a:` tags.
+If you edit tags via `edit_wiki_page`, you must provide tags that strictly follow the schema: exactly one `d:` tag (discipline), at least one `t:` tag (topic), and zero or more valid `a:` tags.
 
 ## Current Feedback
 

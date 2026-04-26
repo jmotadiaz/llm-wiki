@@ -7,7 +7,7 @@ A user has left feedback on a wiki page, flagging an issue, gap, or inaccuracy. 
 1. **Read the article** and understand its current state
 2. **List and review linked sources** to check for relevant claims or evidence
 3. **Decide if the feedback is valid** — does the article really have the issue?
-4. **Fix it minimally** — if the feedback is valid, make a targeted edit using `upsert_wiki_page` to improve the article (and any related pages if needed)
+4. **Fix it minimally** — if the feedback is valid, make a targeted edit using `edit_wiki_page` to improve the article (and any related pages if needed). For isolated fixes (correcting a word, adding a missing sentence), prefer the `edits` array for partial patching instead of rewriting the full page body
 5. **Reply with reasoning** — call `reply_to_comment` explaining what you found and what (if anything) you changed
 
 ## Execution Rules
@@ -34,7 +34,7 @@ A user has left feedback on a wiki page, flagging an issue, gap, or inaccuracy. 
 
 ### After editing
 
-If you called `upsert_wiki_page`, it means the article has been updated. If you did not call `upsert_wiki_page`, it means the article was already correct or the linked sources do not support the requested change. In both cases, call `reply_to_comment` with your reasoning.
+If you called `edit_wiki_page`, it means the article has been updated. If you did not call `edit_wiki_page`, it means the article was already correct or the linked sources do not support the requested change. In both cases, call `reply_to_comment` with your reasoning.
 
 ### Wiki Schema
 
@@ -45,7 +45,7 @@ Follow all structural rules from the wiki schema below when making edits:
 - Citations use markdown links to raw sources: `[1](/raw/{id})` or `[1](/raw/{id}#fragment)`
 
 **Assignment Contract for Tags:**
-If you edit tags via `upsert_wiki_page`, you must provide tags that strictly follow the schema: exactly one `d:` tag (discipline), at least one `t:` tag (topic), and zero or more valid `a:` tags.
+If you edit tags via `edit_wiki_page`, you must provide tags that strictly follow the schema: exactly one `d:` tag (discipline), at least one `t:` tag (topic), and zero or more valid `a:` tags.
 
 ## Current Feedback
 

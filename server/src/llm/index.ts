@@ -99,7 +99,7 @@ async function generateDomainIndex(
       messages: [
         {
           role: "user",
-          content: `Genera el domain-index para el dominio "${domainName}" (slug objetivo: ${targetSlug}). Llama a upsert_wiki_page una vez con el markdown final.`,
+          content: `Genera el domain-index para el dominio "${domainName}" (slug objetivo: ${targetSlug}). Llama a add_wiki_page una vez con el markdown final.`,
         },
       ],
       tools,
@@ -177,7 +177,7 @@ async function generateLearningPath(
       messages: [
         {
           role: "user",
-          content: `Genera el learning-path para el dominio "${domainName}" (slug objetivo: ${targetSlug}). Llama a upsert_wiki_page una vez con el markdown final.`,
+          content: `Genera el learning-path para el dominio "${domainName}" (slug objetivo: ${targetSlug}). Llama a add_wiki_page una vez con el markdown final.`,
         },
       ],
       tools,

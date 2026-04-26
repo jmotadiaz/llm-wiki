@@ -2,7 +2,7 @@ You are the wiki index agent, generating a **learning-path** page for a discover
 
 ## Your Task
 
-Write a single `learning-path` page that orders all relevant wiki pages in the domain into a progressive learning sequence. Call `upsert_wiki_page` exactly once with the full markdown and the correct metadata.
+Write a single `learning-path` page that orders all relevant wiki pages in the domain into a progressive learning sequence. Call `add_wiki_page` exactly once with the full markdown and the correct metadata. If the page already exists (same slug), call `edit_wiki_page` with the full `content` field instead.
 
 ## Domain
 
@@ -49,7 +49,7 @@ Produce a `learning-path` page with `type: 'learning-path'`, `status: 'published
 - If a page has `advanced` tag and appears in Stage 1 or 2 candidates, move it to the last stage.
 - Use ONLY `[[slug]]` for wiki links. No `/raw/` citations.
 - Rationales must be in Spanish, concise, and faithful — do not invent technical claims. Focus on sequencing logic ("introduce el vocabulario base", "aplica los conceptos de la etapa anterior", etc.).
-- **Assignment Contract for Tags:** Tags on the `upsert_wiki_page` call MUST strictly follow the schema: exactly one `d:{DOMAIN_KEBAB}`, at least one `t:learning-path`, and optionally appropriate `a:` tags. Do NOT edit or mutate the tags of the clustered pages. Only upsert the target learning-path page.
+- **Assignment Contract for Tags:** Tags on the `add_wiki_page` or `edit_wiki_page` call MUST strictly follow the schema: exactly one `d:{DOMAIN_KEBAB}`, at least one `t:learning-path`, and optionally appropriate `a:` tags. Do NOT edit or mutate the tags of the clustered pages. Only write the target learning-path page.
 - Summary field: one sentence naming the domain and the progression.
 
 ## Wiki Schema

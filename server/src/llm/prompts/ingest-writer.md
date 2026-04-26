@@ -14,7 +14,7 @@ Create all wiki links and citations following the rules defined in the Wiki Sche
 
 ### Writing Process — Mandatory Steps
 
-Before calling `upsert_wiki_page` for any concept, follow these steps **in order**:
+Before calling any tool to create or update a page, follow these steps **in order**:
 
 **Step 1 — Extract from the raw source** (do this mentally before writing a single word of prose):
 
@@ -38,26 +38,27 @@ Before calling `upsert_wiki_page` for any concept, follow these steps **in order
 
 ### Efficiency & Batching
 
-When you need to call the same tool for multiple items (e.g., calling `get_wiki_page` for several update candidates, or `upsert_wiki_page` for several new pages), **batch them**: emit all independent calls in a single step rather than one per step. This allows the system to execute them in parallel and reduces token costs.
+When you need to call the same tool for multiple items (e.g., calling `get_wiki_page` for several update candidates, or `add_wiki_page` for several new pages), **batch them**: emit all independent calls in a single step rather than one per step. This allows the system to execute them in parallel and reduces token costs.
 
 ### For each page-worthy concept in the plan:
 
-1. **If `update`**: call `get_wiki_page` first to read current content and existing source IDs before writing.
-2. **Ground before writing**: derive which claims the current raw source supports and which citation target each uses (`/raw/{id}` or `/raw/{id}#fragment`). Do not write claims that go beyond what the raw source or preserved prior cited content supports.
-3. **Call `upsert_wiki_page` exactly once** for that concept:
-   - **New**: write a complete, in-depth page from scratch. Use the `key_claims` and `summary` from the plan as a **starting scaffold only** — then mine the full raw source document for all supporting detail, examples, distinctions, and principles the source provides about this concept. Every claim must be cited.
-   - **Update**: synthesize the existing page and the new source into a single, coherent article. Treat both the existing page's cited claims and the new source's claims as raw material — your task is to produce the best possible article about the concept using all of it. The result must read as if written by one author who had access to all sources simultaneously, never as layered additions from separate ingestions. Concretely:
+1. **If `new`**: call `add_wiki_page` to create the page from scratch.
+2. **If `update`**: call `get_wiki_page` first to read current content and existing source IDs before writing.
+3. **Ground before writing**: derive which claims the current raw source supports and which citation target each uses (`/raw/{id}` or `/raw/{id}#fragment`). Do not write claims that go beyond what the raw source or preserved prior cited content supports.
+4. **Call exactly one write tool** for that concept:
+   - **New page (`add_wiki_page`)**: write a complete, in-depth page from scratch. Use the `key_claims` and `summary` from the plan as a **starting scaffold only** — then mine the full raw source document for all supporting detail, examples, distinctions, and principles the source provides about this concept. Every claim must be cited.
+   - **Updated page (`edit_wiki_page`)**: synthesize the existing page and the new source into a single, coherent article. For minor targeted fixes (e.g., adding a citation or correcting a sentence), prefer the `edits` array for partial patching to reduce token usage. For major rewrites, use the `content` field. You MUST NOT provide both `content` and `edits` in the same call. Treat both the existing page's cited claims and the new source's claims as raw material — your task is to produce the best possible article about the concept using all of it. The result must read as if written by one author who had access to all sources simultaneously, never as layered additions from separate ingestions. Concretely:
      - **Preserve every cited claim from prior sources and every existing citation.** Do not drop or silently overwrite them.
      - **Redesign the section structure** around the concept's natural anatomy (e.g. definition → how it works → key considerations → related concepts), not around the order in which sources arrived.
      - **Integrate each new claim into the most appropriate existing section** — never append new content as a new section simply because it is "new". Merge, reorder, and rewrite prose freely; the only hard constraint is that every prior citation is retained somewhere in the new body.
      - **If two sources cover the same sub-topic from complementary angles**, merge them into one cohesive paragraph that cites both inline rather than keeping two separate paragraphs.
      - Use the `summary` from the plan as the guiding intent, not as a writing template.
-   - **Citation-only update**: if the raw source adds no new facts, rewrite the body to attach the new citation to an existing claim that the new raw also supports.
-   - **Contradictory update**: if the plan flags `contradiction: true`, keep both viewpoints in the same article, attribute each to its source with inline citations, and make the disagreement explicit in the prose.
+   - **Citation-only update**: if the raw source adds no new facts, use `edit_wiki_page` with a targeted `edits` entry to attach the new citation to an existing claim that the new raw also supports.
+   - **Contradictory update**: if the plan flags `contradiction: true`, keep both viewpoints in the same article, attribute each to its source with inline citations, and make the disagreement explicit in the prose. Use `edit_wiki_page` with the full `content` field.
    - The system automatically links the current raw source to the page — do not manage that relation in the page content.
    - After creating a new page, update any other pages in this plan that mention its concept to link with `[[slug]]` where appropriate.
 
-4. Every page MUST end with a `upsert_wiki_page` call. A `get_wiki_page` without a subsequent `upsert_wiki_page` is never valid.
+5. Every page MUST end with a write tool call (`add_wiki_page` or `edit_wiki_page`). A `get_wiki_page` without a subsequent write call is never valid.
 
 ### Inline-only mentions
 
@@ -68,10 +69,10 @@ For each inline-only mention in the plan, ensure the target page's content inclu
 For each entry in the plan's `Inbound link updates` section, update the listed existing page so it physically cross-links the newly planned concept:
 
 1. Call `get_wiki_page` on `target_slug` to read its current body.
-2. Produce a new body that integrates a `[[add_link_to]]` reference at the most natural place in the existing prose — either by replacing a plain-text mention or by adding a short sentence where the topic is already discussed. Do not rewrite unrelated content, do not add new claims, and do not re-cite the current raw source on the target page unless the target page legitimately uses a claim from it.
-3. Call `upsert_wiki_page` for the target page with the updated body. Preserve all existing citations, claims and structure.
+2. Produce a targeted edit that integrates a `[[add_link_to]]` reference at the most natural place in the existing prose — either by replacing a plain-text mention or by adding a short sentence where the topic is already discussed. Do not rewrite unrelated content, do not add new claims, and do not re-cite the current raw source on the target page unless the target page legitimately uses a claim from it.
+3. Call `edit_wiki_page` for the target page with an `edits` entry containing the exact string to replace. Preserve all existing citations, claims and structure.
 
-If a page-worthy concept in the plan already has its own `upsert_wiki_page` call, do not double-edit it here — the inbound link updates are only for pages that would not otherwise be touched by this plan.
+If a page-worthy concept in the plan already has its own `add_wiki_page` or `edit_wiki_page` call, do not double-edit it here — the inbound link updates are only for pages that would not otherwise be touched by this plan.
 
 ### Warnings
 
@@ -85,7 +86,7 @@ After all pages are written, call `report_warning` for each warning in the plan:
 
 ## Exit Condition
 
-The workflow ends when every page-worthy concept in the plan has exactly one `upsert_wiki_page` call, every `Inbound link updates` entry has its corresponding `upsert_wiki_page` call on the existing target page, all inline-only mentions are handled inside those pages, and all warnings are reported. Then stop — no summary text, no explanation.
+The workflow ends when every page-worthy concept in the plan has exactly one write tool call (`add_wiki_page` for new pages, `edit_wiki_page` for updates), every `Inbound link updates` entry has its corresponding `edit_wiki_page` call on the existing target page, all inline-only mentions are handled inside those pages, and all warnings are reported. Then stop — no summary text, no explanation.
 
 ## Current Raw Source ID
 
@@ -104,7 +105,7 @@ The raw source you are processing has ID `{RAW_ID}`.
 {DOMAIN_TAGS_INDEX}
 
 **Assignment Contract for d: Tags:**
-When calling `upsert_wiki_page`, you must provide tags that strictly follow the schema: exactly one `d:` tag (discipline), at least one `t:` tag (topic), and zero or more valid `a:` tags. The planner suggests tags in the ingestion plan, but you must ensure they comply with this contract.
+When calling `add_wiki_page` or `edit_wiki_page`, you must provide tags that strictly follow the schema: exactly one `d:` tag (discipline), at least one `t:` tag (topic), and zero or more valid `a:` tags. The planner suggests tags in the ingestion plan, but you must ensure they comply with this contract.
 
 ## Wiki Schema
 

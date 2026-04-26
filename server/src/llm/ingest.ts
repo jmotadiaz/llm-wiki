@@ -221,7 +221,7 @@ export async function ingestRawSource(
     // Count results from tool calls
     const toolCalls = result.steps.flatMap((s) => s.toolCalls || []);
     const pagesWritten = toolCalls.filter(
-      (tc) => tc.toolName === "upsert_wiki_page",
+      (tc) => tc.toolName === "add_wiki_page" || tc.toolName === "edit_wiki_page",
     ).length;
     const warnings = toolCalls.filter(
       (tc) => tc.toolName === "report_warning",
