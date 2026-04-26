@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { debugLog } from "../utils/debug.js";
+import { validateTagContract } from "./tag-validator.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -150,6 +151,13 @@ export const createIngestTools = (
         if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(page.slug)) {
           return {
             error: `Slug rejected: "${page.slug}" is not valid kebab-case. Must be lowercase letters, numbers, and hyphens only (e.g., "harness-engineering").`,
+          };
+        }
+
+        const tagValidation = validateTagContract(page.tags);
+        if (!tagValidation.valid) {
+          return {
+            error: `Tags rejected: ${tagValidation.error}`,
           };
         }
 

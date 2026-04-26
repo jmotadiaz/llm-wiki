@@ -34,12 +34,15 @@ What NOT to extract:
 
 Every page has exactly one type:
 
-| Type        | Use for                                                      |
-| ----------- | ------------------------------------------------------------ |
-| `concept`   | Core ideas, definitions, principles, mental models           |
-| `technique` | Methods, procedures, patterns, step-by-step approaches       |
-| `reference` | Summaries of external resources, standards, tools, libraries |
-| `index`     | Curated collections that link related pages under a theme    |
+| Type            | Use for                                                                        |
+| --------------- | ------------------------------------------------------------------------------ |
+| `concept`       | Core ideas, definitions, principles, mental models                             |
+| `technique`     | Methods, procedures, patterns, step-by-step approaches                         |
+| `reference`     | Summaries of external resources, standards, tools, libraries                   |
+| `domain-index`  | Auto-generated map of a domain: concepts, techniques, tools, related pages     |
+| `learning-path` | Auto-generated ordered learning sequence for a domain, with per-page rationale |
+
+Pages of type `domain-index` and `learning-path` are produced by the index agent, not by the ingest pipeline. Do not create them from the ingest writer.
 
 ### Language Policy
 
@@ -69,46 +72,77 @@ Slugs are URL-safe identifiers used for cross-referencing (`[[slug]]`). They mus
 
 ### Tag Taxonomy
 
-Use only these tags. Do not invent new ones.
+A page's tags mix two kinds of classification: **discipline tags** (the broad field the page belongs to), **topic tags** (the specific concepts the page invokes), and **axis tags** (depth, practical, content metadata).
 
-#### Domain Tags
+All tags on `wiki_pages` SHALL carry exactly one of three role prefixes. The format and cardinality rules are strictly enforced on every upsert:
 
-- `ai` — Artificial Intelligence (broad)
-- `llm` — Large Language Models
-- `nlp` — Natural Language Processing
-- `ml` — Machine Learning
-- `rag` — Retrieval-Augmented Generation
-- `agents` — AI Agents and Tool Use
-- `software-engineering` — Software development practices and methodologies
-- `frontend` — UI frameworks, web standards, browser APIs
-- `backend` — Server-side frameworks, APIs, routing
-- `architecture` — System and software architecture patterns
-- `systems` — Operating systems, networking, low-level mechanics
-- `security` — Authentication, cryptography, security best practices
-- `devops` — CI/CD, infrastructure, deployment
-- `testing` — Testing strategies and frameworks
-- `data` — Data engineering, databases, pipelines
-- `design` — UI/UX design, visual patterns, accessibility
+- `d:<slug>` — **discipline**. The broad field or domain the page belongs to. **Each page MUST carry exactly one `d:` tag.**
+- `t:<slug>` — **topic**. The specific concepts, patterns, or techniques the page invokes. **Each page MUST carry at least one `t:` tag** (typically 1-3).
+- `a:<slug>` — **axis**. Meta-classification (depth/practical/content). **Zero or more per page.** The `<slug>` MUST be drawn from the closed whitelist.
 
-#### Depth Tags
+The `<slug>` portion of all tags must match `^[a-z0-9]+(-[a-z0-9]+)*$`. The entire tag (including prefix) MUST match `^(d|t|a):[a-z0-9]+(-[a-z0-9]+)*$`.
 
-- `fundamentals` — Beginner-friendly introduction
-- `advanced` — Requires prior knowledge
-- `research` — Active research area, evolving
+#### Discipline Tags (`d:`)
 
-#### Practical Tags
+A discipline tag names the primary domain or field that the page is part of (e.g., `d:ai-agents`, `d:software-testing`, `d:networking`).
 
-- `implementation` — How-to and code guidance
-- `troubleshooting` — Debugging and problem-solving
-- `performance` — Optimization and efficiency
+- **Exactly ONE per page.**
+- Pick the most specific discipline that still represents a broad field of study or practice.
+- Do not use umbrella terms that are too generic (e.g., `d:computer-science`).
 
-#### Content Tags
+**Initial List of Disciplines:**
+This is not a closed whitelist; you can expand it if a new page doesn't fit the initial list.
 
-- `tutorial` — Step-by-step learning
-- `theory` — Conceptual foundation
-- `case-study` — Real-world example
-- `tool` — Third-party libraries, frameworks, or software products (e.g., React, Express, Docker)
-- `standard` — Specifications, protocols, and built-in APIs (e.g., HTTP, Promise, Cookies)
+- `d:ai-agents` — Orchestration, harnesses, and evaluation of autonomous LLMs.
+- `d:software-testing` — Patterns, isolation strategies (test doubles), and testing models.
+- `d:software-architecture` — Large-scale system design and technological maintainability.
+- `d:devops` — Continuous delivery, automation pipelines, and platform tooling.
+- `d:natural-language-processing` — Core LLM mechanisms (transformers, embeddings, tokenization).
+- `d:machine-learning` — General model learning, classification algorithms, and base metrics.
+
+#### Topic Tags (`t:`)
+
+A topic tag names a coherent concept, pattern, or technique that the page is meaningfully about (e.g., `t:event-sourcing`, `t:circuit-breaker`, `t:prompt-engineering`). Good topic tags are distilled from the page's own content.
+
+- **At least ONE per page.**
+- Concrete concepts cluster better than umbrellas.
+- Reusing an existing topic tag connects this page to other pages that also touch the same concept, forming cross-domain relationships.
+
+**Initial List of Topics:**
+This is not a closed whitelist; you can expand it if a new page introduces a concrete concept not covered here.
+
+- For `ai-agents`: `t:agent-harness`, `t:context-engineering`, `t:agent-evaluation`, `t:human-ai-interaction`.
+- For `software-testing`: `t:test-doubles`, `t:test-strategy`, `t:integration-testing`, `t:test-patterns`.
+- For `software-architecture` / `devops`: `t:continuous-delivery`, `t:ai-driven-development`.
+- For `natural-language-processing` / `machine-learning`: `t:text-embeddings`, `t:transformer-architecture`, `t:semantic-search`, `t:text-classification`, `t:model-metrics`, `t:model-training`.
+
+#### Axis Tags (`a:`)
+
+Axis tags provide metadata about the nature of the page. Reuse these exactly when they apply. Do not invent new `a:` tags.
+
+**Depth:**
+
+- `a:fundamentals` — Beginner-friendly introduction
+- `a:advanced` — Requires prior knowledge
+- `a:research` — Active research area, evolving
+
+**Practical:**
+
+- `a:implementation` — How-to and code guidance
+- `a:troubleshooting` — Debugging and problem-solving
+- `a:performance` — Optimization and efficiency
+
+**Content:**
+
+- `a:tutorial` — Step-by-step learning
+- `a:theory` — Conceptual foundation
+- `a:case-study` — Real-world example
+- `a:tool` — Third-party libraries, frameworks, or software products (e.g., React, Express, Docker)
+- `a:standard` — Specifications, protocols, and built-in APIs (e.g., HTTP, Promise, Cookies)
+
+#### Introducing a new tag
+
+A new `d:` or `t:` tag is justified when a cluster of pages shares a coherent aspect that none of the canonical tags captures. New tags MUST follow the prefixed kebab-case format. When in doubt, pick the closest existing tag rather than creating a near-duplicate.
 
 ### Page Structure
 
@@ -139,6 +173,7 @@ Use `[[slug]]` to link to other wiki pages. The slug must match an existing or n
 - Raw links are evidence citations only; concept navigation must use `[[slug]]`.
 - Write the concept name naturally in prose and place the bare `[[slug]]` inline: `el [[chain-of-thought]] permite...`.
 - Correct pattern for wiki links: `[[harness-engineering]]`.
+- **NEVER use piped aliases**: `[[slug|display text]]` is NOT supported. This system does not implement MediaWiki-style aliased links.
 
 #### Source citations
 
@@ -149,16 +184,30 @@ Reference style:
 - Write citations as markdown links, for example `[1](/raw/{id})` or `[1](/raw/{id}#user-content-fragment)`.
 - Use `/raw/{id}#fragment` when the supporting evidence comes from a specific section heading in the raw source.
 - Use `/raw/{id}` when no suitable section heading exists.
-- Use only valid section-heading fragments from the raw source.
 
-#### Citation Syntax (Correct vs. Incorrect)
+#### Citation and Link Syntax — Corrected Examples
 
-| Correct                                      | Incorrect (DO NOT USE)                       | Reason                                 |
-| -------------------------------------------- | -------------------------------------------- | -------------------------------------- |
-| `[1](/raw/4#user-content-post-training)`     | `[1](/raw/4#user-content-post-training]`     | Incorrect closure with `]`             |
-| `[1](/raw/2)`                                | `[/raw/2]`                                   | Missing Markdown link syntax           |
-| `the [[rag-method]]`                         | `the [rag-method]`                           | Wiki links always use `[[ ]]`          |
-| `the [[rag]] architecture [1](/raw/3)`       | `the [rag](/raw/3) architecture`             | Mixes concept and citation in one link |
+The following are real errors produced by the writer, and their correct rewrites. Internalize these patterns.
+
+**Error A — Citation closed with `]` instead of `)`:**
+
+❌ Wrong: `El modelo observa el resultado [1](/raw/1#user-content-humans-on-the-loop].`
+✅ Correct: `El modelo observa el resultado [1](/raw/1#user-content-humans-on-the-loop).`
+
+**Error B — Piped wiki link `[[slug|label]]`:**
+
+❌ Wrong: `Los [[agent-harness|harnesses]] implementan la bash tool.`
+✅ Correct: `Los harnesses del [[agent-harness]] implementan la bash tool.`
+
+**Error C — Raw URL used as wiki link:**
+
+❌ Wrong: `el [rag-method] permite...`
+✅ Correct: `el [[rag-method]] permite...`
+
+**Error D — Wiki link mixed with citation URL:**
+
+❌ Wrong: `the [rag](/raw/3) architecture`
+✅ Correct: `the [[rag]] architecture [1](/raw/3)`
 
 When updating a page, preserve all existing citations from previous sources. Add new citations alongside them — never replace or remove existing ones.
 

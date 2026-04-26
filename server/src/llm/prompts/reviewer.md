@@ -44,6 +44,9 @@ Follow all structural rules from the wiki schema below when making edits:
 - Cross-references use `[[slug]]` syntax
 - Citations use markdown links to raw sources: `[1](/raw/{id})` or `[1](/raw/{id}#fragment)`
 
+**Assignment Contract for Tags:**
+If you edit tags via `upsert_wiki_page`, you must provide tags that strictly follow the schema: exactly one `d:` tag (discipline), at least one `t:` tag (topic), and zero or more valid `a:` tags.
+
 ## Current Feedback
 
 {FEEDBACK}

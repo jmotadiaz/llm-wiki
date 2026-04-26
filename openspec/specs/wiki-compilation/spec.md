@@ -32,13 +32,34 @@ Every wiki page SHALL include inline footnote references (`[^raw-{id}]`) linking
 ### Requirement: Index maintenance
 The LLM SHALL produce updated `index.md` entries for all created/updated pages. Each entry SHALL contain slug, title, summary (1-2 sentences), tags (comma-separated), and updated date. The backend SHALL merge these entries into `index.md`.
 
+For `domain-index` and `learning-path` pages, the markdown structure SHALL follow specific patterns:
+- `domain-index`: H1 title, executive description, H2 "Conceptos Clave", H2 "Técnicas", H2 "Herramientas", and H2 "Relacionado". Slugs follow `domain-index-<domain-kebab>`.
+- `learning-path`: H1 title, description, optional H2 "Prerequisitos", and two or more H2 stage sections (e.g., "Fundamentos", "Conceptos Avanzados"). Every page entry SHALL include an em-dash and a rationale sentence. Slugs follow `learning-path-<domain-kebab>`.
+
 #### Scenario: New page index entry
 - **WHEN** a new wiki page "vector-databases" is created
 - **THEN** `index.md` gains an entry: `- **[[vector-databases]]** | updated: {date}` with summary and tags
 
-#### Scenario: Updated page index entry
-- **WHEN** an existing wiki page is updated
-- **THEN** its `index.md` entry is replaced with the new summary, tags, and updated date
+#### Scenario: Index page structure compliance
+- **WHEN** the index agent generates a domain-index or learning-path
+- **THEN** the markdown content follows the defined H1/H2 structure and slug patterns
+
+### Requirement: Wiki page tags use role-prefixed format
+All tags on `wiki_pages` SHALL carry exactly one of three role prefixes. The format and cardinality rules SHALL be enforced by `upsert_wiki_page` on every call:
+
+- `d:<slug>` — discipline. Each page MUST carry exactly one `d:` tag.
+- `t:<slug>` — topic. Each page MUST carry at least one `t:` tag.
+- `a:<slug>` — axis. Zero or more per page. The `<slug>` MUST be drawn from the closed whitelist: `fundamentals`, `advanced`, `research`, `implementation`, `troubleshooting`, `performance`, `tutorial`, `theory`, `case-study`, `tool`, `standard`.
+
+The `<slug>` portion of `d:` and `t:` tags MUST match `^[a-z0-9]+(-[a-z0-9]+)*$`. The entire tag (including prefix) MUST match `^(d|t|a):[a-z0-9]+(-[a-z0-9]+)*$`. Tags that fail any rule SHALL cause `upsert_wiki_page` to return an error and no persistence to occur.
+
+#### Scenario: Valid tag set accepted
+- **WHEN** `upsert_wiki_page` is called with tags `["d:ai-agents", "t:harness-engineering", "t:agent-workflows", "a:fundamentals", "a:theory"]`
+- **THEN** the page is persisted with those tags
+
+#### Scenario: Tag contract violation rejected
+- **WHEN** `upsert_wiki_page` is called with missing `d:`, multiple `d:`, missing `t:`, unknown `a:`, or bare tags
+- **THEN** the tool returns a validation error and the page is not persisted
 
 ### Requirement: Contradiction detection at ingest (Tier 2)
 The ingest LLM call SHALL include instructions to flag contradictions between the new raw source and existing wiki pages referenced in the index. Contradictions SHALL be returned in the `warnings` array of the structured output.

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { Queries } from "../../db/queries.js";
 import { ReviewQueue } from "../../services/review-queue.js";
+import { isReviewableType } from "../../llm/review.js";
 import Database from "better-sqlite3";
 
 export function createCommentRoutes(
@@ -57,6 +58,13 @@ export function createCommentRoutes(
       const page = queries.getWikiPageBySlug(slug);
       if (!page) {
         res.status(404).json({ error: "Page not found" });
+        return;
+      }
+
+      if (!isReviewableType(page.type)) {
+        res.status(400).json({
+          error: `Unsupported page type "${page.type}" for review.`,
+        });
         return;
       }
 

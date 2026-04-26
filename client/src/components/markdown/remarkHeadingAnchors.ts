@@ -26,18 +26,16 @@ function extractNodeText(node: MarkdownNode): string {
 
 export default function remarkHeadingAnchors() {
   return (tree: any) => {
-    let headingIndex = 0;
-
     visit(tree, "heading", (node: any) => {
       const text = extractNodeText(node).trim();
       if (!text) {
         return;
       }
-
-      // Use absolute index for deterministic IDs: user-content-[idx]-[slug]
-      const fragment = getHeadingId(text, headingIndex);
-      headingIndex++;
-
+ 
+      // Pass empty prefix: streamdown prepends "user-content-" automatically,
+      // so we only generate the slug part (e.g. "humans-on-loop").
+      const fragment = getHeadingId(text, "");
+ 
       node.data ??= {};
       node.data.id = fragment;
       node.data.hProperties = {

@@ -78,9 +78,10 @@ export class Queries {
     type: string,
     tags?: string,
     status?: string,
+    generatedAt?: string | null,
   ) {
     const stmt = this.db.prepare(
-      "INSERT INTO wiki_pages (slug, title, summary, content, type, tags, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO wiki_pages (slug, title, summary, content, type, tags, status, generated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     );
     const result = stmt.run(
       slug,
@@ -90,6 +91,7 @@ export class Queries {
       type,
       tags || null,
       status || "published",
+      generatedAt || null,
     );
     return result.lastInsertRowid as number;
   }
@@ -101,11 +103,38 @@ export class Queries {
     content: string,
     tags?: string,
     status?: string,
+    generatedAt?: string | null,
   ) {
+    if (generatedAt !== undefined) {
+      const stmt = this.db.prepare(
+        "UPDATE wiki_pages SET title = ?, summary = ?, content = ?, tags = ?, status = ?, generated_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      );
+      stmt.run(title, summary || null, content, tags || null, status, generatedAt, id);
+      return;
+    }
     const stmt = this.db.prepare(
       "UPDATE wiki_pages SET title = ?, summary = ?, content = ?, tags = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
     );
     stmt.run(title, summary || null, content, tags || null, status, id);
+  }
+
+  getWikiPagesByType(type: string) {
+    const stmt = this.db.prepare(
+      "SELECT * FROM wiki_pages WHERE type = ? ORDER BY updated_at DESC",
+    );
+    return stmt.all(type) as any[];
+  }
+
+  getInboundLinkCounts(): Map<string, number> {
+    const stmt = this.db.prepare(
+      "SELECT to_page_slug, COUNT(*) as count FROM wiki_links GROUP BY to_page_slug",
+    );
+    const rows = stmt.all() as any[];
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      counts.set(row.to_page_slug, row.count);
+    }
+    return counts;
   }
 
   // Page Sources

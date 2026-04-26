@@ -7,6 +7,7 @@
     "dev": "vite",
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc && vite build",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {

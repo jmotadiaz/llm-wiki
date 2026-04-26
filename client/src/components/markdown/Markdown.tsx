@@ -18,7 +18,9 @@ export default function Markdown({
 }: MarkdownProps) {
   const navigate = useNavigate();
 
-  // Custom remark plugins: defaults + wiki links + GFM
+  // Custom remark plugins: defaults + wiki links + GFM.
+  // Must depend on `content` so remarkHeadingAnchors gets a fresh instance
+  // (reset headingIndex counter) for each document, matching server output.
   const remarkPlugins = useMemo(
     () => [
       ...Object.values(defaultRemarkPlugins),
@@ -34,7 +36,7 @@ export default function Markdown({
         },
       ],
     ],
-    [],
+    [content],
   );
 
   return (

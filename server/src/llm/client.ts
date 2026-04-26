@@ -18,6 +18,7 @@ interface GenerateOptions {
   system?: string;
   messages: ModelMessage[];
   temperature?: number;
+  topP?: number;
   maxOutputTokens?: number;
   model?: LanguageModel;
   tools?: Record<string, any>;
@@ -49,7 +50,8 @@ export class LLMClient {
       instructions: options.system,
       tools: options.tools,
       stopWhen: options.stopWhen ?? stepCountIs(options.maxSteps ?? 20),
-      temperature: options.temperature ?? 0.7,
+      temperature: options.temperature,
+      topP: options.topP,
       maxOutputTokens: options.maxOutputTokens,
       onStepFinish: options.onStepFinish,
     });
@@ -64,7 +66,8 @@ export class LLMClient {
     const commonOptions = {
       system: options.system,
       messages: options.messages,
-      temperature: options.temperature ?? 0.7,
+      temperature: options.temperature,
+      topP: options.topP,
       maxOutputTokens: options.maxOutputTokens,
     };
 
@@ -81,10 +84,7 @@ export class LLMClient {
       });
     } catch (error) {
       lastError = error as Error;
-      console.warn(
-        `Primary model (${primary}) failed:`,
-        lastError.message,
-      );
+      console.warn(`Primary model (${primary}) failed:`, lastError.message);
     }
 
     // Try fallback model

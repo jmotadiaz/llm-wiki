@@ -3,10 +3,36 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { deepseek } from "@ai-sdk/deepseek";
 import { llmClient } from "./client.js";
-import { createReviewTools } from "./review-tools.js";
+import { createReviewTools, ReviewAgentKind } from "./review-tools.js";
 import { Queries } from "../db/queries.js";
 import Database from "better-sqlite3";
 import { debugLog, isDebugEnabled } from "../utils/debug.js";
+
+const KNOWN_TYPES = new Set([
+  "concept",
+  "technique",
+  "reference",
+  "index",
+  "domain-index",
+  "learning-path",
+]);
+
+export function isReviewableType(type: string): boolean {
+  return KNOWN_TYPES.has(type);
+}
+
+function resolveReviewConfig(pageType: string): {
+  promptFile: string;
+  kind: ReviewAgentKind;
+} {
+  if (pageType === "domain-index") {
+    return { promptFile: "review-domain-index.md", kind: "domain-index" };
+  }
+  if (pageType === "learning-path") {
+    return { promptFile: "review-learning-path.md", kind: "learning-path" };
+  }
+  return { promptFile: "reviewer.md", kind: "standard" };
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -107,13 +133,15 @@ export async function reviewComment(
     L1_SCHEMA: l1Schema,
   };
 
+  const { promptFile, kind } = resolveReviewConfig(page.type);
+
   const reviewerPrompt = interpolatePrompt(
-    loadPromptTemplate("reviewer.md"),
+    loadPromptTemplate(promptFile),
     vars,
   );
 
   debugLog(
-    `[REVIEW] Reviewer agent starting for comment ${commentId} on page "${pageSlug}"`,
+    `[REVIEW] Reviewer agent starting for comment ${commentId} on page "${pageSlug}" (type=${page.type}, kind=${kind})`,
   );
   debugLog(
     `[REVIEW] Reviewer system prompt for comment ${commentId}`,
@@ -121,7 +149,7 @@ export async function reviewComment(
   );
 
   // Create tools with closure to track pagesEdited
-  const tools = createReviewTools(db, commentId, pageSlug);
+  const tools = createReviewTools(db, commentId, pageSlug, kind);
 
   try {
     const result = await llmClient.generate({

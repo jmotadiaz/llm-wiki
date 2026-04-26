@@ -15,7 +15,12 @@ const __dirname = path.dirname(__filename);
  * Loads the current wiki index for L1 context.
  */
 function loadL1Index(queries: Queries): string {
-  const pages = queries.getAllWikiPages();
+  const pages = queries
+    .getAllWikiPages()
+    .filter(
+      (page: any) =>
+        page.type !== "domain-index" && page.type !== "learning-path",
+    );
   if (pages.length === 0) {
     return "(No pages in wiki yet)";
   }

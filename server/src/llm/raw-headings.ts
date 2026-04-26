@@ -21,7 +21,7 @@ export function extractRawHeadings(rawContent: string): RawHeading[] {
   const lines = rawContent.split(/\r?\n/);
   const headings: RawHeading[] = [];
   let inCodeFence = false;
-  let headingIndex = 0;
+
 
   for (const line of lines) {
     if (/^```/.test(line.trim())) {
@@ -44,9 +44,8 @@ export function extractRawHeadings(rawContent: string): RawHeading[] {
       continue;
     }
 
-    // Use absolute index for deterministic IDs: user-content-[idx]-[slug]
-    const fragment = getHeadingId(text, headingIndex);
-    headingIndex++;
+    // Use deterministic IDs: user-content-[slug]
+    const fragment = getHeadingId(text);
 
     headings.push({
       depth,

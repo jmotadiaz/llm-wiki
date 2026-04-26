@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { debugLog } from "../utils/debug.js";
+import { validateTagContract } from "./tag-validator.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,16 +75,22 @@ function ensureWikiDirectory(): string {
   return wikiDir;
 }
 
+export type ReviewAgentKind =
+  | "standard"
+  | "domain-index"
+  | "learning-path";
+
 export const createReviewTools = (
   db: Database.Database,
   commentId: number,
   pageSlug: string,
+  kind: ReviewAgentKind = "standard",
 ) => {
   const queries = new Queries(db);
   const wikiDir = ensureWikiDirectory();
   const pagesEdited: string[] = [];
 
-  return {
+  const baseTools = {
     get_wiki_page: tool({
       description:
         "Read the full content, metadata, and existing source IDs of an existing wiki page by its slug.",
@@ -192,7 +199,7 @@ export const createReviewTools = (
           .describe("The unique slug of the page (English, kebab-case)."),
         title: z.string().describe("The human-readable title (Spanish)."),
         type: z
-          .enum(["concept", "technique", "reference", "index"])
+          .enum(["concept", "technique", "reference", "index", "domain-index", "learning-path"])
           .describe("The page type."),
         status: z
           .enum(["draft", "published", "archived"])
@@ -214,6 +221,13 @@ export const createReviewTools = (
         if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(page.slug)) {
           return {
             error: `Slug rejected: "${page.slug}" is not valid kebab-case.`,
+          };
+        }
+
+        const tagValidation = validateTagContract(page.tags);
+        if (!tagValidation.valid) {
+          return {
+            error: `Tags rejected: ${tagValidation.error}`,
           };
         }
 
@@ -307,4 +321,61 @@ export const createReviewTools = (
       },
     }),
   };
+
+  const indexTools = {
+    get_wiki_index: tool({
+      description:
+        "Retrieve the full wiki index with slug, title, type, tags, and summary. Use to decide which pages to include in a domain-index or learning-path.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        debugLog(`[Tool: review.get_wiki_index] fetching wiki index`);
+        const pages = queries.getAllWikiPages();
+        return pages
+          .filter((p: any) => p.status === "published")
+          .map((p: any) => ({
+            slug: p.slug,
+            title: p.title,
+            type: p.type,
+            tags: (p.tags || "").split(",").map((t: string) => t.trim()).filter(Boolean),
+            summary: p.summary,
+          }));
+      },
+    }),
+    get_backlinks: tool({
+      description:
+        "List wiki pages that link TO a given slug (backlinks). Foundational pages tend to have many backlinks.",
+      inputSchema: z.object({
+        slug: z.string().describe("The slug whose inbound links you want."),
+      }),
+      execute: async ({ slug }) => {
+        debugLog(`[Tool: review.get_backlinks] slug: ${slug}`);
+        const backlinks = queries.getBacklinks(slug);
+        return backlinks.map((page: any) => ({
+          slug: page.slug,
+          title: page.title,
+          type: page.type,
+          tags: page.tags ? page.tags.split(",") : [],
+        }));
+      },
+    }),
+  };
+
+  if (kind === "domain-index") {
+    const { list_page_sources: _a, get_raw_source: _b, ...rest } = baseTools;
+    return {
+      ...rest,
+      get_wiki_index: indexTools.get_wiki_index,
+    };
+  }
+
+  if (kind === "learning-path") {
+    const { list_page_sources: _a, get_raw_source: _b, ...rest } = baseTools;
+    return {
+      ...rest,
+      get_wiki_index: indexTools.get_wiki_index,
+      get_backlinks: indexTools.get_backlinks,
+    };
+  }
+
+  return baseTools;
 };

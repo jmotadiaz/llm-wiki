@@ -8,6 +8,34 @@ You receive an ingestion plan that lists page-worthy concepts, their actions (ne
 
 ## Execution Rules
 
+### Link Syntax & Validation
+
+Create all wiki links and citations following the rules defined in the Wiki Schema below. **Before calling any tool, you must validate that your content strictly adheres to the Schema's syntax rules.**
+
+### Writing Process — Mandatory Steps
+
+Before calling `upsert_wiki_page` for any concept, follow these steps **in order**:
+
+**Step 1 — Extract from the raw source** (do this mentally before writing a single word of prose):
+
+- Re-read every passage in the raw source that mentions this concept.
+- List every distinct claim, distinction, mechanism, principle, consequence, example, and nuance the source provides about it.
+- Do NOT rely solely on the plan's `key_claims` — the plan is a compressed index. The raw source is the authoritative input. The plan may have omitted detail.
+
+**Step 2 — Design the section structure** around the concept's natural anatomy:
+
+- Common sections: definition/intro paragraph → how it works → why it matters / key considerations → sub-components or variants → related concepts.
+- Use only sections that the raw source genuinely supports. Do not invent sections.
+- Each section must have at least one substantive paragraph, not a single sentence.
+
+**Step 3 — Write each section fully**:
+
+- Translate every claim from Step 1 into prose, with an inline citation immediately after each claim.
+- Merge closely related claims into coherent paragraphs — do not list them as bullet points unless the source itself presents them as a list.
+- A section with only one sentence is almost always incomplete. Return to the raw source for more detail.
+
+**Minimum viable page**: an introductory paragraph + at least two H2 sections with substantive prose. A page shorter than ~200 words for a substantive concept is a failure.
+
 ### Efficiency & Batching
 
 When you need to call the same tool for multiple items (e.g., calling `get_wiki_page` for several update candidates, or `upsert_wiki_page` for several new pages), **batch them**: emit all independent calls in a single step rather than one per step. This allows the system to execute them in parallel and reduces token costs.
@@ -17,7 +45,7 @@ When you need to call the same tool for multiple items (e.g., calling `get_wiki_
 1. **If `update`**: call `get_wiki_page` first to read current content and existing source IDs before writing.
 2. **Ground before writing**: derive which claims the current raw source supports and which citation target each uses (`/raw/{id}` or `/raw/{id}#fragment`). Do not write claims that go beyond what the raw source or preserved prior cited content supports.
 3. **Call `upsert_wiki_page` exactly once** for that concept:
-   - **New**: write a complete page from scratch, citing the current raw source for every claim. Use the `key_claims` and `summary` from the plan as the basis.
+   - **New**: write a complete, in-depth page from scratch. Use the `key_claims` and `summary` from the plan as a **starting scaffold only** — then mine the full raw source document for all supporting detail, examples, distinctions, and principles the source provides about this concept. Every claim must be cited.
    - **Update**: synthesize the existing page and the new source into a single, coherent article. Treat both the existing page's cited claims and the new source's claims as raw material — your task is to produce the best possible article about the concept using all of it. The result must read as if written by one author who had access to all sources simultaneously, never as layered additions from separate ingestions. Concretely:
      - **Preserve every cited claim from prior sources and every existing citation.** Do not drop or silently overwrite them.
      - **Redesign the section structure** around the concept's natural anatomy (e.g. definition → how it works → key considerations → related concepts), not around the order in which sources arrived.
@@ -48,6 +76,7 @@ If a page-worthy concept in the plan already has its own `upsert_wiki_page` call
 ### Warnings
 
 After all pages are written, call `report_warning` for each warning in the plan:
+
 - `missing_context` — a concept needed for coherence, referenced via `[[slug]]`, that still cannot be created faithfully from this raw source
 - `contradiction` — the raw source directly contradicts an existing wiki page (still preserve both positions in the page)
 - `ambiguous_content` — the source is unclear or self-contradictory
@@ -69,6 +98,13 @@ The raw source you are processing has ID `{RAW_ID}`.
 ## Existing Wiki Index
 
 {L1_INDEX}
+
+## Current Domain Tags
+
+{DOMAIN_TAGS_INDEX}
+
+**Assignment Contract for d: Tags:**
+When calling `upsert_wiki_page`, you must provide tags that strictly follow the schema: exactly one `d:` tag (discipline), at least one `t:` tag (topic), and zero or more valid `a:` tags. The planner suggests tags in the ingestion plan, but you must ensure they comply with this contract.
 
 ## Wiki Schema
 

@@ -57,6 +57,10 @@ export function initializeDatabase(): Database.Database {
   if (!hasSummary) {
     db.exec('ALTER TABLE wiki_pages ADD COLUMN summary TEXT');
   }
+  const hasGeneratedAt = wikiPageInfo.some(col => col.name === 'generated_at');
+  if (!hasGeneratedAt) {
+    db.exec('ALTER TABLE wiki_pages ADD COLUMN generated_at DATETIME');
+  }
 
   // Migration: page_comments table
   const pageCommentsInfo = db.prepare("PRAGMA table_info(page_comments)").all() as any[];

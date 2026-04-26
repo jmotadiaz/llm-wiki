@@ -1,14 +1,22 @@
 ## ADDED Requirements
 
-### Requirement: Wiki index view
-The system SHALL display a browsable index of all wiki pages, parsed from `index.md`. Pages SHALL be grouped by tags with search and filter functionality.
+### Requirement: Wiki index view (Home Page)
+The home page (`/`) SHALL display three tabs: "Páginas", "Dominios", and "Learning Paths". The "Páginas" tab SHALL be the default active tab and display the existing wiki page list. The "Dominios" tab SHALL list all `domain-index` pages. The "Learning Paths" tab SHALL list all `learning-path` pages.
 
-#### Scenario: Browse index
-- **WHEN** user navigates to the wiki index
-- **THEN** system displays all wiki pages grouped by tags, each showing title, summary, tags, and last updated date
+The "Páginas" tab SHALL expose a primary filter for discipline (`d:` tags present in the wiki) and a secondary filter for topics (`t:` tags). Selecting a discipline SHALL narrow the listing to pages with that `d:`; additionally selecting topics SHALL further narrow to pages that carry all selected `t:` tags.
 
-#### Scenario: Search and filter
-- **WHEN** user types "database" in the search box or selects the "databases" tag filter
+The "Dominios" and "Learning Paths" tabs SHALL each display a "Regenerar todo" button that triggers `POST /api/index/generate` without parameters, regenerating all index pages.
+
+#### Scenario: Default tab on load
+- **WHEN** a user navigates to `/`
+- **THEN** the "Páginas" tab is active and the existing wiki page list is displayed
+
+#### Scenario: Dominios tab shows domain indexes
+- **WHEN** a user clicks the "Dominios" tab
+- **THEN** a list of all `domain-index` pages is displayed, each showing its title, description excerpt, and page count
+
+#### Scenario: Search and filter in Páginas tab
+- **WHEN** user types "database" in the search box or selects a discipline filter (e.g., `ai-agents`) and topic filters
 - **THEN** the index filters to show only matching pages
 
 ### Requirement: Markdown rendering with Streamdown
@@ -25,9 +33,17 @@ The current `renderContent()` function (naive regex splitting on `[[wiki-links]]
 ### Requirement: Wiki page view
 Individual wiki pages SHALL be rendered via Streamdown in static mode with clickable `[[wiki-links]]` (via `remark-wiki-link`), inline footnote references linking to raw source views, a backlinks panel showing pages that link to this page, and a lint status badge.
 
+For index pages (`type IN ('domain-index', 'learning-path')`), the view SHALL additionally display:
+- A `generated_at` timestamp indicating when the content was last generated.
+- A "Regenerar" button that calls `POST /api/index/generate` with the appropriate `domain` parameter.
+
 #### Scenario: Render wiki page with links
 - **WHEN** user navigates to wiki page "vector-databases"
 - **THEN** system renders the markdown with `[[related-page]]` as clickable links navigating to those wiki pages, and `[^raw-abc123]` as links to the raw source view
+
+#### Scenario: Index page with timestamp and regeneration
+- **WHEN** user views `domain-index-testing`
+- **THEN** the page displays a "Generado el [date]" label and a "Regenerar" button
 
 #### Scenario: Backlinks panel
 - **WHEN** wiki page "vector-databases" is viewed and pages "ml-infrastructure" and "search-systems" link to it
@@ -36,6 +52,17 @@ Individual wiki pages SHALL be rendered via Streamdown in static mode with click
 #### Scenario: Lint status badge
 - **WHEN** a wiki page has active lint warnings
 - **THEN** a warning badge is displayed with details of the warnings
+
+### Requirement: Tag chips strip role prefixes and differentiate classes visually
+Whenever the client renders a tag (page detail, page list, filter chips, graph labels, domain tab), it SHALL strip the `d:`, `t:`, or `a:` prefix before displaying the text, and SHALL apply a visual style that identifies the tag's class. The three classes SHALL be distinguishable at a glance (e.g., color, chip outline, size, or icon).
+
+#### Scenario: Prefix stripped on render
+- **WHEN** a page carries tag `d:ai-agents`
+- **THEN** the chip displays "ai-agents" (not "d:ai-agents")
+
+#### Scenario: Discipline chip styled distinctly
+- **WHEN** a page displays its tag list with `d:ai-agents`, `t:harness-engineering`, and `a:fundamentals`
+- **THEN** the three chips use three different visual styles (e.g., solid filled, outlined, subdued) so their roles are distinguishable without reading the text
 
 ### Requirement: Raw source view
 The system SHALL render raw source documents via Streamdown in static mode. Raw sources SHALL be accessible through footnote links in wiki pages.

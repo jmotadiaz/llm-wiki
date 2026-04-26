@@ -8,13 +8,14 @@
     "dev": "tsx watch src/index.ts",
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc && cp .env dist/ && mkdir -p dist/llm/prompts && cp src/llm/prompts/*.md dist/llm/prompts/",
+    "typecheck": "tsc --noEmit",
     "start": "cd dist && node index.js"
   },
   "dependencies": {
-    "@llm-wiki/shared": "*",
     "@ai-sdk/deepinfra": "^2.0.45",
     "@ai-sdk/deepseek": "^2.0.29",
     "@ai-sdk/google": "^3.0.62",
+    "@llm-wiki/shared": "*",
     "@openrouter/ai-sdk-provider": "^2.5.1",
     "ai": "^6.0.0",
     "better-sqlite3": "^12.8.0",
@@ -31,6 +32,7 @@
     "@types/node": "^20.10.6",
     "@types/node-cron": "^3.0.11",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.0"
+    "typescript": "^6.0.0",
+    "vitest": "^4.1.5"
   }
 }

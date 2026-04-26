@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "prompt-engineering-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "4a8810c06525c95fd9370fdb3311d969fc89a53a196fe500b5b4f8529b21c9a7"
+    }
+  }
+}

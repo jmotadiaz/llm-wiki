@@ -120,18 +120,67 @@ export function createWikiRoutes(db: Database.Database): Router {
     }
   });
 
+  // GET /api/wiki/domain-indexes - List all domain-index pages
+  router.get("/domain-indexes", (req: Request, res: Response) => {
+    try {
+      const pages = queries.getWikiPagesByType("domain-index");
+      res.json({
+        success: true,
+        count: pages.length,
+        pages: pages.map((page: any) => ({
+          slug: page.slug,
+          title: page.title,
+          type: page.type,
+          tags: (page.tags || "").split(",").filter((t: string) => t.trim()),
+          status: page.status,
+          summary: page.summary || "",
+          generated_at: page.generated_at,
+          updated_at: page.updated_at,
+        })),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/wiki/learning-paths - List all learning-path pages
+  router.get("/learning-paths", (req: Request, res: Response) => {
+    try {
+      const pages = queries.getWikiPagesByType("learning-path");
+      res.json({
+        success: true,
+        count: pages.length,
+        pages: pages.map((page: any) => ({
+          slug: page.slug,
+          title: page.title,
+          type: page.type,
+          tags: (page.tags || "").split(",").filter((t: string) => t.trim()),
+          status: page.status,
+          summary: page.summary || "",
+          generated_at: page.generated_at,
+          updated_at: page.updated_at,
+        })),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // General routes after specific ones
-  // 8.1 GET /api/wiki - Return parsed index.md data (all pages with metadata)
+  // 8.1 GET /api/wiki - Return parsed index.md data (all pages with metadata, excluding index pages)
   router.get("/", (req: Request, res: Response) => {
     try {
-      const pages = queries.getAllWikiPages();
+      const pages = queries.getAllWikiPages().filter(
+        (page: any) =>
+          page.type !== "domain-index" && page.type !== "learning-path",
+      );
       const pageList = pages.map((page) => ({
         slug: page.slug,
         title: page.title,
         type: page.type,
         tags: (page.tags || "").split(",").filter((t: string) => t.trim()),
         status: page.status,
-        summary: "", // Could extract from first paragraph of content
+        summary: page.summary || "",
       }));
 
       res.json({
@@ -171,6 +220,7 @@ export function createWikiRoutes(db: Database.Database): Router {
           content: page.content,
           created_at: page.created_at,
           updated_at: page.updated_at,
+          generated_at: page.generated_at,
         },
         backlinks: backlinks.map((bl: any) => ({
           slug: bl.slug,

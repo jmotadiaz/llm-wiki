@@ -17,21 +17,18 @@ export function slugifyHeading(text: string): string {
 }
 
 /**
- * Returns a standardized heading ID based on text and its absolute index in the document.
- * Using a 1-based index to make IDs more human-readable.
+ * Returns a standardized heading ID based on text.
  * 
- * Format: [prefix][1-based-index]-[slug]
- * Example: user-content-1-introduccion
+ * Format: [prefix][slug]
+ * Example: user-content-introduccion
  * 
  * @param text The heading text to slugify.
- * @param index The 0-based index of the heading in the document.
  * @param prefix The prefix to prepend (defaults to 'user-content-' for streamdown/markdown compatibility).
  */
 export function getHeadingId(
   text: string,
-  index: number,
   prefix: string = "user-content-",
 ): string {
   const slug = slugifyHeading(text);
-  return `${prefix}${index + 1}-${slug}`;
+  return `${prefix}${slug}`;
 }

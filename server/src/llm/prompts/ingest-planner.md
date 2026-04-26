@@ -59,11 +59,12 @@ Produce your plan in exactly this structure:
   type: <concept|technique|reference|index>
   tags: [<tag1>, <tag2>]
   key_claims:
-    - <claim 1 supported by the raw source>
-    - <claim 2 supported by the raw source>
+    - <claim 1: a complete, substantive sentence capturing the full nuance of what the source says — enough detail that a writer can expand it into a paragraph without re-reading the source. Include sub-distinctions, mechanisms, conditions, or consequences if the source provides them.>
+    - <claim 2: same standard. Separate claims by sub-topic or aspect, not by source paragraph. One claim per distinct idea.>
+    - <add as many claims as the source supports — do NOT compress multiple distinct ideas into a single claim>
   citations:
-    - <"/raw/{id}" or "/raw/{id}#fragment" for each claim>
-  summary: <short summary in Spanish, 1 sentence, KEEP technical terms in English>
+    - <"/raw/{id}" or "/raw/{id}#fragment" for each claim — same order as key_claims>
+  summary: <2-3 sentence summary in Spanish covering definition, mechanism, and significance. KEEP technical terms in English. This is a reading guide for the writer, not a one-liner.>
   contradiction: <true|false>
   existing_backlinks: [<slugs that already link here, from get_backlinks; empty list for new concepts unless there are red links>]
 
@@ -88,7 +89,7 @@ Produce your plan in exactly this structure:
 ## Rules
 
 1. Every slug must follow the Wiki Schema slug rules: lowercase kebab-case, English, 2-4 words, max 60 characters, regex `^[a-z0-9]+(-[a-z0-9]+)*$`.
-2. Every tag must come from the Wiki Schema tag taxonomy. Do not invent new tags.
+2. Assign tags following the Wiki Schema tag rules.
 3. Every `key_claims` entry must be directly supported by the raw source. Never invent or extrapolate.
 4. For `update` actions, note what changes: new claims being added, existing claims being re-cited, or contradictions. You must have called `get_wiki_page` on that slug before choosing `update` over `new`.
 5. If a newly planned page should be linked from other planned pages, note this in the inline-only mentions section.
@@ -107,6 +108,13 @@ The raw source you are processing has ID `{RAW_ID}`.
 ## Existing Wiki Index
 
 {L1_INDEX}
+
+## Current Domain Tags
+
+{DOMAIN_TAGS_INDEX}
+
+**Assignment Contract for d: Tags:**
+When assigning tags to a new or updated concept, you must assign EXACTLY ONE `d:` tag. Use the list above to reuse existing disciplines whenever the concept genuinely fits into one of them. Do not create a new `d:` tag unless the concept clearly belongs to a broad field that is not represented above. If creating a new one, make it a broad field name (e.g., `d:software-testing`), not a specific concept.
 
 ## Wiki Schema
 

@@ -29,6 +29,23 @@ function loadL1Index(queries: Queries): string {
   return entries;
 }
 
+function loadDomainTagsCount(queries: Queries): string {
+  const pages = queries.getAllWikiPages();
+  const counts: Record<string, number> = {};
+  for (const page of pages) {
+    if (!page.tags) continue;
+    const tags = page.tags.split(",").map((t: string) => t.trim());
+    for (const t of tags) {
+      if (t.startsWith("d:")) {
+        counts[t] = (counts[t] || 0) + 1;
+      }
+    }
+  }
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) return "(No domain tags yet)";
+  return entries.map(([tag, count]) => `- ${tag} (${count} pages)`).join("\n");
+}
+
 function loadSchema(): string {
   const schemaPath = path.join(__dirname, "prompts", "schema.md");
   return fs.readFileSync(schemaPath, "utf-8");
@@ -102,6 +119,7 @@ export async function ingestRawSource(
 
   const sharedVars: Record<string, string> = {
     L1_INDEX: l1Index,
+    DOMAIN_TAGS_INDEX: loadDomainTagsCount(queries),
     L1_SCHEMA: l1Schema,
     RAW_HEADING_INDEX: rawHeadingIndex,
     RAW_ID: rawSourceId.toString(),
@@ -131,10 +149,11 @@ export async function ingestRawSource(
           content: `Analiza este documento fuente (raw source ID: ${rawSourceId}) y genera el plan de ingesta:\n\n${rawContent}`,
         },
       ],
-      model: deepseek("deepseek-reasoner"),
+      model: deepseek("deepseek-v4-pro"),
       tools: plannerTools,
-      maxSteps: 10,
-      temperature: 0.3,
+      temperature: 1,
+      topP: 1,
+      maxSteps: 20,
       onStepFinish: debugEnabled
         ? (event: any) => {
             debugLog(
@@ -185,9 +204,10 @@ export async function ingestRawSource(
         },
       ],
       tools,
-      model: deepseek("deepseek-chat"),
-      maxSteps: 15,
-      temperature: 0.5,
+      model: deepseek("deepseek-v4-flash"),
+      temperature: 1,
+      topP: 1,
+      maxSteps: 20,
       onStepFinish: debugEnabled
         ? (event: any) => {
             debugLog(
