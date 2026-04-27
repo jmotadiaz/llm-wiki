@@ -29,7 +29,7 @@ export function createIndexTools(
       return `Type rejected: expected "${allowedType}" but got "${type}".`;
     }
     if (content.includes("/raw/")) {
-      return `Index pages MUST NOT contain /raw/ citations. Use only [[slug]] links to wiki pages.`;
+      return `Index pages MUST NOT contain /raw/ citations. Use only [text](/wiki/slug) links to wiki pages.`;
     }
     return null;
   }
@@ -88,7 +88,7 @@ export function createIndexTools(
         summary: z.string().describe("Short summary (Spanish)."),
         content: z
           .string()
-          .describe("Full markdown content (Spanish). Use [[slug]] for wiki cross-references. Do not use /raw/ citations."),
+          .describe("Full markdown content (Spanish). Use [text](/wiki/slug) for wiki cross-references. Do not use /raw/ citations."),
       }),
       execute: async (page) => {
         const guard = validateIndexArgs(page.slug, page.type, page.content);
@@ -127,10 +127,10 @@ export function createIndexTools(
         const filepath = path.join(wikiDir, `${page.slug}.md`);
         fs.writeFileSync(filepath, page.content);
 
-        const linkRegex = /\[\[([^\]]+)\]\]/g;
+        const linkRegex = /\[([^\]]+)\]\(\/wiki\/([^)]+)\)/g;
         let match;
         while ((match = linkRegex.exec(page.content)) !== null) {
-          const linkSlug = match[1].split("|")[0].trim();
+          const linkSlug = match[2].trim();
           if (linkSlug) queries.insertWikiLink(pageId, linkSlug);
         }
 
@@ -181,7 +181,7 @@ export function createIndexTools(
           };
         }
         if (args.content?.includes("/raw/")) {
-          return { error: `Index pages MUST NOT contain /raw/ citations. Use only [[slug]] links to wiki pages.` };
+          return { error: `Index pages MUST NOT contain /raw/ citations. Use only [text](/wiki/slug) links to wiki pages.` };
         }
         if (args.type && args.type !== allowedType) {
           return { error: `Type rejected: expected "${allowedType}" but got "${args.type}".` };

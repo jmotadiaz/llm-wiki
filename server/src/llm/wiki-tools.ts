@@ -12,18 +12,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function extractWikiLinks(content: string): string[] {
-  const linkRegex = /\[\[([^\]]+)\]\]/g;
+  const linkRegex = /\[([^\]]+)\]\(\/wiki\/([^)]+)\)/g;
   const links: string[] = [];
   let match;
   while ((match = linkRegex.exec(content)) !== null) {
-    const slug = match[1].split("|")[0].trim();
+    const slug = match[2].trim();
     if (slug) links.push(slug);
   }
   return links;
 }
 
 function findMalformedRawCitations(content: string): string[] {
-  return content.match(/\[(?:\s*)\/raw\/[^\]\s]+(?:\s*)\]/g) || [];
+  // [/raw/123] — URL directly in brackets, missing link text
+  const bracketWrapped = content.match(/\[(?:\s*)\/raw\/[^\]\s]+(?:\s*)\]/g) || [];
+  // [N](/raw/123] — correct text bracket but URL closed with ] instead of )
+  const bracketClosed = content.match(/\[\d+\]\(\/raw\/[^)]*\]/g) || [];
+  return [...bracketWrapped, ...bracketClosed];
 }
 
 function extractRawMarkdownLinks(
@@ -94,13 +98,13 @@ function validatePageContent(
   if (allowRawCitations) {
     const malformed = findMalformedRawCitations(content);
     if (malformed.length > 0) {
-      return `Raw citation syntax rejected. Use markdown links like "[1](/raw/123)" not "${malformed[0]}".`;
+      return `Raw citation syntax rejected: citation URLs must close with ")" — correct forms are [1](/raw/123) or [1](/raw/123#user-content-fragment). Found a malformed citation that closes with "]" or wraps the URL in brackets directly. Fix: replace the closing "]" with ")".`;
     }
 
     const badLinks = findRawLinksThatShouldBeWikiLinks(content, knownSlugs);
     if (badLinks.length > 0) {
       const offender = badLinks[0];
-      return `Wiki cross-reference rejected. "[${offender.label}](${offender.href})" should use [[${offender.slug}]] instead.`;
+      return `Wiki cross-reference rejected. "[${offender.label}](${offender.href})" should use [${offender.label}](/wiki/${offender.slug}) instead.`;
     }
   }
 
@@ -147,7 +151,7 @@ export interface WikiToolsOptions {
   /**
    * Whether to validate /raw/ citations in page content.
    * The ingest writer and reviewer work with raw source citations;
-   * the index agent does NOT (index pages use only [[slug]] links).
+   * the index agent does NOT (index pages use only [text](/wiki/slug) links).
    */
   allowRawCitations: boolean;
   /**
@@ -203,7 +207,7 @@ export function createWikiEditTools(
         content: z
           .string()
           .describe(
-            "Full markdown content (Spanish). Use [[slug]] for wiki cross-references. Reserve /raw links for citations only: [1](/raw/{RAW_ID}#fragment) or [1](/raw/{RAW_ID}).",
+            "Full markdown content (Spanish). Use [text](/wiki/slug) for wiki cross-references. Reserve /raw links for citations only: [1](/raw/{RAW_ID}#user-content-fragment) or [1](/raw/{RAW_ID}).",
           ),
       }),
       execute: async (page) => {

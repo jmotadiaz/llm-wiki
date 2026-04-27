@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { Streamdown, defaultRemarkPlugins } from "streamdown";
-import remarkWikiLink from "remark-wiki-link";
 import remarkGfm from "remark-gfm";
 import { useNavigate } from "react-router-dom";
 import remarkHeadingAnchors from "./remarkHeadingAnchors";
@@ -26,15 +25,6 @@ export default function Markdown({
       ...Object.values(defaultRemarkPlugins),
       remarkGfm,
       remarkHeadingAnchors,
-      [
-        remarkWikiLink,
-        {
-          hrefTemplate: (permalink: string) =>
-            permalink ? `/wiki/${permalink}` : "",
-          pageResolver: (name: string) =>
-            name ? [name.toLowerCase().replace(/ /g, "-")] : [],
-        },
-      ],
     ],
     [content],
   );

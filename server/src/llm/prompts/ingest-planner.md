@@ -31,7 +31,7 @@ Work in two phases.
 
 1. Read the raw source. For every concept mentioned, classify it into one of two buckets:
    - **Page-worthy**: concepts the raw source supports with enough independent substance to justify creating or updating a page.
-   - **Inline-only**: concepts only named, gestured at, or used as examples — they appear as prose or `[[slug]]` links inside page-worthy pages, not as standalone pages.
+   - **Inline-only**: concepts only named, gestured at, or used as examples — they appear as prose or `[text](/wiki/slug)` links inside page-worthy pages, not as standalone pages.
 2. For each page-worthy concept, check the **Existing Wiki Index** section of this system prompt to see whether a matching slug is already listed. If the slug is not in the index it is `new` — do not call `get_wiki_page` to verify this; the index is the authoritative source of truth.
 3. **For every page-worthy concept whose slug already exists in the index, you MUST call `get_wiki_page` on that slug before classifying it.** Do not decide `update` vs `new` from title/tags alone. Compare the existing page body against the raw source to determine:
    - Does the raw source introduce new claims? → `update` that adds claims.
@@ -72,7 +72,7 @@ Produce your plan in exactly this structure:
 
 - mention: <concept name>
   target_page: <slug of the page-worthy page where it belongs>
-  treatment: <link with [[slug]] if page exists | prose mention if no page exists>
+  treatment: <link with [title](/wiki/slug) if page exists | prose mention if no page exists>
 
 ## Inbound link updates
 
@@ -93,7 +93,7 @@ Produce your plan in exactly this structure:
 3. Every `key_claims` entry must be directly supported by the raw source. Never invent or extrapolate.
 4. For `update` actions, note what changes: new claims being added, existing claims being re-cited, or contradictions. You must have called `get_wiki_page` on that slug before choosing `update` over `new`.
 5. If a newly planned page should be linked from other planned pages, note this in the inline-only mentions section.
-6. The `Inbound link updates` section is the place to request edits to **existing** wiki pages whose only purpose is to add a `[[slug]]` reference to a newly planned concept. Only include an entry when the existing page you read via `get_wiki_page` (or discovered via `get_backlinks`) genuinely talks about the same topic and benefits from the cross-reference. Do not list speculative edits.
+6. The `Inbound link updates` section is the place to request edits to **existing** wiki pages whose only purpose is to add a `[text](/wiki/slug)` link to a newly planned concept. Only include an entry when the existing page you read via `get_wiki_page` (or discovered via `get_backlinks`) genuinely talks about the same topic and benefits from the cross-reference. Do not list speculative edits.
 7. Use only valid section-heading fragments from the raw source for citation anchors.
 8. Your final message must be the plan only. Any investigation happens via tool calls in earlier steps.
 

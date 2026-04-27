@@ -8,7 +8,7 @@ Write a single `domain-index` page that maps all relevant wiki pages in the doma
 
 {DOMAIN_NAME}
 
-Domain slug (use for `[[slug]]` parent references if needed): `{DOMAIN_KEBAB}`
+Domain slug: `{DOMAIN_KEBAB}`
 
 Target page slug: `{TARGET_SLUG}` (you MUST use this slug; kebab-case, already validated)
 
@@ -26,14 +26,14 @@ Produce a `domain-index` page with `type: 'domain-index'`, `status: 'published'`
 
 - `# <Domain title in Spanish>` — concise human-readable name of the domain
 - One executive description paragraph (2–4 sentences in Spanish) stating what the domain covers and why it matters. No citations to `/raw/`.
-- `## Conceptos Clave` — bullet list for every page in this domain with `type: 'concept'`. Each bullet: `- [[<slug>]] — <one-sentence description in Spanish>`.
+- `## Conceptos Clave` — bullet list for every page in this domain with `type: 'concept'`. Each bullet: `- [<title>](/wiki/<slug>) — <one-sentence description in Spanish>`.
 - `## Técnicas` — bullet list for every page in this domain with `type: 'technique'`. Omit the whole section if no techniques exist.
 - `## Herramientas` — bullet list for every page with `type: 'reference'`. Omit the whole section if none exist.
-- `## Relacionado` — bullet list of `[[slug]]` links to related pages from other domains. Omit the whole section if the related list is empty.
+- `## Relacionado` — bullet list of `[<title>](/wiki/<slug>)` links to related pages from other domains. Omit the whole section if the related list is empty.
 
 ## Rules
 
-- Use ONLY `[[slug]]` for links to wiki pages. Never `/raw/` citations in this page.
+- Use ONLY `[text](/wiki/slug)` for links to wiki pages. Never `/raw/` citations in this page.
 - Every page listed in the "Pages in this domain" section MUST appear in the appropriate H2 section based on its `type`. Do not omit pages. Do not invent pages not listed.
 - Descriptions must be written in Spanish, concise (one sentence), and faithful to the page's summary and title. Do not invent facts.
 - **Assignment Contract for Tags:** Tags on the `add_wiki_page` or `edit_wiki_page` call MUST strictly follow the schema: exactly one `d:{DOMAIN_KEBAB}`, at least one `t:index`, and optionally appropriate `a:` tags like `a:fundamentals`. Do NOT edit or mutate the tags of the clustered pages. Only write the target index page.

@@ -27,7 +27,7 @@ export class DeterministicLinter {
           issues.push({
             type: 'broken_link',
             pageId: page.id,
-            message: `Broken link: [[${linkSlug}]] does not exist`,
+            message: `Broken link: /wiki/${linkSlug} does not exist`,
             severity: 'error',
           });
         }

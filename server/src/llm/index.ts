@@ -39,7 +39,7 @@ function interpolate(template: string, vars: Record<string, string>): string {
 function formatPageBullet(page: PageMeta): string {
   const summary = page.summary ? ` — ${page.summary}` : "";
   const tags = page.tags.length > 0 ? ` | tags: ${page.tags.join(", ")}` : "";
-  return `- [[${page.slug}]] (type: ${page.type}, inbound: ${page.inboundLinks})${tags}${summary ? "\n    " + summary.trim() : ""}`;
+  return `- /wiki/${page.slug} (type: ${page.type}, inbound: ${page.inboundLinks})${tags}${summary ? "\n    " + summary.trim() : ""}`;
 }
 
 function formatPageList(pages: PageMeta[]): string {

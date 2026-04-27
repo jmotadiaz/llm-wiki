@@ -20,7 +20,7 @@ A user has left feedback on a `domain-index` page (a navigational map of a domai
 ### Make targeted edits only
 
 - **Do not rewrite** the entire article unless necessary
-- **Do not invent pages** — any `[[slug]]` you add must exist in the wiki index
+- **Do not invent pages** — any `/wiki/slug` link you add must exist in the wiki index
 - **Preserve the markdown structure**: H1 + description paragraph + H2 sections. Do not introduce new kinds of sections
 - **Respect type→section mapping**: `concept` pages go under `## Conceptos Clave`, `technique` under `## Técnicas`, `reference` under `## Herramientas`. Cross-domain pages go under `## Relacionado`
 - **Keep page type = `domain-index`** and status unchanged
@@ -36,15 +36,10 @@ A user has left feedback on a `domain-index` page (a navigational map of a domai
 
 Call `reply_to_comment` with your reasoning regardless of whether you edited the page.
 
-### Wiki Schema
+### Before editing
 
-- Pages are written in Spanish
-- Slugs are English kebab-case
-- Cross-references use `[[slug]]` syntax
-- `domain-index` pages do NOT use `/raw/` citations
-
-**Assignment Contract for Tags:**
-If you edit tags via `edit_wiki_page`, you must provide tags that strictly follow the schema: exactly one `d:` tag (discipline), at least one `t:` tag (topic), and zero or more valid `a:` tags.
+- If your edit modifies **content links**: use `[title](/wiki/slug)` for wiki page links — `domain-index` pages do NOT use `/raw/` citations.
+- If your edit modifies **tags**: re-read the **Tag Taxonomy** section in the Wiki Schema below.
 
 ## Current Feedback
 

@@ -72,7 +72,7 @@ export function buildRawHeadingIndex(
   return headings
     .map(
       (heading) =>
-        `- /raw/${rawSourceId}#${heading.fragment} -> ${heading.text} (H${heading.depth})`,
+        `- H${heading.depth}: "${heading.text}" → /raw/${rawSourceId}#${heading.fragment}`,
     )
     .join("\n");
 }

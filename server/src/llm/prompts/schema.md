@@ -1,6 +1,6 @@
 ### Purpose
 
-This wiki is a **concept-oriented knowledge base** focused on AI, software engineering, architecture, and adjacent technical domains. Each page covers ONE concept, technique, pattern, or reference that can be independently linked from other pages via `[[slug]]`.
+This wiki is a **concept-oriented knowledge base** focused on AI, software engineering, architecture, and adjacent technical domains. Each page covers ONE concept, technique, pattern, or reference that can be independently linked from other pages via `[text](/wiki/slug)`.
 
 ### Fidelity to Sources
 
@@ -52,7 +52,7 @@ Pages of type `domain-index` and `learning-path` are produced by the index agent
 
 ### Slug Rules
 
-Slugs are URL-safe identifiers used for cross-referencing (`[[slug]]`). They must be consistent and predictable.
+Slugs are URL-safe identifiers used in wiki page links (`[text](/wiki/slug)`). They must be consistent and predictable.
 
 #### Format
 
@@ -167,13 +167,14 @@ A page built from multiple sources must read as a single unified article, not as
 
 #### Wiki links
 
-Use `[[slug]]` to link to other wiki pages. The slug must match an existing or newly created page.
+Use `[display text](/wiki/slug)` to link to other wiki pages. The slug must match an existing or newly created page.
 
-- When a sentence mentions another wiki concept, link the concept with `[[slug]]`.
-- Raw links are evidence citations only; concept navigation must use `[[slug]]`.
-- Write the concept name naturally in prose and place the bare `[[slug]]` inline: `el [[chain-of-thought]] permite...`.
-- Correct pattern for wiki links: `[[harness-engineering]]`.
-- **NEVER use piped aliases**: `[[slug|display text]]` is NOT supported. This system does not implement MediaWiki-style aliased links.
+- When a sentence mentions another wiki concept, link it with `[display text](/wiki/slug)`.
+- `/raw/` links are evidence citations only; concept navigation must use `/wiki/` links — never mix the two.
+- The display text is the concept name as it appears naturally in the prose:
+  - `el [chain-of-thought](/wiki/chain-of-thought) permite...`
+  - `el [reinforcement learning](/wiki/reinforcement-learning) mejora...`
+- For technical terms used in Spanish prose, use the English term as display text when it is the established industry term. Use a Spanish name when one is clearly dominant.
 
 #### Source citations
 
@@ -194,18 +195,14 @@ The URL always closes with `)`. The citation number closes the text bracket with
 - `[1](/raw/5#user-content-humans-on-the-loop)` — with fragment
 - `El modelo observa el resultado [1](/raw/1#user-content-humans-on-the-loop).` — inline in prose
 
-**Wiki links** always use bare `[[slug]]`. The syntax `[[slug|display text]]` is not supported and must never be written.
+**Wiki links** always use `[display text](/wiki/slug)`. Citations always use `[N](/raw/ID)` or `[N](/raw/ID#user-content-fragment)`. These are distinct and must never be mixed.
 
 Correct patterns:
-- `Los harnesses del [[agent-harness]] implementan la bash tool [1](/raw/3).`
-- `el [[rag-method]] permite recuperar contexto relevante [1](/raw/5).`
-- `the [[rag]] architecture [1](/raw/3)` — wiki link and citation are separate tokens
+- `Los [harnesses](/wiki/agent-harness) implementan la bash tool [1](/raw/3).`
+- `el [rag-method](/wiki/rag-method) permite recuperar contexto relevante [1](/raw/5).`
+- `the [rag](/wiki/rag) architecture [1](/raw/3)` — wiki link and citation are separate tokens
 
-**Restructuring for Spanish prose**: when inserting a wiki link and the slug doesn't match the surrounding Spanish text, include the English technical term in the sentence rather than using an alias:
-- Before: `el aprendizaje por refuerzo mejora con feedback humano`
-- After: `el **reinforcement learning** ([[reinforcement-learning]]) mejora con feedback humano`
-
-Rephrase the sentence to accommodate the English slug — never use `[[slug|translation]]`.
+The two link types differ only in their URL prefix: `/wiki/` for navigation, `/raw/` for citations. Never use `/raw/ID` as a wiki navigation link.
 
 When updating a page, preserve all existing citations from previous sources. Add new citations alongside them — never replace or remove existing ones.
 
@@ -230,12 +227,12 @@ When adding a citation-only contribution, attach the new citation inline immedia
 
 - Has its own established name or term in the field
 - Can stand alone with its own definition, principles, and examples
-- Could be meaningfully linked from other pages via `[[slug]]`
+- Could be meaningfully linked from other pages via `[text](/wiki/slug)`
 - Has enough substance in the source to support a page (not just a passing mention)
 
 **Do NOT create a separate page** when:
 
 - It's a passing mention or illustrative example within a broader concept
 - It's a synonym or minor variation of an existing page
-- It has no independent substance beyond the parent concept — reference it inline with `[[slug]]` from the parent page instead
+- It has no independent substance beyond the parent concept — reference it inline with a `[text](/wiki/slug)` link from the parent page instead
 - The source only mentions it without explaining it

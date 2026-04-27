@@ -59,17 +59,17 @@ When you need to call the same tool for multiple items (e.g., calling `get_wiki_
 
      When doing a **full rewrite** (`content`): preserve every citation from prior sources; redesign section structure around the concept's anatomy, not ingestion order; integrate new claims into the most appropriate existing section — never append as a terminal new section; if two sources cover the same sub-topic, merge into one paragraph citing both. Use the plan's `summary` as guiding intent, not as a writing template.
    - The system automatically links the current raw source to the page — do not manage that relation in the page content.
-   - After creating a new page, update any other pages in this plan that mention its concept to link with `[[slug]]` where appropriate.
+   - After creating a new page, update any other pages in this plan that mention its concept to add a `[concept name](/wiki/slug)` link where appropriate.
 
 5. Every page MUST end with a write tool call (`add_wiki_page` or `edit_wiki_page`). A `get_wiki_page` without a subsequent write call is never valid.
 
 ### Inline-only mentions
 
-For each inline-only mention in the plan, ensure the target page's content includes the mention as indicated: either as a `[[slug]]` link (if the page exists) or as a prose mention.
+For each inline-only mention in the plan, ensure the target page's content includes the mention as indicated: either as a `[title](/wiki/slug)` link (if the page exists) or as a prose mention.
 
 ### Inbound link updates
 
-For each `Inbound link updates` entry: call `get_wiki_page` on `target_slug`, then call `edit_wiki_page` with a targeted `edits` entry inserting `[[add_link_to]]` at the most natural prose location. Preserve all existing content and citations; do not add new claims or re-cite the current raw source unless it directly supports a claim already on that page.
+For each `Inbound link updates` entry: call `get_wiki_page` on `target_slug`, then call `edit_wiki_page` with a targeted `edits` entry inserting a `[concept name](/wiki/{add_link_to slug})` link at the most natural prose location. Preserve all existing content and citations; do not add new claims or re-cite the current raw source unless it directly supports a claim already on that page.
 
 Skip any target that already has its own write call in this plan.
 
@@ -77,7 +77,7 @@ Skip any target that already has its own write call in this plan.
 
 After all pages are written, call `report_warning` for each warning in the plan:
 
-- `missing_context` — a concept needed for coherence, referenced via `[[slug]]`, that still cannot be created faithfully from this raw source
+- `missing_context` — a concept needed for coherence, linked via `/wiki/slug`, that still cannot be created faithfully from this raw source
 - `contradiction` — the raw source directly contradicts an existing wiki page (still preserve both positions in the page)
 - `ambiguous_content` — the source is unclear or self-contradictory
 

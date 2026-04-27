@@ -47,7 +47,7 @@ function loadL1Index(queries: Queries): string {
     .map((page) => {
       const tags = page.tags || "untagged";
       const summary = page.summary ? ` | summary: ${page.summary}` : "";
-      return `- [[${page.slug}]]: ${page.title} | tags: ${tags}${summary}`;
+      return `- /wiki/${page.slug}: ${page.title} | tags: ${tags}${summary}`;
     })
     .join("\n");
 
@@ -164,7 +164,7 @@ export async function reviewComment(
       messages: [
         {
           role: "user",
-          content: `Por favor, revisa la siguiente retroalimentación sobre la página wiki y toma acciones si es necesario:\n\nRetroalimentación: ${feedbackText}\n\nPágina: [[${pageSlug}]]`,
+          content: `Por favor, revisa la siguiente retroalimentación sobre la página wiki y toma acciones si es necesario:\n\nRetroalimentación: ${feedbackText}\n\nPágina: /wiki/${pageSlug}`,
         },
       ],
       tools,
