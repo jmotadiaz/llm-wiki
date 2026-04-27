@@ -30,15 +30,23 @@ The agent SHALL only be able to retrieve raw sources that are linked to the targ
 - **WHEN** agent calls `get_raw_source` with an id that is not linked to the target page
 - **THEN** the tool returns an error indicating the source is not available for this review
 
-### Requirement: Reviewer agent can edit wiki pages
-The system SHALL expose `upsert_wiki_page` to the reviewer agent with the same validation rules as the ingest writer (slug format, citation syntax, wiki-link cross-reference rules). The reviewer SHALL NOT create new `page_sources` entries — its edits are attributed to the comment record, not to a raw source.
+### Requirement: Reviewer agent can manage wiki pages
+The system SHALL expose `add_wiki_page`, `edit_wiki_page`, and `delete_wiki_page` to the reviewer agent to allow full lifecycle management of pages, with validation rules for slug format, citation syntax, and wiki-link cross-reference rules. The reviewer SHALL NOT create new `page_sources` entries — its edits are attributed to the comment record, not to a raw source.
 
-#### Scenario: Valid page edit
-- **WHEN** agent calls `upsert_wiki_page` with a valid slug and content
-- **THEN** the page is updated in the database and on the filesystem, and the slug is recorded in the job's `pages_edited` list
+#### Scenario: Valid full page edit
+- **WHEN** agent calls `edit_wiki_page` with a valid slug and a `content` string
+- **THEN** the page is completely rewritten in the database and on the filesystem, and the slug is recorded in the job's `pages_edited` list
+
+#### Scenario: Valid partial page edit
+- **WHEN** agent calls `edit_wiki_page` with a valid slug and an `edits` array containing `old_content` and `new_content`
+- **THEN** the exact `old_content` matches are replaced with `new_content` in the page, the page is saved, and the slug is recorded in the job's `pages_edited` list
+
+#### Scenario: Invalid tool usage
+- **WHEN** agent calls `edit_wiki_page` providing BOTH `content` and `edits`
+- **THEN** the tool returns a validation error instructing the agent to use only one approach
 
 #### Scenario: Invalid slug rejected
-- **WHEN** agent calls `upsert_wiki_page` with a slug longer than 60 chars or not matching kebab-case
+- **WHEN** agent calls `edit_wiki_page` with a slug longer than 60 chars or not matching kebab-case
 - **THEN** the tool returns a validation error and the page is not modified
 
 ### Requirement: Reviewer agent finalises by calling reply_to_comment
@@ -51,21 +59,21 @@ The system SHALL expose a `reply_to_comment(reasoning)` tool. Calling this tool 
 The agent SHALL call this tool even when it makes no edits (to communicate its reasoning for not changing anything).
 
 #### Scenario: Reply with edits
-- **WHEN** agent calls `reply_to_comment` after one or more `upsert_wiki_page` calls
+- **WHEN** agent calls `reply_to_comment` after one or more `add_wiki_page`, `edit_wiki_page`, or `delete_wiki_page` calls
 - **THEN** comment is answered with the reasoning and `pages_edited` contains the edited slugs
 
 #### Scenario: Reply without edits
-- **WHEN** agent calls `reply_to_comment` without having called `upsert_wiki_page`
+- **WHEN** agent calls `reply_to_comment` without having called any wiki page management tool
 - **THEN** comment is answered with the reasoning and `pages_edited` is an empty array
 
 ### Requirement: Review endpoint accepts type parameter and configures agent accordingly
 The review endpoint SHALL accept a `type` parameter corresponding to the `wiki_page.type` of the page being reviewed. The system SHALL select the appropriate agent configuration (system prompt and available tools) based on this value.
 
-For `type IN ('concept', 'technique', 'reference')`: existing system prompt (faithful editing based on raw sources) and existing tools (`upsert_wiki_page`, `list_page_sources`, `get_raw_source`, `reply_to_comment`).
+For `type IN ('concept', 'technique', 'reference')`: existing system prompt (faithful editing based on raw sources) and existing tools (`add_wiki_page`, `edit_wiki_page`, `delete_wiki_page`, `list_page_sources`, `get_raw_source`, `reply_to_comment`).
 
-For `type = 'domain-index'`: system prompt oriented to reorganizing domain sections, adding or removing page references; tools: `upsert_wiki_page`, `get_wiki_index`, `reply_to_comment`.
+For `type = 'domain-index'`: system prompt oriented to reorganizing domain sections, adding or removing page references; tools: `add_wiki_page`, `edit_wiki_page`, `delete_wiki_page`, `get_wiki_index`, `reply_to_comment`.
 
-For `type = 'learning-path'`: system prompt oriented to reordering stages and incorporating missing pages using backlink signals; tools: `upsert_wiki_page`, `get_wiki_index`, `get_backlinks`, `reply_to_comment`.
+For `type = 'learning-path'`: system prompt oriented to reordering stages and incorporating missing pages using backlink signals; tools: `add_wiki_page`, `edit_wiki_page`, `delete_wiki_page`, `get_wiki_index`, `get_backlinks`, `reply_to_comment`.
 
 #### Scenario: Review of concept page uses source-faithful prompt
 - **WHEN** review job is triggered with `type: 'concept'`
