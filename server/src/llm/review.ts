@@ -120,7 +120,14 @@ export async function reviewComment(
     throw new Error(`Page "${pageSlug}" not found`);
   }
 
-  const pageContent = page.content;
+  const pageContent = [
+    `slug: ${page.slug}`,
+    `title: ${page.title}`,
+    `type: ${page.type}`,
+    `tags: ${page.tags || ""}`,
+    `---`,
+    page.content,
+  ].join("\n");
 
   // Load shared context
   const l1Index = loadL1Index(queries);

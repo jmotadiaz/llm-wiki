@@ -181,33 +181,31 @@ Cite information from raw sources using markdown links pointing to `/raw/{id}`. 
 
 Reference style:
 
-- Write citations as markdown links, for example `[1](/raw/{id})` or `[1](/raw/{id}#user-content-fragment)`.
-- Use `/raw/{id}#fragment` when the supporting evidence comes from a specific section heading in the raw source.
+- Write citations as markdown links, for example `[1](/raw/{id})` or `[1](/raw/{id}#user-content-{slug})`.
+- Use `/raw/{id}#user-content-{slug}` when the supporting evidence comes from a specific section heading — copy the exact anchor from the **Available Raw Section Anchors** list in the prompt.
 - Use `/raw/{id}` when no suitable section heading exists.
 
-#### Citation and Link Syntax — Corrected Examples
+#### Citation and Link Syntax — Required Format
 
-The following are real errors produced by the writer, and their correct rewrites. Internalize these patterns.
+**Citations** always follow this shape: `[N](/raw/ID)` or `[N](/raw/ID#user-content-fragment)`.
+The URL always closes with `)`. The citation number closes the text bracket with `]` before the `(`. These are the only valid forms:
 
-**Error A — Citation closed with `]` instead of `)`:**
+- `[1](/raw/5)` — no fragment
+- `[1](/raw/5#user-content-humans-on-the-loop)` — with fragment
+- `El modelo observa el resultado [1](/raw/1#user-content-humans-on-the-loop).` — inline in prose
 
-❌ Wrong: `El modelo observa el resultado [1](/raw/1#user-content-humans-on-the-loop].`
-✅ Correct: `El modelo observa el resultado [1](/raw/1#user-content-humans-on-the-loop).`
+**Wiki links** always use bare `[[slug]]`. The syntax `[[slug|display text]]` is not supported and must never be written.
 
-**Error B — Piped wiki link `[[slug|label]]`:**
+Correct patterns:
+- `Los harnesses del [[agent-harness]] implementan la bash tool [1](/raw/3).`
+- `el [[rag-method]] permite recuperar contexto relevante [1](/raw/5).`
+- `the [[rag]] architecture [1](/raw/3)` — wiki link and citation are separate tokens
 
-❌ Wrong: `Los [[agent-harness|harnesses]] implementan la bash tool.`
-✅ Correct: `Los harnesses del [[agent-harness]] implementan la bash tool.`
+**Restructuring for Spanish prose**: when inserting a wiki link and the slug doesn't match the surrounding Spanish text, include the English technical term in the sentence rather than using an alias:
+- Before: `el aprendizaje por refuerzo mejora con feedback humano`
+- After: `el **reinforcement learning** ([[reinforcement-learning]]) mejora con feedback humano`
 
-**Error C — Raw URL used as wiki link:**
-
-❌ Wrong: `el [rag-method] permite...`
-✅ Correct: `el [[rag-method]] permite...`
-
-**Error D — Wiki link mixed with citation URL:**
-
-❌ Wrong: `the [rag](/raw/3) architecture`
-✅ Correct: `the [[rag]] architecture [1](/raw/3)`
+Rephrase the sentence to accommodate the English slug — never use `[[slug|translation]]`.
 
 When updating a page, preserve all existing citations from previous sources. Add new citations alongside them — never replace or remove existing ones.
 

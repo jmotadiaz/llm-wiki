@@ -63,7 +63,7 @@ Produce your plan in exactly this structure:
     - <claim 2: same standard. Separate claims by sub-topic or aspect, not by source paragraph. One claim per distinct idea.>
     - <add as many claims as the source supports — do NOT compress multiple distinct ideas into a single claim>
   citations:
-    - <"/raw/{id}" or "/raw/{id}#fragment" for each claim — same order as key_claims>
+    - <"/raw/{id}" or "/raw/{id}#user-content-{slug}" — copy the exact anchor from the Available Raw Section Anchors list; same order as key_claims>
   summary: <2-3 sentence summary in Spanish covering definition, mechanism, and significance. KEEP technical terms in English. This is a reading guide for the writer, not a one-liner.>
   contradiction: <true|false>
   existing_backlinks: [<slugs that already link here, from get_backlinks; empty list for new concepts unless there are red links>]

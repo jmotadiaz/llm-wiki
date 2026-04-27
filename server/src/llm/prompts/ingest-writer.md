@@ -8,9 +8,11 @@ You receive an ingestion plan that lists page-worthy concepts, their actions (ne
 
 ## Execution Rules
 
-### Link Syntax & Validation
+### Pre-flight Check
 
-Create all wiki links and citations following the rules defined in the Wiki Schema below. **Before calling any tool, you must validate that your content strictly adheres to the Schema's syntax rules.**
+Before calling any write tool:
+1. Re-read the **Citation and Link Syntax — Corrected Examples** section in the Wiki Schema below and verify your content matches none of the listed error patterns.
+2. `edit_wiki_page` takes `content` OR `edits` — never both in the same call.
 
 ### Writing Process — Mandatory Steps
 
@@ -25,7 +27,7 @@ Before calling any tool to create or update a page, follow these steps **in orde
 **Step 2 — Design the section structure** around the concept's natural anatomy:
 
 - Common sections: definition/intro paragraph → how it works → why it matters / key considerations → sub-components or variants → related concepts.
-- Use only sections that the raw source genuinely supports. Do not invent sections.
+- **Use only sections the raw source genuinely supports — do not invent sections to fill a template.**
 - Each section must have at least one substantive paragraph, not a single sentence.
 
 **Step 3 — Write each section fully**:
@@ -47,14 +49,15 @@ When you need to call the same tool for multiple items (e.g., calling `get_wiki_
 3. **Ground before writing**: derive which claims the current raw source supports and which citation target each uses (`/raw/{id}` or `/raw/{id}#fragment`). Do not write claims that go beyond what the raw source or preserved prior cited content supports.
 4. **Call exactly one write tool** for that concept:
    - **New page (`add_wiki_page`)**: write a complete, in-depth page from scratch. Use the `key_claims` and `summary` from the plan as a **starting scaffold only** — then mine the full raw source document for all supporting detail, examples, distinctions, and principles the source provides about this concept. Every claim must be cited.
-   - **Updated page (`edit_wiki_page`)**: synthesize the existing page and the new source into a single, coherent article. For minor targeted fixes (e.g., adding a citation or correcting a sentence), prefer the `edits` array for partial patching to reduce token usage. For major rewrites, use the `content` field. You MUST NOT provide both `content` and `edits` in the same call. Treat both the existing page's cited claims and the new source's claims as raw material — your task is to produce the best possible article about the concept using all of it. The result must read as if written by one author who had access to all sources simultaneously, never as layered additions from separate ingestions. Concretely:
-     - **Preserve every cited claim from prior sources and every existing citation.** Do not drop or silently overwrite them.
-     - **Redesign the section structure** around the concept's natural anatomy (e.g. definition → how it works → key considerations → related concepts), not around the order in which sources arrived.
-     - **Integrate each new claim into the most appropriate existing section** — never append new content as a new section simply because it is "new". Merge, reorder, and rewrite prose freely; the only hard constraint is that every prior citation is retained somewhere in the new body.
-     - **If two sources cover the same sub-topic from complementary angles**, merge them into one cohesive paragraph that cites both inline rather than keeping two separate paragraphs.
-     - Use the `summary` from the plan as the guiding intent, not as a writing template.
-   - **Citation-only update**: if the raw source adds no new facts, use `edit_wiki_page` with a targeted `edits` entry to attach the new citation to an existing claim that the new raw also supports.
-   - **Contradictory update**: if the plan flags `contradiction: true`, keep both viewpoints in the same article, attribute each to its source with inline citations, and make the disagreement explicit in the prose. Use `edit_wiki_page` with the full `content` field.
+   - **Updated page (`edit_wiki_page`)** — choose the mode based on scope. **Never provide both `content` and `edits` in the same call.**
+
+     | Situation | Mode |
+     |---|---|
+     | `contradiction: true` in plan, or new claims require restructuring existing sections | `content` (full rewrite) |
+     | Adding/correcting a sentence, attaching a citation, fixing a section | `edits` (partial patch) |
+     | New source adds no new facts (citation-only) | `edits` — attach citation inline after the claim the new source supports |
+
+     When doing a **full rewrite** (`content`): preserve every citation from prior sources; redesign section structure around the concept's anatomy, not ingestion order; integrate new claims into the most appropriate existing section — never append as a terminal new section; if two sources cover the same sub-topic, merge into one paragraph citing both. Use the plan's `summary` as guiding intent, not as a writing template.
    - The system automatically links the current raw source to the page — do not manage that relation in the page content.
    - After creating a new page, update any other pages in this plan that mention its concept to link with `[[slug]]` where appropriate.
 
@@ -66,13 +69,9 @@ For each inline-only mention in the plan, ensure the target page's content inclu
 
 ### Inbound link updates
 
-For each entry in the plan's `Inbound link updates` section, update the listed existing page so it physically cross-links the newly planned concept:
+For each `Inbound link updates` entry: call `get_wiki_page` on `target_slug`, then call `edit_wiki_page` with a targeted `edits` entry inserting `[[add_link_to]]` at the most natural prose location. Preserve all existing content and citations; do not add new claims or re-cite the current raw source unless it directly supports a claim already on that page.
 
-1. Call `get_wiki_page` on `target_slug` to read its current body.
-2. Produce a targeted edit that integrates a `[[add_link_to]]` reference at the most natural place in the existing prose — either by replacing a plain-text mention or by adding a short sentence where the topic is already discussed. Do not rewrite unrelated content, do not add new claims, and do not re-cite the current raw source on the target page unless the target page legitimately uses a claim from it.
-3. Call `edit_wiki_page` for the target page with an `edits` entry containing the exact string to replace. Preserve all existing citations, claims and structure.
-
-If a page-worthy concept in the plan already has its own `add_wiki_page` or `edit_wiki_page` call, do not double-edit it here — the inbound link updates are only for pages that would not otherwise be touched by this plan.
+Skip any target that already has its own write call in this plan.
 
 ### Warnings
 

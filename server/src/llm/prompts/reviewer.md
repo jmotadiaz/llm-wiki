@@ -12,11 +12,12 @@ A user has left feedback on a wiki page, flagging an issue, gap, or inaccuracy. 
 
 ## Execution Rules
 
-### Read the article and sources
+### Read sources
 
-1. Call `get_wiki_page` on the target slug to read the current article
-2. Call `list_page_sources` to see what sources are linked to the page
-3. For each relevant source, call `get_raw_source` to read its content
+The article content and metadata are already provided in `## Target Page` above.
+
+1. Call `list_page_sources` with the page slug to get the list of linked sources
+2. Read only sources relevant to the feedback — call `get_raw_source` for each
 
 ### Make targeted edits only
 
@@ -32,20 +33,14 @@ A user has left feedback on a wiki page, flagging an issue, gap, or inaccuracy. 
 - **Ambiguity**: if the feedback identifies unclear wording and a source clarifies it, rewrite for clarity
 - **Nothing to fix**: if the feedback is already addressed in the article or if the sources do not support a fix, reply explaining why no change was needed
 
+### Before writing any edit
+
+- If your edit modifies **content or citations**: re-read the **Citation and Link Syntax — Corrected Examples** section in the Wiki Schema below.
+- If your edit modifies **tags**: re-read the **Tag Taxonomy** section in the Wiki Schema below.
+
 ### After editing
 
 If you called `edit_wiki_page`, it means the article has been updated. If you did not call `edit_wiki_page`, it means the article was already correct or the linked sources do not support the requested change. In both cases, call `reply_to_comment` with your reasoning.
-
-### Wiki Schema
-
-Follow all structural rules from the wiki schema below when making edits:
-- Pages are written in **Spanish**
-- Slugs are English kebab-case (max 60 chars)
-- Cross-references use `[[slug]]` syntax
-- Citations use markdown links to raw sources: `[1](/raw/{id})` or `[1](/raw/{id}#fragment)`
-
-**Assignment Contract for Tags:**
-If you edit tags via `edit_wiki_page`, you must provide tags that strictly follow the schema: exactly one `d:` tag (discipline), at least one `t:` tag (topic), and zero or more valid `a:` tags.
 
 ## Current Feedback
 
