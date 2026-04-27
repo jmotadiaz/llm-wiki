@@ -73,6 +73,19 @@ For each `Inbound link updates` entry: call `get_wiki_page` on `target_slug`, th
 
 Skip any target that already has its own write call in this plan.
 
+### Tag landscape updates
+
+The plan may include a `Tag landscape updates` section with two kinds of entries:
+
+1. **`target_slug` entries (re-tags).** For each one, call `edit_wiki_page({ slug: target_slug, tags: <new_tags array> })`. The `tags` array on `edit_wiki_page` **replaces the page's tags wholesale** — pass the complete final list, not a delta. Do not include `content` or `edits` in this call: a tag-only update changes metadata only.
+
+   - If `target_slug` already has another `edit_wiki_page` call in this plan (from `Inbound link updates` or a content-driven update), **fold the tag change into that single call** by adding the `tags` field to it. Do not emit two `edit_wiki_page` calls for the same slug.
+   - The `new_tags` array must satisfy the tag contract (exactly one `d:`, at least one `t:`, only whitelisted `a:`). The validator will reject non-conforming arrays.
+
+2. **`new_tag` entries (declarative).** These describe a new `d:` or `t:` being introduced and which pages should carry it from the start. They do not require their own tool call: the tag takes effect through the `target_slug` entries (for existing pages) and the `Page-worthy concepts` entries (for new pages). After execution, every slug in `initial_pages` must end up tagged with the declared tag.
+
+If the plan contains no `Tag landscape updates` section, skip this step entirely.
+
 ### Warnings
 
 After all pages are written, call `report_warning` for each warning in the plan:
@@ -85,7 +98,7 @@ After all pages are written, call `report_warning` for each warning in the plan:
 
 ## Exit Condition
 
-The workflow ends when every page-worthy concept in the plan has exactly one write tool call (`add_wiki_page` for new pages, `edit_wiki_page` for updates), every `Inbound link updates` entry has its corresponding `edit_wiki_page` call on the existing target page, all inline-only mentions are handled inside those pages, and all warnings are reported. Then stop — no summary text, no explanation.
+The workflow ends when every page-worthy concept in the plan has exactly one write tool call (`add_wiki_page` for new pages, `edit_wiki_page` for updates), every `Inbound link updates` entry has its corresponding `edit_wiki_page` call on the existing target page, every `Tag landscape updates` `target_slug` entry has had its tags applied (either via a dedicated `edit_wiki_page` call or folded into another call on the same slug), all inline-only mentions are handled inside those pages, and all warnings are reported. Then stop — no summary text, no explanation.
 
 ## Current Raw Source ID
 
