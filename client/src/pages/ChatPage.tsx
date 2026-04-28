@@ -2,14 +2,34 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useRef, useEffect, useState } from "react";
 import Markdown from "../components/markdown/Markdown";
+import { clearSession, generateSessionKey, getLatestSessionKey, loadSession, saveSession } from "../hooks/useChatSession";
 
 const transport = new DefaultChatTransport({ api: "/api/chat" });
 
 export default function ChatPage() {
   const [input, setInput] = useState("");
-  const { messages, sendMessage, status } = useChat({ transport });
+  const [sessionKey, setSessionKey] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const latestSessionKey = getLatestSessionKey();
+    setSessionKey(latestSessionKey || generateSessionKey());
+  }, []);
+
+  const { messages, sendMessage, status, setMessages } = useChat({
+    transport,
+  });
   const isLoading = status === "streaming" || status === "submitted";
+
+  // Cargar sesión anterior cuando sessionKey esté listo
+  useEffect(() => {
+    if (sessionKey && messages.length === 0) {
+      const loadedMessages = loadSession(sessionKey);
+      if (loadedMessages.length > 0) {
+        setMessages(loadedMessages);
+      }
+    }
+  }, [sessionKey]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -18,12 +38,28 @@ export default function ChatPage() {
     });
   }, [messages]);
 
+  // Guardar mensajes en sessionStorage cuando cambien
+  useEffect(() => {
+    if (sessionKey && messages.length > 0) {
+      saveSession(sessionKey, messages);
+    }
+  }, [messages, sessionKey]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim()) {
       sendMessage({ text: input });
       setInput("");
     }
+  };
+
+  const handleClearSession = () => {
+    if (sessionKey) {
+      clearSession(sessionKey);
+    }
+    setMessages([]);
+    const newSessionKey = generateSessionKey();
+    setSessionKey(newSessionKey);
   };
 
   return (
@@ -87,6 +123,15 @@ export default function ChatPage() {
           className="px-4 py-2 bg-blue-600 text-white rounded font-medium disabled:opacity-50 text-sm"
         >
           Send
+        </button>
+        <button
+          type="button"
+          onClick={handleClearSession}
+          disabled={messages.length === 0 || isLoading}
+          className="px-3 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded font-medium disabled:opacity-50 text-sm"
+          title="Clear session and start a new conversation"
+        >
+          Clear
         </button>
       </form>
     </div>

@@ -18,6 +18,10 @@ El servidor (`routes/api/chat.ts`) ya acepta y reenvía el array completo de men
 - Persistencia cross-tab o cross-session (localStorage queda fuera).
 - Cambios en el backend.
 
+**Goals (Nueva iteración: Limpiar sesión):**
+- Añadir botón "Clear Session" en la UI del chat.
+- Al hacer clic, eliminar la sesión actual y empezar una nueva.
+
 ## Decisions
 
 ### 1. Custom hook `useChatSession`
@@ -73,6 +77,16 @@ return raw.map((m: any) => ({
 **Decisión**: Un `useEffect([messages])` en el hook escribe a sessionStorage cada vez que el array cambia.
 
 **Rationale**: Es el patrón más simple. No hay race conditions porque `useChat` es síncrono en sus actualizaciones de estado. El coste de serializar en cada mensaje es despreciable (conversaciones cortas).
+
+---
+
+### 6. Limpiar sesión: botón en la UI
+
+**Decisión**: Añadir función `clearSession(key)` en `useChatSession.ts` que elimine la sesión del sessionStorage. En `ChatPage`, un botón "Clear Session" llama a esta función y reinicia el chat con `setMessages([])`.
+
+**Rationale**: Permite al usuario empezar una conversación nueva sin navegar. Es destructivo (elimina el historial), pero reversible (el usuario puede recargar si fue accidental). El botón es visible junto al input para ser fácil de encontrar.
+
+**Alternativa descartada**: Confirmación modal — añade fricción innecesaria para una acción que es trivial deshacer (recargar la página).
 
 ## Risks / Trade-offs
 

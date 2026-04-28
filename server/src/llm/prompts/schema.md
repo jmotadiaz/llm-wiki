@@ -130,7 +130,7 @@ Axis tags provide metadata about the nature of the page. Reuse these exactly whe
 
 - `a:implementation` — How-to and code guidance
 - `a:troubleshooting` — Debugging and problem-solving
-- `a:performance` — Optimization and efficiency
+- `a:performance` —n Optimization and efficiency
 
 **Content:**
 
