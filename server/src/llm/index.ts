@@ -92,10 +92,11 @@ function buildUserMessage(
   existingArtifacts: string,
 ): string {
   const label = CATEGORY_LABEL[category];
+  const unit = category === "domain-index" ? "domain" : "topic";
   const modeBlock =
     mode === "regenerate-all"
-      ? `Mode: regenerate-all\n\nAll existing ${label} pages have been wiped. Create the full set from scratch using add_wiki_page (one call per domain you decide to cover).`
-      : `Mode: review\n\nExisting ${label} pages remain in place. For each, decide whether to keep it, revise it via edit_wiki_page, or leave it for human deletion. Then create new ${label} pages for any domains that have emerged in the wiki since they were last generated.`;
+      ? `Mode: regenerate-all\n\nAll existing ${label} pages have been wiped. Create the full set from scratch using add_wiki_page (one call per ${unit} you decide to cover).`
+      : `Mode: review\n\nExisting ${label} pages remain in place. For each, decide whether to keep it, revise it via edit_wiki_page, or leave it for human deletion. Then create new ${label} pages for any ${unit}s that have emerged in the wiki since they were last generated.`;
 
   return [
     modeBlock,
