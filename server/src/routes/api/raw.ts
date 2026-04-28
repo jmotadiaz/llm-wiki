@@ -51,7 +51,10 @@ export function createRawRoutes(db: Database.Database): Router {
         const prefix = `${id}-`;
         for (const file of files) {
           if (file.startsWith(prefix)) {
-            fs.unlinkSync(path.join(rawDir, file));
+            const target = path.join(rawDir, file);
+            try {
+              fs.rmSync(target, { recursive: true, force: true });
+            } catch (_) {}
           }
         }
       }

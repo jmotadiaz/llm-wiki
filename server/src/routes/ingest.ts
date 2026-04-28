@@ -103,7 +103,7 @@ export function createIngestRoutes(db: Database.Database): Router {
       );
 
       // Write to filesystem
-      const filename = `${sourceId}-${title.toLowerCase().replace(/\s+/g, "-").substring(0, 30)}.md`;
+      const filename = `${sourceId}-${title.toLowerCase().replace(/[/\\]/g, "-").replace(/\s+/g, "-").substring(0, 30)}.md`;
       const filepath = path.join(rawDir, filename);
       fs.writeFileSync(filepath, content);
 
@@ -164,7 +164,7 @@ export function createIngestRoutes(db: Database.Database): Router {
         );
 
         // Write to filesystem
-        const filename = `${sourceId}-${title.toLowerCase().replace(/\s+/g, "-").substring(0, 30)}.md`;
+        const filename = `${sourceId}-${title.toLowerCase().replace(/[/\\]/g, "-").replace(/\s+/g, "-").substring(0, 30)}.md`;
         const filepath = path.join(rawDir, filename);
         fs.writeFileSync(filepath, content);
 

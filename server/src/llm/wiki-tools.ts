@@ -203,7 +203,7 @@ export function createWikiEditTools(
           .enum(["draft", "published", "archived"])
           .describe("Lifecycle status."),
         tags: z.array(z.string()).describe("List of tags (English)."),
-        summary: z.string().describe("Short summary (Spanish)."),
+        summary: z.string().describe("One-sentence summary in Spanish (max 150 chars). State the core definition only — no mechanism, no significance. This is a progressive-disclosure teaser, not a reading guide."),
         content: z
           .string()
           .describe(
@@ -314,7 +314,7 @@ export function createWikiEditTools(
           .string()
           .optional()
           .describe(
-            "Updated short summary (Spanish). If omitted, the existing summary is preserved.",
+            "Updated one-sentence summary in Spanish (max 150 chars). State the core definition only — no mechanism, no significance. If omitted, the existing summary is preserved.",
           ),
         content: z
           .string()

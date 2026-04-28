@@ -85,7 +85,7 @@ export function createIndexTools(
           .describe("The page type."),
         status: z.enum(["draft", "published", "archived"]),
         tags: z.array(z.string()).describe("List of tags (English kebab-case)."),
-        summary: z.string().describe("Short summary (Spanish)."),
+        summary: z.string().describe("One-sentence summary in Spanish (max 150 chars). State the core definition only — no mechanism, no significance. This is a progressive-disclosure teaser, not a reading guide."),
         content: z
           .string()
           .describe("Full markdown content (Spanish). Use [text](/wiki/slug) for wiki cross-references. Do not use /raw/ citations."),

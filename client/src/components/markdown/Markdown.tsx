@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Streamdown, defaultRemarkPlugins } from "streamdown";
+import { code } from "@streamdown/code";
 import remarkGfm from "remark-gfm";
 import { useNavigate } from "react-router-dom";
 import remarkHeadingAnchors from "./remarkHeadingAnchors";
@@ -32,6 +33,7 @@ export default function Markdown({
   return (
     <div className={`prose dark:prose-invert max-w-none ${className}`}>
       <Streamdown
+        plugins={{ code }}
         remarkPlugins={remarkPlugins as any}
         components={{
           a: ({ node, ...props }: any) => {
