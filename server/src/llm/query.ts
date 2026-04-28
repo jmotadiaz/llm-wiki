@@ -2,11 +2,11 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { ModelMessage } from "ai";
-import { openrouter } from "@openrouter/ai-sdk-provider";
 import { llmClient } from "./client.js";
 import { createTools } from "./tools.js";
 import { Queries } from "../db/queries.js";
 import Database from "better-sqlite3";
+import { deepseek } from "@ai-sdk/deepseek";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,8 +67,7 @@ export async function streamChat(
     system: systemPrompt,
     messages,
     tools,
-    model: openrouter("google/gemini-3.1-flash-lite-preview"),
+    model: deepseek("deepseek-v4-flash"),
     maxSteps: 10,
-    temperature: 0.2, // Keep it focused and deterministic
   });
 }

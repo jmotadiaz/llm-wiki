@@ -168,9 +168,8 @@ export async function reviewComment(
         },
       ],
       tools,
-      model: deepseek("deepseek-chat"),
+      model: deepseek("deepseek-v4-flash"),
       maxSteps: 15,
-      temperature: 0.5,
       onStepFinish: debugEnabled
         ? (event: any) => {
             debugLog(

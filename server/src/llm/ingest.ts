@@ -151,8 +151,6 @@ export async function ingestRawSource(
       ],
       model: deepseek("deepseek-v4-pro"),
       tools: plannerTools,
-      temperature: 1,
-      topP: 1,
       maxSteps: 20,
       onStepFinish: debugEnabled
         ? (event: any) => {
@@ -205,8 +203,6 @@ export async function ingestRawSource(
       ],
       tools,
       model: deepseek("deepseek-v4-flash"),
-      temperature: 1,
-      topP: 1,
       maxSteps: 20,
       onStepFinish: debugEnabled
         ? (event: any) => {
@@ -221,7 +217,8 @@ export async function ingestRawSource(
     // Count results from tool calls
     const toolCalls = result.steps.flatMap((s) => s.toolCalls || []);
     const pagesWritten = toolCalls.filter(
-      (tc) => tc.toolName === "add_wiki_page" || tc.toolName === "edit_wiki_page",
+      (tc) =>
+        tc.toolName === "add_wiki_page" || tc.toolName === "edit_wiki_page",
     ).length;
     const warnings = toolCalls.filter(
       (tc) => tc.toolName === "report_warning",

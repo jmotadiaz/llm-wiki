@@ -105,7 +105,6 @@ async function generateDomainIndex(
       tools,
       model: deepseek("deepseek-v4-pro"),
       maxSteps: 8,
-      temperature: 0.4,
       onStepFinish: debugEnabled
         ? (event: any) =>
             debugLog(
@@ -181,9 +180,8 @@ async function generateLearningPath(
         },
       ],
       tools,
-      model: deepseek("deepseek-reasoner"),
+      model: deepseek("deepseek-v4-pro"),
       maxSteps: 8,
-      temperature: 0.4,
       onStepFinish: debugEnabled
         ? (event: any) =>
             debugLog(
