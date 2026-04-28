@@ -12,53 +12,78 @@ export interface IndexAgentResult {
   writtenSlugs: string[];
 }
 
+const SLUG_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+function expectedTopicTag(type: "domain-index" | "learning-path"): string {
+  return type === "domain-index" ? "t:index" : "t:learning-path";
+}
+
+function validateIndexPagePayload(
+  type: "domain-index" | "learning-path",
+  slug: string,
+  content: string,
+  tags: string[],
+): string | null {
+  if (!SLUG_REGEX.test(slug)) {
+    return `Slug "${slug}" is not valid kebab-case (must match ^[a-z0-9]+(-[a-z0-9]+)*$).`;
+  }
+  const expectedPrefix = `${type}-`;
+  if (!slug.startsWith(expectedPrefix)) {
+    return `Slug "${slug}" must start with "${expectedPrefix}" for type "${type}".`;
+  }
+  if (slug.length === expectedPrefix.length) {
+    return `Slug "${slug}" must include a domain segment after "${expectedPrefix}".`;
+  }
+  if (content.includes("/raw/")) {
+    return `Index pages MUST NOT contain /raw/ citations. Use only [text](/wiki/slug) links to wiki pages.`;
+  }
+  const tagCheck = validateTagContract(tags);
+  if (!tagCheck.valid) {
+    return `Tags rejected: ${tagCheck.error}`;
+  }
+  const requiredTopic = expectedTopicTag(type);
+  if (!tags.includes(requiredTopic)) {
+    return `Tags rejected: ${type} pages MUST include the topic tag "${requiredTopic}".`;
+  }
+  return null;
+}
+
 export function createIndexTools(
   db: Database.Database,
   allowedType: "domain-index" | "learning-path",
-  expectedSlug: string,
   result: IndexAgentResult,
 ) {
   const queries = new Queries(db);
   const wikiDir = ensureWikiDirectory();
 
-  function validateIndexArgs(slug: string, type: string, content: string): string | null {
-    if (slug !== expectedSlug) {
-      return `Slug rejected: expected "${expectedSlug}" but got "${slug}". Use the target slug from the prompt.`;
-    }
-    if (type !== allowedType) {
-      return `Type rejected: expected "${allowedType}" but got "${type}".`;
-    }
-    if (content.includes("/raw/")) {
-      return `Index pages MUST NOT contain /raw/ citations. Use only [text](/wiki/slug) links to wiki pages.`;
-    }
-    return null;
-  }
-
   return {
-    get_wiki_index: tool({
+    get_wiki_page: tool({
       description:
-        "Retrieve the full wiki index (all published pages) with slug, title, type, tags, summary, and inbound link count.",
-      inputSchema: z.object({}),
-      execute: async () => {
-        debugLog(`[Tool: index.get_wiki_index] fetching wiki index`);
-        const pages = queries.getAllWikiPages();
-        const inboundCounts = queries.getInboundLinkCounts();
-        return pages
-          .filter((p: any) => p.status === "published")
-          .map((p: any) => ({
-            slug: p.slug,
-            title: p.title,
-            type: p.type,
-            tags: (p.tags || "").split(",").map((t: string) => t.trim()).filter(Boolean),
-            summary: p.summary,
-            inbound_links: inboundCounts.get(p.slug) ?? 0,
-          }));
+        "Read the full content and metadata of a wiki page by slug. Use this when the index.md entry for a page is not enough to decide its placement (e.g., to confirm depth, foundationality, or topical fit before assigning it to a domain or learning-path stage).",
+      inputSchema: z.object({
+        slug: z.string().describe("The slug of the wiki page to read."),
+      }),
+      execute: async ({ slug }) => {
+        debugLog(`[Tool: index.get_wiki_page] slug: ${slug}`);
+        const page = queries.getWikiPageBySlug(slug);
+        if (!page) {
+          return { error: `Page "${slug}" not found.` };
+        }
+        return {
+          slug: page.slug,
+          title: page.title,
+          type: page.type,
+          status: page.status,
+          tags: (page.tags || "").split(",").map((t: string) => t.trim()).filter(Boolean),
+          summary: page.summary,
+          content: page.content,
+        };
       },
     }),
 
     get_backlinks: tool({
       description:
-        "List wiki pages that link TO a given slug (backlinks). Useful for confirming foundational status of a page before placing it early in a learning path.",
+        "List wiki pages that link TO a given slug (backlinks). High inbound counts signal foundational pages — useful for deciding if a page belongs early in a learning path or as a hub in a domain index.",
       inputSchema: z.object({
         slug: z.string().describe("The slug whose inbound links you want."),
       }),
@@ -76,34 +101,28 @@ export function createIndexTools(
 
     add_wiki_page: tool({
       description:
-        "Create the target index page. The slug MUST match the provided target slug. The page type MUST match the agent's target type.",
+        `Create a new ${allowedType} page. May be called multiple times in a single session (one call per domain). The slug MUST follow "${allowedType}-<domain-kebab>" and the type MUST be "${allowedType}".`,
       inputSchema: z.object({
-        slug: z.string().describe("The slug of the index page (must match the target slug)."),
+        slug: z.string().describe(`The slug, formatted as "${allowedType}-<domain-kebab>".`),
         title: z.string().describe("The human-readable title (Spanish)."),
         type: z
           .enum(["domain-index", "learning-path"])
-          .describe("The page type."),
+          .describe("The page type. Must equal the agent's allowed type."),
         status: z.enum(["draft", "published", "archived"]),
-        tags: z.array(z.string()).describe("List of tags (English kebab-case)."),
-        summary: z.string().describe("One-sentence summary in Spanish (max 150 chars). State the core definition only — no mechanism, no significance. This is a progressive-disclosure teaser, not a reading guide."),
+        tags: z.array(z.string()).describe(
+          `Tags. Required: exactly one d:<domain-kebab> matching the slug's domain segment, and ${expectedTopicTag(allowedType)}. Optional a: tags allowed.`,
+        ),
+        summary: z.string().describe("One-sentence Spanish summary (max 150 chars)."),
         content: z
           .string()
-          .describe("Full markdown content (Spanish). Use [text](/wiki/slug) for wiki cross-references. Do not use /raw/ citations."),
+          .describe("Full markdown content (Spanish). Use [text](/wiki/slug) for cross-references. No /raw/ citations."),
       }),
       execute: async (page) => {
-        const guard = validateIndexArgs(page.slug, page.type, page.content);
+        if (page.type !== allowedType) {
+          return { error: `Type rejected: expected "${allowedType}" but got "${page.type}".` };
+        }
+        const guard = validateIndexPagePayload(allowedType, page.slug, page.content, page.tags);
         if (guard) return { error: guard };
-
-        if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(page.slug)) {
-          return { error: `Slug "${page.slug}" is not valid kebab-case.` };
-        }
-
-        const tagValidation = validateTagContract(page.tags);
-        if (!tagValidation.valid) {
-          return { error: `Tags rejected: ${tagValidation.error}` };
-        }
-
-        debugLog(`[Tool: index.add_wiki_page] writing: ${page.slug}`);
 
         const existing = queries.getWikiPageBySlug(page.slug);
         if (existing) {
@@ -111,6 +130,8 @@ export function createIndexTools(
             error: `Slug "${page.slug}" already exists. Use edit_wiki_page to update it.`,
           };
         }
+
+        debugLog(`[Tool: index.add_wiki_page] writing: ${page.slug}`);
 
         const now = new Date().toISOString();
         const pageId = queries.insertWikiPage(
@@ -144,21 +165,18 @@ export function createIndexTools(
 
     edit_wiki_page: tool({
       description:
-        "Update the target index page. The slug MUST match the provided target slug. Supports two mutually exclusive modes: full replacement via `content`, or partial patching via `edits` array.",
+        `Update an existing ${allowedType} page. Use this to revise pages identified as outdated, or to incorporate newly added wiki content. Supports full replacement via "content" or partial patches via "edits".`,
       inputSchema: z.object({
-        slug: z.string().describe("The slug of the index page (must match the target slug)."),
-        title: z.string().optional().describe("Updated title (Spanish). If omitted, the existing title is preserved."),
-        type: z
-          .enum(["domain-index", "learning-path"])
-          .optional()
-          .describe("Updated page type. If omitted, the existing type is preserved."),
+        slug: z.string().describe(`The slug, formatted as "${allowedType}-<domain-kebab>".`),
+        title: z.string().optional(),
+        type: z.enum(["domain-index", "learning-path"]).optional(),
         status: z.enum(["draft", "published", "archived"]).optional(),
-        tags: z.array(z.string()).optional().describe("Updated list of tags. If omitted, existing tags are preserved."),
-        summary: z.string().optional().describe("Updated summary (Spanish). If omitted, existing summary is preserved."),
+        tags: z.array(z.string()).optional(),
+        summary: z.string().optional(),
         content: z
           .string()
           .optional()
-          .describe("Full replacement markdown content. Mutually exclusive with `edits`. Do not use /raw/ citations."),
+          .describe("Full replacement markdown. Mutually exclusive with `edits`. No /raw/ citations."),
         edits: z
           .array(
             z.object({
@@ -170,26 +188,13 @@ export function createIndexTools(
           .describe("Array of exact string replacements. Mutually exclusive with `content`."),
       }),
       execute: async (args) => {
-        if (args.slug !== expectedSlug) {
-          return {
-            error: `Slug rejected: expected "${expectedSlug}" but got "${args.slug}". Use the target slug from the prompt.`,
-          };
-        }
         if (args.content !== undefined && args.edits !== undefined) {
           return {
             error: "Invalid arguments: provide either `content` (full replacement) or `edits` (partial patches), not both.",
           };
         }
-        if (args.content?.includes("/raw/")) {
-          return { error: `Index pages MUST NOT contain /raw/ citations. Use only [text](/wiki/slug) links to wiki pages.` };
-        }
         if (args.type && args.type !== allowedType) {
           return { error: `Type rejected: expected "${allowedType}" but got "${args.type}".` };
-        }
-
-        const tagValidation = args.tags ? validateTagContract(args.tags) : { valid: true };
-        if (!tagValidation.valid) {
-          return { error: `Tags rejected: ${(tagValidation as any).error}` };
         }
 
         const existingPage = queries.getWikiPageBySlug(args.slug);
@@ -198,8 +203,11 @@ export function createIndexTools(
             error: `Page "${args.slug}" not found. Use add_wiki_page to create a new page.`,
           };
         }
-
-        debugLog(`[Tool: index.edit_wiki_page] writing: ${args.slug}`);
+        if (existingPage.type !== allowedType) {
+          return {
+            error: `Page "${args.slug}" has type "${existingPage.type}", not "${allowedType}". Refusing to edit.`,
+          };
+        }
 
         const finalTitle = args.title ?? existingPage.title;
         const finalStatus = args.status ?? existingPage.status;
@@ -241,6 +249,11 @@ export function createIndexTools(
           finalContent = existingPage.content;
         }
 
+        const guard = validateIndexPagePayload(allowedType, args.slug, finalContent, finalTags);
+        if (guard) return { error: guard };
+
+        debugLog(`[Tool: index.edit_wiki_page] writing: ${args.slug}`);
+
         queries.updateWikiPage(
           existingPage.id,
           finalTitle,
@@ -254,10 +267,10 @@ export function createIndexTools(
         fs.writeFileSync(filepath, finalContent);
 
         queries.deleteWikiLinksForPage(existingPage.id);
-        const linkRegex = /\[\[([^\]]+)\]\]/g;
+        const linkRegex = /\[([^\]]+)\]\(\/wiki\/([^)]+)\)/g;
         let match;
         while ((match = linkRegex.exec(finalContent)) !== null) {
-          const linkSlug = match[1].split("|")[0].trim();
+          const linkSlug = match[2].trim();
           if (linkSlug) queries.insertWikiLink(existingPage.id, linkSlug);
         }
 
@@ -270,29 +283,6 @@ export function createIndexTools(
         }
 
         return { success: true, action: "updated", slug: args.slug };
-      },
-    }),
-
-    delete_wiki_page: tool({
-      description:
-        "Permanently delete a wiki page by its slug. Removes the page from the database and the filesystem.",
-      inputSchema: z.object({
-        slug: z.string().describe("The slug of the wiki page to delete."),
-      }),
-      execute: async ({ slug }) => {
-        debugLog(`[Tool: index.delete_wiki_page] slug: ${slug}`);
-        const existingPage = queries.getWikiPageBySlug(slug);
-        if (!existingPage) {
-          return { error: `Page "${slug}" not found. Nothing to delete.` };
-        }
-        queries.deleteWikiLinksForPage(existingPage.id);
-        const stmt = db.prepare("DELETE FROM wiki_pages WHERE id = ?");
-        stmt.run(existingPage.id);
-        const filepath = path.join(wikiDir, `${slug}.md`);
-        if (fs.existsSync(filepath)) {
-          fs.unlinkSync(filepath);
-        }
-        return { success: true, action: "deleted", slug };
       },
     }),
   };

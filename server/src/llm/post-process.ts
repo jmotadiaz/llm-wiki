@@ -16,16 +16,17 @@ const __dirname = path.dirname(__filename);
 function regenerateIndex(db: Database.Database): void {
   const queries = new Queries(db);
   const pages = queries.getAllWikiPages();
+  const inboundCounts = queries.getInboundLinkCounts();
   const indexPath = path.join(__dirname, "../../..", "data", "index.md");
 
   const header = `# Wiki Index
 
-This is the master index of all wiki pages. Pages are listed with their slug, title, summary, and tags.
+This is the master index of all wiki pages. Each entry lists the slug, title, page type, inbound link count, tags, and summary.
 
 ## Format
 
 \`\`\`
-- \`slug\`: Page title | tags: tag1, tag2 | summary: Short summary text
+- \`slug\` (type, inbound: N): Page title | tags: tag1, tag2 | summary: Short summary text
 \`\`\`
 
 ## Pages
@@ -36,7 +37,8 @@ This is the master index of all wiki pages. Pages are listed with their slug, ti
     .map((page) => {
       const tags = page.tags || "untagged";
       const summary = page.summary ? ` | summary: ${page.summary}` : "";
-      return `- \`${page.slug}\`: ${page.title} | tags: ${tags}${summary}`;
+      const inbound = inboundCounts.get(page.slug) ?? 0;
+      return `- \`${page.slug}\` (${page.type}, inbound: ${inbound}): ${page.title} | tags: ${tags}${summary}`;
     })
     .join("\n");
 

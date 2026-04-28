@@ -47,11 +47,11 @@ export function initScheduler(db: Database.Database) {
     console.log(`[SCHEDULER] Starting nightly index agent at ${timestamp}`);
 
     try {
-      const summary = await runIndexAgent(db);
-      const logEntry = `- [${new Date().toISOString()}] INDEX-CRON OK Domains: ${summary.domainsProcessed.length}, pages written: ${summary.pagesWritten.length}, skipped: ${summary.skipped.length}\n`;
+      const summary = await runIndexAgent(db, { mode: "review", category: "both" });
+      const logEntry = `- [${new Date().toISOString()}] INDEX-CRON OK mode=${summary.mode}, categories: ${summary.categoriesProcessed.length}, pages written: ${summary.pagesWritten.length}, deleted: ${summary.pagesDeleted.length}\n`;
       fs.appendFileSync(logPath, logEntry);
 
-      console.log(`[SCHEDULER] Index agent complete. Domains: ${summary.domainsProcessed.length}, pages: ${summary.pagesWritten.length}`);
+      console.log(`[SCHEDULER] Index agent complete. Categories: ${summary.categoriesProcessed.length}, pages: ${summary.pagesWritten.length}`);
     } catch (error: any) {
       const errorEntry = `- [${new Date().toISOString()}] INDEX-CRON ERROR ${error.message}\n`;
       fs.appendFileSync(logPath, errorEntry);
