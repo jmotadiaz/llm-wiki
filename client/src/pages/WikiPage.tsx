@@ -265,16 +265,17 @@ function PagesTab() {
 function IndexListTab({ kind }: { kind: "domains" | "learning-paths" }) {
   const [pages, setPages] = useState<IndexPageEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [regenerating, setRegenerating] = useState(false);
+  const [runningMode, setRunningMode] = useState<null | "review" | "regenerate-all">(null);
   const [error, setError] = useState("");
 
   const endpoint =
     kind === "domains" ? "/api/wiki/domain-indexes" : "/api/wiki/learning-paths";
+  const category = kind === "domains" ? "domain-index" : "learning-path";
   const heading = kind === "domains" ? "Dominios" : "Learning Paths";
   const emptyMessage =
     kind === "domains"
-      ? "Aún no hay domain-index pages. Regenera para descubrir dominios."
-      : "Aún no hay learning-path pages. Regenera para construir rutas de aprendizaje.";
+      ? "Aún no hay domain-index pages. Genera para descubrir dominios."
+      : "Aún no hay learning-path pages. Genera para construir rutas de aprendizaje.";
 
   function load() {
     setLoading(true);
@@ -291,41 +292,61 @@ function IndexListTab({ kind }: { kind: "domains" | "learning-paths" }) {
     load();
   }, [endpoint]);
 
-  async function handleRegenerateAll() {
-    setRegenerating(true);
+  async function runAgent(mode: "review" | "regenerate-all") {
+    if (mode === "regenerate-all") {
+      const ok = window.confirm(
+        `Esto eliminará todas las páginas existentes de "${heading}" y las regenerará desde cero. ¿Continuar?`,
+      );
+      if (!ok) return;
+    }
+    setRunningMode(mode);
     setError("");
     try {
       const res = await fetch("/api/index/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ mode, category }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || `Regeneration failed (${res.status})`);
+        throw new Error(data.error || `Index agent failed (${res.status})`);
       }
       load();
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setRegenerating(false);
+      setRunningMode(null);
     }
   }
 
+  const busy = runningMode !== null;
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {loading ? "Loading..." : `${pages.length} ${heading.toLowerCase()}`}
         </p>
-        <button
-          type="button"
-          onClick={handleRegenerateAll}
-          disabled={regenerating}
-          className="px-3 py-1.5 text-sm rounded bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white transition-colors"
-        >
-          {regenerating ? "Regenerando..." : "Regenerar todo"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => runAgent("review")}
+            disabled={busy}
+            title="El agente revisa las páginas existentes y crea nuevas si han surgido dominios; no elimina nada."
+            className="px-3 py-1.5 text-sm rounded bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white transition-colors"
+          >
+            {runningMode === "review" ? "Revisando..." : "Revisar y completar"}
+          </button>
+          <button
+            type="button"
+            onClick={() => runAgent("regenerate-all")}
+            disabled={busy}
+            title="Borra todas las páginas existentes de esta categoría y las regenera desde cero."
+            className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white transition-colors"
+          >
+            {runningMode === "regenerate-all" ? "Regenerando..." : "Regenerar todo"}
+          </button>
+        </div>
       </div>
 
       {error && (

@@ -4,47 +4,41 @@ import { fileURLToPath } from "url";
 import Database from "better-sqlite3";
 import { llmClient } from "./client.js";
 import { createIndexTools, IndexAgentResult } from "./index-tools.js";
-import {
-  DomainCluster,
-  PageMeta,
-  assignLearningStages,
-  discoverDomains,
-  domainSlug,
-  loadPageMeta,
-} from "./domain-discovery.js";
+import { ensureWikiDirectory } from "./wiki-tools.js";
+import { Queries } from "../db/queries.js";
 import { debugLog, isDebugEnabled } from "../utils/debug.js";
 import { deepseek } from "@ai-sdk/deepseek";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+export type IndexCategory = "domain-index" | "learning-path";
+export type IndexMode = "regenerate-all" | "review";
+
+const PROMPT_FILES: Record<IndexCategory, string> = {
+  "domain-index": "index-domain.md",
+  "learning-path": "index-learning-path.md",
+};
+
+const CATEGORY_LABEL: Record<IndexCategory, string> = {
+  "domain-index": "domain-index",
+  "learning-path": "learning-path",
+};
+
+const MAX_STEPS = 40;
+
 function loadSchema(): string {
-  const schemaPath = path.join(__dirname, "prompts", "schema.md");
-  return fs.readFileSync(schemaPath, "utf-8");
+  return fs.readFileSync(path.join(__dirname, "prompts", "schema.md"), "utf-8");
 }
 
 function loadPromptTemplate(filename: string): string {
-  const promptPath = path.join(__dirname, "prompts", filename);
-  return fs.readFileSync(promptPath, "utf-8");
+  return fs.readFileSync(path.join(__dirname, "prompts", filename), "utf-8");
 }
 
-function interpolate(template: string, vars: Record<string, string>): string {
-  let result = template;
-  for (const [key, value] of Object.entries(vars)) {
-    result = result.replaceAll(`{${key}}`, () => value);
-  }
-  return result;
-}
-
-function formatPageBullet(page: PageMeta): string {
-  const summary = page.summary ? ` — ${page.summary}` : "";
-  const tags = page.tags.length > 0 ? ` | tags: ${page.tags.join(", ")}` : "";
-  return `- /wiki/${page.slug} (type: ${page.type}, inbound: ${page.inboundLinks})${tags}${summary ? "\n    " + summary.trim() : ""}`;
-}
-
-function formatPageList(pages: PageMeta[]): string {
-  if (pages.length === 0) return "(ninguna)";
-  return pages.map(formatPageBullet).join("\n");
+function loadIndexMarkdown(): string {
+  const indexPath = path.join(__dirname, "../../..", "data", "index.md");
+  if (!fs.existsSync(indexPath)) return "(index.md not found — wiki is empty)";
+  return fs.readFileSync(indexPath, "utf-8");
 }
 
 function summarizeStep(event: any) {
@@ -60,218 +54,150 @@ function summarizeStep(event: any) {
   };
 }
 
-async function generateDomainIndex(
-  db: Database.Database,
-  cluster: DomainCluster,
-  domainName: string,
-): Promise<string | null> {
-  const debugEnabled = isDebugEnabled();
-  const kebab = domainSlug(cluster.tag);
-  const targetSlug = `domain-index-${kebab}`;
+function deleteCategoryPages(db: Database.Database, category: IndexCategory): string[] {
+  const queries = new Queries(db);
+  const wikiDir = ensureWikiDirectory();
+  const pages = queries.getWikiPagesByType(category);
+  const deleteStmt = db.prepare("DELETE FROM wiki_pages WHERE id = ?");
+  const deletedSlugs: string[] = [];
 
-  const relatedPages = cluster.relatedSlugs
-    .map((slug) => {
-      const p = loadPageMeta(db).find((page) => page.slug === slug);
-      return p ? formatPageBullet(p) : null;
-    })
-    .filter(Boolean)
-    .join("\n");
-
-  const vars: Record<string, string> = {
-    DOMAIN_NAME: domainName,
-    DOMAIN_KEBAB: kebab,
-    TARGET_SLUG: targetSlug,
-    DOMAIN_PAGES: formatPageList(cluster.pages),
-    RELATED_PAGES: relatedPages || "(ninguna)",
-    L1_SCHEMA: loadSchema(),
-  };
-
-  const systemPrompt = interpolate(loadPromptTemplate("index-domain.md"), vars);
-
-  const result: IndexAgentResult = { writtenSlugs: [] };
-  const tools = createIndexTools(db, "domain-index", targetSlug, result);
-
-  debugLog(`[INDEX] Domain-index agent starting for ${targetSlug}`);
-
-  try {
-    await llmClient.generate({
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `Genera el domain-index para el dominio "${domainName}" (slug objetivo: ${targetSlug}). Llama a add_wiki_page una vez con el markdown final.`,
-        },
-      ],
-      tools,
-      model: deepseek("deepseek-v4-pro"),
-      maxSteps: 8,
-      onStepFinish: debugEnabled
-        ? (event: any) =>
-            debugLog(
-              `[INDEX] Domain-index step for ${targetSlug}`,
-              summarizeStep(event),
-            )
-        : undefined,
-    });
-  } catch (error: any) {
-    console.error(
-      `[INDEX] Domain-index agent failed for ${targetSlug}: ${error.message}`,
-    );
-    return null;
+  for (const page of pages) {
+    queries.deleteWikiLinksForPage(page.id);
+    deleteStmt.run(page.id);
+    const filepath = path.join(wikiDir, `${page.slug}.md`);
+    if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+    deletedSlugs.push(page.slug);
   }
 
-  if (result.writtenSlugs.length === 0) {
-    console.warn(`[INDEX] Domain-index agent did not write ${targetSlug}`);
-    return null;
-  }
-
-  return targetSlug;
+  return deletedSlugs;
 }
 
-async function generateLearningPath(
-  db: Database.Database,
-  cluster: DomainCluster,
-  domainName: string,
-): Promise<string | null> {
-  const debugEnabled = isDebugEnabled();
-  const kebab = domainSlug(cluster.tag);
-  const targetSlug = `learning-path-${kebab}`;
-
-  const { fundamentals, intermediate, advanced } = assignLearningStages(
-    cluster.pages,
-  );
-
-  const prereqCandidates = cluster.relatedSlugs
-    .map((slug) => {
-      const p = loadPageMeta(db).find((page) => page.slug === slug);
-      return p ? formatPageBullet(p) : null;
+function listExistingArtifacts(db: Database.Database, category: IndexCategory): string {
+  const queries = new Queries(db);
+  const pages = queries.getWikiPagesByType(category);
+  if (pages.length === 0) return "(none)";
+  return pages
+    .map((p) => {
+      const summary = p.summary ? ` — ${p.summary}` : "";
+      const generated = p.generated_at ? ` | generated_at: ${p.generated_at}` : "";
+      return `- \`${p.slug}\`: ${p.title}${summary}${generated}`;
     })
-    .filter(Boolean)
     .join("\n");
+}
 
-  const vars: Record<string, string> = {
-    DOMAIN_NAME: domainName,
-    DOMAIN_KEBAB: kebab,
-    TARGET_SLUG: targetSlug,
-    STAGE_FUNDAMENTALS: formatPageList(fundamentals),
-    STAGE_INTERMEDIATE: formatPageList(intermediate),
-    STAGE_ADVANCED: formatPageList(advanced),
-    PREREQ_CANDIDATES: prereqCandidates || "(ninguna)",
-    L1_SCHEMA: loadSchema(),
-  };
+function buildUserMessage(
+  category: IndexCategory,
+  mode: IndexMode,
+  indexMd: string,
+  existingArtifacts: string,
+): string {
+  const label = CATEGORY_LABEL[category];
+  const unit = category === "domain-index" ? "domain" : "topic";
+  const modeBlock =
+    mode === "regenerate-all"
+      ? `Mode: regenerate-all\n\nAll existing ${label} pages have been wiped. Create the full set from scratch using add_wiki_page (one call per ${unit} you decide to cover).`
+      : `Mode: review\n\nExisting ${label} pages remain in place. For each, decide whether to keep it, revise it via edit_wiki_page, or leave it for human deletion. Then create new ${label} pages for any ${unit}s that have emerged in the wiki since they were last generated.`;
 
-  const systemPrompt = interpolate(
-    loadPromptTemplate("index-learning-path.md"),
-    vars,
+  return [
+    modeBlock,
+    "",
+    "## Master index (data/index.md)",
+    "",
+    indexMd.trim(),
+    "",
+    `## Existing ${label} pages`,
+    "",
+    existingArtifacts,
+    "",
+    `Now produce the appropriate ${label} pages following the contract in your system prompt. Output tool calls only.`,
+  ].join("\n");
+}
+
+async function runCategory(
+  db: Database.Database,
+  category: IndexCategory,
+  mode: IndexMode,
+): Promise<{ pagesWritten: string[]; deleted: string[] }> {
+  const debugEnabled = isDebugEnabled();
+  const deleted = mode === "regenerate-all" ? deleteCategoryPages(db, category) : [];
+
+  const systemPrompt = loadPromptTemplate(PROMPT_FILES[category]).replace(
+    "{L1_SCHEMA}",
+    loadSchema(),
   );
+
+  const indexMd = loadIndexMarkdown();
+  const existingArtifacts = listExistingArtifacts(db, category);
+  const userMessage = buildUserMessage(category, mode, indexMd, existingArtifacts);
 
   const result: IndexAgentResult = { writtenSlugs: [] };
-  const tools = createIndexTools(db, "learning-path", targetSlug, result);
+  const tools = createIndexTools(db, category, result);
 
-  debugLog(`[INDEX] Learning-path agent starting for ${targetSlug}`);
+  console.log(
+    `[INDEX] ${category} agent starting (mode=${mode}, deleted=${deleted.length})`,
+  );
 
   try {
     await llmClient.generate({
       system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `Genera el learning-path para el dominio "${domainName}" (slug objetivo: ${targetSlug}). Llama a add_wiki_page una vez con el markdown final.`,
-        },
-      ],
+      messages: [{ role: "user", content: userMessage }],
       tools,
       model: deepseek("deepseek-v4-pro"),
-      maxSteps: 8,
+      maxSteps: MAX_STEPS,
       onStepFinish: debugEnabled
         ? (event: any) =>
-            debugLog(
-              `[INDEX] Learning-path step for ${targetSlug}`,
-              summarizeStep(event),
-            )
+            debugLog(`[INDEX] ${category} step`, summarizeStep(event))
         : undefined,
     });
   } catch (error: any) {
-    console.error(
-      `[INDEX] Learning-path agent failed for ${targetSlug}: ${error.message}`,
-    );
-    return null;
+    console.error(`[INDEX] ${category} agent failed: ${error.message}`);
   }
 
-  if (result.writtenSlugs.length === 0) {
-    console.warn(`[INDEX] Learning-path agent did not write ${targetSlug}`);
-    return null;
-  }
+  console.log(
+    `[INDEX] ${category} agent finished. Pages written: ${result.writtenSlugs.length}`,
+  );
 
-  return targetSlug;
+  return { pagesWritten: result.writtenSlugs, deleted };
 }
 
 export interface IndexRunSummary {
-  domainsProcessed: string[];
+  mode: IndexMode;
+  categoriesProcessed: IndexCategory[];
   pagesWritten: string[];
-  skipped: string[];
+  pagesDeleted: string[];
+}
+
+export interface IndexRunOptions {
+  mode?: IndexMode;
+  category?: IndexCategory | "both";
 }
 
 export async function runIndexAgent(
   db: Database.Database,
-  opts: { domain?: string } = {},
+  opts: IndexRunOptions = {},
 ): Promise<IndexRunSummary> {
-  const pages = loadPageMeta(db);
-  const allClusters = discoverDomains(pages);
-
-  let targetClusters: DomainCluster[];
-  if (opts.domain) {
-    const wanted = opts.domain.toLowerCase();
-    targetClusters = allClusters.filter(
-      (c) => domainSlug(c.tag) === wanted || c.tag === wanted,
-    );
-    if (targetClusters.length === 0) {
-      console.warn(
-        `[INDEX] No cluster matches requested domain "${opts.domain}"`,
-      );
-      return {
-        domainsProcessed: [],
-        pagesWritten: [],
-        skipped: [opts.domain],
-      };
-    }
-  } else {
-    targetClusters = allClusters;
-  }
+  const mode: IndexMode = opts.mode ?? "review";
+  const targets: IndexCategory[] =
+    !opts.category || opts.category === "both"
+      ? ["domain-index", "learning-path"]
+      : [opts.category];
 
   const summary: IndexRunSummary = {
-    domainsProcessed: [],
+    mode,
+    categoriesProcessed: [],
     pagesWritten: [],
-    skipped: [],
+    pagesDeleted: [],
   };
 
-  for (const cluster of targetClusters) {
-    const kebab = domainSlug(cluster.tag);
-    const domainName = cluster.tag
-      .split("-")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
-
-    console.log(
-      `[INDEX] Generating pages for domain "${domainName}" (${cluster.pages.length} pages)`,
-    );
-
-    const domainIndexSlug = await generateDomainIndex(db, cluster, domainName);
-    if (domainIndexSlug) summary.pagesWritten.push(domainIndexSlug);
-    else summary.skipped.push(`domain-index-${kebab}`);
-
-    const learningPathSlug = await generateLearningPath(
-      db,
-      cluster,
-      domainName,
-    );
-    if (learningPathSlug) summary.pagesWritten.push(learningPathSlug);
-    else summary.skipped.push(`learning-path-${kebab}`);
-
-    summary.domainsProcessed.push(kebab);
+  for (const category of targets) {
+    const { pagesWritten, deleted } = await runCategory(db, category, mode);
+    summary.categoriesProcessed.push(category);
+    summary.pagesWritten.push(...pagesWritten);
+    summary.pagesDeleted.push(...deleted);
   }
 
   console.log(
-    `[INDEX] Run complete: ${summary.pagesWritten.length} pages written across ${summary.domainsProcessed.length} domain(s)`,
+    `[INDEX] Run complete (mode=${mode}): ${summary.pagesWritten.length} written, ${summary.pagesDeleted.length} deleted`,
   );
 
   return summary;
