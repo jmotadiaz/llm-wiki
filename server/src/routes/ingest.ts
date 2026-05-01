@@ -35,16 +35,21 @@ export function createIngestRoutes(db: Database.Database): Router {
   // POST /api/ingest/url - Extract URL to markdown and return preview
   router.post("/url", async (req: Request, res: Response) => {
     try {
-      const { url, targetSelector, disableFilters } = req.body;
+      const { url, targetSelector, removeSelectors, disableFilters } = req.body;
 
       if (!url) {
         res.status(400).json({ error: "URL is required" });
         return;
       }
 
+      const extraRemove = removeSelectors
+        ? String(removeSelectors).split(",").map((s: string) => s.trim()).filter(Boolean)
+        : [];
+
       // Extract data from URL
       const data = await jina.extractUrl(url, {
         targetSelector,
+        removeSelectors: extraRemove.length ? extraRemove : undefined,
         disableDefaultFilters: !!disableFilters,
       });
       const { title, description, content, publishedTime, author } = data;
