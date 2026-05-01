@@ -15,6 +15,7 @@ interface JinaOptions {
   targetSelector?: string;
   removeSelector?: string;
   removeSelectors?: string[];
+  disableDefaultFilters?: boolean;
 }
 
 const DEFAULT_EXCLUDE = [
@@ -80,7 +81,7 @@ export class JinaReader {
     const apiKey = process.env.JINA_API_KEY;
 
     const removeSelectors = [
-      ...DEFAULT_EXCLUDE,
+      ...(options?.disableDefaultFilters ? [] : DEFAULT_EXCLUDE),
       ...(options?.removeSelectors || []),
     ];
 

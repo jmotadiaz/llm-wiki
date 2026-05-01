@@ -12,6 +12,8 @@ export default function IngestPage() {
   // URL form state
   const [url, setUrl] = useState('');
   const [selector, setSelector] = useState('');
+  const [removeSelector, setRemoveSelector] = useState('');
+  const [disableFilters, setDisableFilters] = useState(false);
 
   // Shared form state (used for both URL preview and paste)
   const [title, setTitle] = useState('');
@@ -26,6 +28,8 @@ export default function IngestPage() {
   const resetForm = () => {
     setUrl('');
     setSelector('');
+    setRemoveSelector('');
+    setDisableFilters(false);
     setTitle('');
     setAuthor('');
     setDescription('');
@@ -46,7 +50,12 @@ export default function IngestPage() {
       const res = await fetch('/api/ingest/url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim(), targetSelector: selector.trim() || undefined }),
+        body: JSON.stringify({
+          url: url.trim(),
+          targetSelector: selector.trim() || undefined,
+          removeSelectors: removeSelector.trim() || undefined,
+          disableFilters,
+        }),
       });
       const data = await res.json() as any;
       if (!res.ok) throw new Error(data.error || 'Failed to fetch URL');
@@ -204,6 +213,38 @@ export default function IngestPage() {
               placeholder="article.post-content"
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Exclude Selectors (optional)</label>
+            <input
+              type="text"
+              value={removeSelector}
+              onChange={e => setRemoveSelector(e.target.value)}
+              placeholder=".related-posts, #comments, .author-bio"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
+            />
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Selectores adicionales a ignorar, separados por coma. Se suman a los filtros por defecto cuando están activos.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={disableFilters}
+              onClick={() => setDisableFilters(v => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${disableFilters ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${disableFilters ? 'translate-x-5' : 'translate-x-0'}`}
+              />
+            </button>
+            <span className="text-sm">
+              <span className="font-medium">Desactivar filtros de ruido</span>
+              <span className="ml-1 text-gray-500 dark:text-gray-400">
+                {disableFilters ? '— se conservará todo el contenido de la página' : '— se eliminan headers, footers, ads, etc.'}
+              </span>
+            </span>
           </div>
           <button
             onClick={handleFetchUrl}
