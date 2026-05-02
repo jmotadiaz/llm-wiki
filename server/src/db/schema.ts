@@ -76,9 +76,20 @@ export function initializeDatabase(): Database.Database {
         error TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         answered_at DATETIME,
+        parent_comment_id INTEGER REFERENCES page_comments(id),
+        conversation_history TEXT,
         FOREIGN KEY (page_id) REFERENCES wiki_pages(id) ON DELETE CASCADE
       )
     `);
+  } else {
+    const hasParentCommentId = pageCommentsInfo.some(col => col.name === 'parent_comment_id');
+    const hasConversationHistory = pageCommentsInfo.some(col => col.name === 'conversation_history');
+    if (!hasParentCommentId) {
+      db.exec('ALTER TABLE page_comments ADD COLUMN parent_comment_id INTEGER REFERENCES page_comments(id)');
+    }
+    if (!hasConversationHistory) {
+      db.exec('ALTER TABLE page_comments ADD COLUMN conversation_history TEXT');
+    }
   }
 
   // Startup reset: reset any processing comments back to pending
@@ -125,6 +136,8 @@ export function initializeDatabase(): Database.Database {
       error TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       answered_at DATETIME,
+      parent_comment_id INTEGER REFERENCES page_comments(id),
+      conversation_history TEXT,
       FOREIGN KEY (page_id) REFERENCES wiki_pages(id) ON DELETE CASCADE
     );
 

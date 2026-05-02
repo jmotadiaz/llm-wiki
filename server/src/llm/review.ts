@@ -88,6 +88,8 @@ function summarizeStep(event: any) {
   };
 }
 
+type ConversationTurn = { role: string; content: string };
+
 export async function reviewComment(
   db: Database.Database,
   commentId: number,
@@ -113,6 +115,21 @@ export async function reviewComment(
   debugLog(
     `[REVIEW] Comment ${commentId} is for page "${pageSlug}": "${feedbackText.substring(0, 50)}..."`,
   );
+
+  // Load parent conversation history if this is a reply
+  const parentHistory: ConversationTurn[] = [];
+  if (comment.parent_comment_id) {
+    const parentStmt = db.prepare(
+      "SELECT conversation_history FROM page_comments WHERE id = ?",
+    );
+    const parent = parentStmt.get(comment.parent_comment_id) as any;
+    if (parent?.conversation_history) {
+      parentHistory.push(...JSON.parse(parent.conversation_history));
+    }
+    debugLog(
+      `[REVIEW] Loaded ${parentHistory.length} turns from parent comment ${comment.parent_comment_id}`,
+    );
+  }
 
   // Load page content
   const page = queries.getWikiPageBySlug(pageSlug);
@@ -158,15 +175,21 @@ export async function reviewComment(
   // Create tools with closure to track pagesEdited
   const tools = createReviewTools(db, commentId, pageSlug, kind);
 
+  const currentUserMessage = `Por favor, revisa la siguiente retroalimentación sobre la página wiki y toma acciones si es necesario:\n\nRetroalimentación: ${feedbackText}\n\nPágina: /wiki/${pageSlug}`;
+
+  // Build messages: parent history (compacted, no tool results) + current user message
+  const messages = [
+    ...parentHistory.map((turn) => ({
+      role: turn.role as "user" | "assistant",
+      content: turn.content,
+    })),
+    { role: "user" as const, content: currentUserMessage },
+  ];
+
   try {
     const result = await llmClient.generate({
       system: reviewerPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `Por favor, revisa la siguiente retroalimentación sobre la página wiki y toma acciones si es necesario:\n\nRetroalimentación: ${feedbackText}\n\nPágina: /wiki/${pageSlug}`,
-        },
-      ],
+      messages,
       tools,
       model: deepseek("deepseek-v4-flash"),
       maxSteps: 15,
@@ -182,25 +205,35 @@ export async function reviewComment(
 
     // Check if reply_to_comment was called
     const toolCalls = result.steps.flatMap((s) => s.toolCalls || []);
-    const replyCalled = toolCalls.some(
-      (tc) => tc.toolName === "reply_to_comment",
-    );
+    const replyCall = toolCalls.find((tc) => tc.toolName === "reply_to_comment");
 
-    if (!replyCalled) {
+    let assistantReasoning: string;
+    if (!replyCall) {
       debugLog(
         `[REVIEW] Agent did not call reply_to_comment, using fallback for comment ${commentId}`,
       );
-      const fallbackReasoning =
+      assistantReasoning =
         "El agente de revisión no respondió correctamente. Por favor, intenta enviar tu retroalimentación nuevamente.";
-      queries.setCommentAnswered(commentId, fallbackReasoning, []);
+      queries.setCommentAnswered(commentId, assistantReasoning, []);
+    } else {
+      const args = (replyCall as any).args ?? (replyCall as any).input ?? {};
+      assistantReasoning = args.reasoning ?? "";
     }
+
+    // Save compacted conversation history (user + assistant text only, no tool results)
+    const updatedHistory: ConversationTurn[] = [
+      ...parentHistory,
+      { role: "user", content: currentUserMessage },
+      { role: "assistant", content: assistantReasoning },
+    ];
+    queries.updateCommentHistory(commentId, updatedHistory);
 
     debugLog(`[REVIEW] Complete for comment ${commentId}`, {
       finishReason: (result as any).finishReason,
       steps: result.steps?.length ?? 0,
       toolCalls: toolCalls.map((tc) => ({
         toolName: tc.toolName,
-        input: tc.input,
+        input: (tc as any).args ?? (tc as any).input,
       })),
     });
 

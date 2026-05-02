@@ -255,7 +255,14 @@ export class Queries {
   }
 
   // Page Comments
-  insertComment(pageId: number, content: string) {
+  insertComment(pageId: number, content: string, parentCommentId?: number) {
+    if (parentCommentId !== undefined) {
+      const stmt = this.db.prepare(
+        "INSERT INTO page_comments (page_id, content, parent_comment_id) VALUES (?, ?, ?)",
+      );
+      const result = stmt.run(pageId, content, parentCommentId);
+      return result.lastInsertRowid as number;
+    }
     const stmt = this.db.prepare(
       "INSERT INTO page_comments (page_id, content) VALUES (?, ?)",
     );
@@ -263,11 +270,23 @@ export class Queries {
     return result.lastInsertRowid as number;
   }
 
+  getCommentById(commentId: number) {
+    const stmt = this.db.prepare("SELECT * FROM page_comments WHERE id = ?");
+    return stmt.get(commentId) as any;
+  }
+
   getCommentsByPageId(pageId: number) {
     const stmt = this.db.prepare(
       "SELECT * FROM page_comments WHERE page_id = ? AND status != 'archived' ORDER BY created_at DESC",
     );
     return stmt.all(pageId) as any[];
+  }
+
+  updateCommentHistory(commentId: number, history: Array<{ role: string; content: string }>) {
+    const stmt = this.db.prepare(
+      "UPDATE page_comments SET conversation_history = ? WHERE id = ?",
+    );
+    stmt.run(JSON.stringify(history), commentId);
   }
 
   updateCommentStatus(commentId: number, status: string) {

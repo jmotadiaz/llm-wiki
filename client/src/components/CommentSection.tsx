@@ -11,11 +11,19 @@ interface Comment {
   error: string | null;
   created_at: string;
   answered_at: string | null;
+  parent_comment_id: number | null;
 }
 
 interface CommentSectionProps {
   slug: string;
 }
+
+const STATUS_CLASSES: Record<string, string> = {
+  pending: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
+  processing: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400",
+  answered: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400",
+  failed: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
+};
 
 export default function CommentSection({ slug }: CommentSectionProps) {
   const [comments, setComments] = useState<Comment[]>([]);
@@ -24,7 +32,10 @@ export default function CommentSection({ slug }: CommentSectionProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // Fetch comments on mount and periodically poll
+  // Per-comment reply state
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
+
   useEffect(() => {
     const fetchComments = async () => {
       try {
@@ -40,8 +51,6 @@ export default function CommentSection({ slug }: CommentSectionProps) {
     };
 
     fetchComments();
-
-    // Poll for updates every 5 seconds
     const interval = setInterval(fetchComments, 5000);
     return () => clearInterval(interval);
   }, [slug]);
@@ -64,9 +73,36 @@ export default function CommentSection({ slug }: CommentSectionProps) {
       }
 
       const data = await res.json();
-      // Prepend new comment to the list
-      setComments([data.comment, ...comments]);
+      setComments((prev) => [data.comment, ...prev]);
       setFeedbackText("");
+      setError("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleReplySubmit = async (parentCommentId: number) => {
+    if (!replyText.trim()) return;
+
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/wiki/${slug}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: replyText, parent_comment_id: parentCommentId }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to submit reply");
+      }
+
+      const data = await res.json();
+      setComments((prev) => [...prev, data.comment]);
+      setReplyText("");
+      setReplyingTo(null);
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -88,22 +124,170 @@ export default function CommentSection({ slug }: CommentSectionProps) {
         throw new Error(errorData.error || "Failed to archive comment");
       }
 
-      // Remove comment from list
-      setComments(comments.filter((c) => c.id !== commentId));
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      if (replyingTo === commentId) setReplyingTo(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     }
+  };
+
+  // Returns true if there's already a pending/processing reply to this comment
+  const hasPendingReply = (commentId: number) =>
+    comments.some(
+      (c) =>
+        c.parent_comment_id === commentId &&
+        (c.status === "pending" || c.status === "processing"),
+    );
+
+  const renderComment = (comment: Comment, depth = 0) => {
+    const replies = comments
+      .filter((c) => c.parent_comment_id === comment.id)
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
+
+    const canReply =
+      comment.status === "answered" &&
+      !hasPendingReply(comment.id) &&
+      replyingTo !== comment.id;
+
+    return (
+      <div key={comment.id} className={depth > 0 ? "mt-3 ml-4 pl-4 border-l-2 border-gray-200 dark:border-gray-700" : ""}>
+        <div className="border border-gray-200 dark:border-gray-800 rounded p-4">
+          {/* Feedback content */}
+          <p className="text-sm mb-2">{comment.content}</p>
+
+          {/* Status badge + date */}
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <span className={`text-xs font-medium px-2 py-1 rounded ${STATUS_CLASSES[comment.status] ?? STATUS_CLASSES.failed}`}>
+              {comment.status}
+            </span>
+            <span className="text-xs text-gray-400">
+              {new Date(comment.created_at).toLocaleDateString()}
+            </span>
+          </div>
+
+          {/* Agent reply */}
+          {comment.reply && (
+            <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded">
+              <p className="font-semibold text-xs uppercase text-gray-600 dark:text-gray-400 mb-2">
+                Reply
+              </p>
+              <div className="text-gray-700 dark:text-gray-300 dark:prose-invert max-w-none">
+                <Markdown content={comment.reply} className="prose-sm" />
+              </div>
+            </div>
+          )}
+
+          {/* Error message */}
+          {comment.error && (
+            <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded text-sm">
+              <p className="text-xs text-red-600 dark:text-red-400">
+                Error: {comment.error}
+              </p>
+            </div>
+          )}
+
+          {/* Pages edited */}
+          {comment.pages_edited && comment.pages_edited.length > 0 && (
+            <div className="mt-3 text-xs">
+              <p className="font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                Pages edited:
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {comment.pages_edited.map((s: string) => (
+                  <Link
+                    key={s}
+                    to={`/wiki/${s}`}
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    [[{s}]]
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Action row */}
+          <div className="mt-3 flex items-center gap-3">
+            {canReply && (
+              <button
+                onClick={() => {
+                  setReplyingTo(comment.id);
+                  setReplyText("");
+                }}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline transition-colors"
+              >
+                Reply
+              </button>
+            )}
+            {(comment.status === "answered" || comment.status === "failed") && (
+              <button
+                onClick={() => handleArchive(comment.id)}
+                className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline transition-colors"
+              >
+                Archive
+              </button>
+            )}
+          </div>
+
+          {/* Inline reply form */}
+          {replyingTo === comment.id && (
+            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Continue the conversation..."
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm resize-none"
+                rows={3}
+                autoFocus
+              />
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => handleReplySubmit(comment.id)}
+                  disabled={submitting || !replyText.trim()}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-xs rounded transition-colors"
+                >
+                  {submitting ? "Submitting..." : "Submit Reply"}
+                </button>
+                <button
+                  onClick={() => {
+                    setReplyingTo(null);
+                    setReplyText("");
+                  }}
+                  className="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Nested replies */}
+        {replies.map((reply) => renderComment(reply, depth + 1))}
+      </div>
+    );
   };
 
   if (loading) {
     return <p className="text-gray-500 text-sm">Loading comments...</p>;
   }
 
+  // Root comments: no parent, ordered newest first
+  const rootComments = comments
+    .filter((c) => !c.parent_comment_id)
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+
   return (
     <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-800">
       <h3 className="text-lg font-semibold mb-4">Feedback</h3>
 
-      {/* Submit form */}
+      {/* New feedback form */}
       <form onSubmit={handleSubmit} className="mb-6">
         <textarea
           value={feedbackText}
@@ -124,94 +308,14 @@ export default function CommentSection({ slug }: CommentSectionProps) {
         )}
       </form>
 
-      {/* Comments list */}
-      {comments.length === 0 ? (
+      {/* Comment threads */}
+      {rootComments.length === 0 ? (
         <p className="text-gray-500 dark:text-gray-400 text-sm">
           No feedback yet.
         </p>
       ) : (
         <div className="space-y-4">
-          {comments.map((comment) => (
-            <div
-              key={comment.id}
-              className="border border-gray-200 dark:border-gray-800 rounded p-4"
-            >
-              {/* Feedback content */}
-              <p className="text-sm mb-2">{comment.content}</p>
-
-              {/* Status badge */}
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <span
-                  className={`text-xs font-medium px-2 py-1 rounded ${
-                    comment.status === "pending"
-                      ? "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                      : comment.status === "processing"
-                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                        : comment.status === "answered"
-                          ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                          : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
-                  }`}
-                >
-                  {comment.status}
-                </span>
-                <span className="text-xs text-gray-400">
-                  {new Date(comment.created_at).toLocaleDateString()}
-                </span>
-              </div>
-
-              {/* Reply */}
-              {comment.reply && (
-                <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded">
-                  <p className="font-semibold text-xs uppercase text-gray-600 dark:text-gray-400 mb-2">
-                    Reply
-                  </p>
-                  <div className="text-gray-700 dark:text-gray-300 dark:prose-invert max-w-none">
-                    <Markdown content={comment.reply} className="prose-sm" />
-                  </div>
-                </div>
-              )}
-
-              {/* Error message */}
-              {comment.error && (
-                <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded text-sm">
-                  <p className="text-xs text-red-600 dark:text-red-400">
-                    Error: {comment.error}
-                  </p>
-                </div>
-              )}
-
-              {/* Pages edited */}
-              {comment.pages_edited && comment.pages_edited.length > 0 && (
-                <div className="mt-3 text-xs">
-                  <p className="font-semibold text-gray-600 dark:text-gray-400 mb-1">
-                    Pages edited:
-                  </p>
-                  <div className="flex gap-2 flex-wrap">
-                    {comment.pages_edited.map((slug: string) => (
-                      <Link
-                        key={slug}
-                        to={`/wiki/${slug}`}
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        [[{slug}]]
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Archive button */}
-              {(comment.status === "answered" ||
-                comment.status === "failed") && (
-                <button
-                  onClick={() => handleArchive(comment.id)}
-                  className="mt-3 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline transition-colors"
-                >
-                  Archive
-                </button>
-              )}
-            </div>
-          ))}
+          {rootComments.map((comment) => renderComment(comment))}
         </div>
       )}
     </div>

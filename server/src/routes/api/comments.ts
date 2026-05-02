@@ -35,6 +35,7 @@ export function createCommentRoutes(
           error: c.error,
           created_at: c.created_at,
           answered_at: c.answered_at,
+          parent_comment_id: c.parent_comment_id ?? null,
         })),
       });
     } catch (error: any) {
@@ -42,11 +43,11 @@ export function createCommentRoutes(
     }
   });
 
-  // POST /api/wiki/:slug/comments - Submit a new comment
+  // POST /api/wiki/:slug/comments - Submit a new comment or reply
   router.post("/:slug/comments", (req: Request, res: Response) => {
     try {
       const slug = req.params.slug as string;
-      const { content } = req.body;
+      const { content, parent_comment_id } = req.body;
 
       // Validate content
       if (!content || typeof content !== "string" || content.trim().length === 0) {
@@ -68,8 +69,32 @@ export function createCommentRoutes(
         return;
       }
 
+      // Validate parent comment if this is a reply
+      let parentCommentId: number | undefined;
+      if (parent_comment_id !== undefined) {
+        parentCommentId = parseInt(parent_comment_id, 10);
+        if (isNaN(parentCommentId)) {
+          res.status(400).json({ error: "Invalid parent_comment_id" });
+          return;
+        }
+        const parentStmt = db.prepare("SELECT * FROM page_comments WHERE id = ?");
+        const parentComment = parentStmt.get(parentCommentId) as any;
+        if (!parentComment) {
+          res.status(404).json({ error: "Parent comment not found" });
+          return;
+        }
+        if (parentComment.page_id !== page.id) {
+          res.status(400).json({ error: "Parent comment belongs to a different page" });
+          return;
+        }
+        if (parentComment.status !== "answered") {
+          res.status(400).json({ error: "Can only reply to answered comments" });
+          return;
+        }
+      }
+
       // Insert comment
-      const commentId = queries.insertComment(page.id, content.trim());
+      const commentId = queries.insertComment(page.id, content.trim(), parentCommentId);
 
       // Enqueue review job
       reviewQueue.enqueue(commentId);
@@ -85,6 +110,7 @@ export function createCommentRoutes(
         error: null,
         created_at: new Date().toISOString(),
         answered_at: null,
+        parent_comment_id: parentCommentId ?? null,
       };
 
       res.status(201).json({
