@@ -6,7 +6,7 @@ import { llmClient } from "./client.js";
 import { createTools } from "./tools.js";
 import { Queries } from "../db/queries.js";
 import Database from "better-sqlite3";
-import { deepseek } from "@ai-sdk/deepseek";
+import { opencodeGo } from "./opencode-go.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,7 +67,7 @@ export async function streamChat(
     system: systemPrompt,
     messages,
     tools,
-    model: deepseek("deepseek-v4-flash"),
+    model: opencodeGo("deepseek-v4-flash"),
     maxSteps: 10,
   });
 }

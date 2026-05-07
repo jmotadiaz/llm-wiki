@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { deepseek } from "@ai-sdk/deepseek";
+import { opencodeGo } from "./opencode-go.js";
 import { llmClient } from "./client.js";
 import { createReviewTools, ReviewAgentKind } from "./review-tools.js";
 import { Queries } from "../db/queries.js";
@@ -168,7 +168,7 @@ export async function reviewComment(
         },
       ],
       tools,
-      model: deepseek("deepseek-v4-flash"),
+      model: opencodeGo("deepseek-v4-flash"),
       maxSteps: 15,
       onStepFinish: debugEnabled
         ? (event: any) => {

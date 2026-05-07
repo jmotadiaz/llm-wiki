@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 import Database from "better-sqlite3";
-import { deepseek } from "@ai-sdk/deepseek";
+import { opencodeGo } from "./opencode-go.js";
 import { llmClient } from "./client.js";
 import {
   createLearningPathWriterTools,
@@ -202,7 +202,7 @@ function createPlannerNode(): WorkflowNode<PlannerInput, LearningPathPlan> {
             "Analiza el wiki y emite el plan de learning-paths como JSON, siguiendo el schema y el modo indicado.",
         },
       ],
-      model: deepseek("deepseek-v4-pro"),
+      model: opencodeGo("deepseek-v4-pro"),
       maxSteps: 1,
     });
 
@@ -252,7 +252,7 @@ function createWriterNode(
           },
         ],
         tools,
-        model: deepseek("deepseek-v4-flash"),
+        model: opencodeGo("deepseek-v4-flash"),
         maxSteps: WRITER_MAX_STEPS,
         onStepFinish: debugEnabled
           ? (event: any) => {

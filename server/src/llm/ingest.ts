@@ -8,7 +8,7 @@ import { Queries } from "../db/queries.js";
 import Database from "better-sqlite3";
 import { buildRawHeadingIndex } from "./raw-headings.js";
 import { debugLog, isDebugEnabled } from "../utils/debug.js";
-import { deepseek } from "@ai-sdk/deepseek";
+import { opencodeGo } from "./opencode-go.js";
 import {
   node,
   chain,
@@ -248,7 +248,7 @@ function createPlannerNode(
           content: `Analiza este documento fuente (raw source ID: ${input.rawSourceId}) y genera el plan de ingesta como JSON:\n\n${input.rawContent}`,
         },
       ],
-      model: deepseek("deepseek-v4-pro"),
+      model: opencodeGo("deepseek-v4-pro"),
       tools: plannerTools,
       maxSteps: 20,
       onStepFinish: debugEnabled
@@ -312,7 +312,7 @@ function createWriterNode(
           },
         ],
         tools,
-        model: deepseek("deepseek-v4-flash"),
+        model: opencodeGo("deepseek-v4-flash"),
         maxSteps: 15,
         onStepFinish: debugEnabled
           ? (event: any) => {
@@ -446,7 +446,7 @@ function createMetaNode(
           },
         ],
         tools,
-        model: deepseek("deepseek-v4-flash"),
+        model: opencodeGo("deepseek-v4-flash"),
         maxSteps: 15,
         onStepFinish: debugEnabled
           ? (event: any) => {
