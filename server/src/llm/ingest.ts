@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { z } from "zod";
 import { llmClient } from "./client.js";
 import { createIngestPlannerTools, createIngestTools } from "./ingest-tools.js";
 import { Queries } from "../db/queries.js";
@@ -8,25 +9,128 @@ import Database from "better-sqlite3";
 import { buildRawHeadingIndex } from "./raw-headings.js";
 import { debugLog, isDebugEnabled } from "../utils/debug.js";
 import { deepseek } from "@ai-sdk/deepseek";
+import {
+  node,
+  chain,
+  parallel,
+  type WorkflowNode,
+  type ParallelAggregatorInput,
+} from "../workflows/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// ── Zod schemas for planner output ────────────────────────────────────
+
+const PlanItemSchema = z.object({
+  slug: z.string().min(1).max(60),
+  action: z.enum(["new", "update"]),
+  title: z.string(),
+  type: z.enum(["concept", "technique", "reference"]),
+  tags: z.array(z.string()),
+  keyClaims: z.array(z.string()),
+  citations: z.array(z.string()),
+  summary: z.string(),
+  contradiction: z.boolean().optional(),
+});
+
+const IngestPlanSchema = z.object({
+  pages: z.array(PlanItemSchema),
+  inlineMentions: z
+    .array(
+      z.object({
+        mention: z.string(),
+        targetPage: z.string(),
+        treatment: z.string(),
+      }),
+    )
+    .optional()
+    .default([]),
+  inboundLinkUpdates: z
+    .array(
+      z.object({
+        targetSlug: z.string(),
+        addLinkTo: z.string(),
+        reason: z.string(),
+      }),
+    )
+    .optional()
+    .default([]),
+  tagLandscapeUpdates: z
+    .object({
+      targetSlugUpdates: z
+        .array(
+          z.object({
+            targetSlug: z.string(),
+            currentTags: z.array(z.string()),
+            newTags: z.array(z.string()),
+            reason: z.string(),
+          }),
+        )
+        .optional()
+        .default([]),
+      newTags: z
+        .array(
+          z.object({
+            newTag: z.string(),
+            kind: z.enum(["discipline", "topic"]),
+            rationale: z.string(),
+            initialPages: z.array(z.string()),
+          }),
+        )
+        .optional()
+        .default([]),
+    })
+    .nullable()
+    .optional()
+    .default(null),
+  warnings: z
+    .array(
+      z.object({
+        type: z.string(),
+        message: z.string(),
+      }),
+    )
+    .optional()
+    .default([]),
+});
+
+type PlanItem = z.infer<typeof PlanItemSchema>;
+type IngestPlan = z.infer<typeof IngestPlanSchema>;
+
+interface IngestInput {
+  rawSourceId: number;
+  rawContent: string;
+}
+
+interface PageResult {
+  slug: string;
+  success: boolean;
+  action: string;
+  warnings: number;
+  error?: string;
+}
+
+interface IngestResult {
+  pagesWritten: number;
+  warnings: number;
+  partial: boolean;
+}
+
+// ── Shared helpers ─────────────────────────────────────────────────────
 
 function loadL1Index(queries: Queries): string {
   const pages = queries.getAllWikiPages();
   if (pages.length === 0) {
     return "(No pages in wiki yet)";
   }
-
-  const entries = pages
+  return pages
     .map((page) => {
       const tags = page.tags || "untagged";
       const summary = page.summary ? ` | summary: ${page.summary}` : "";
       return `- /wiki/${page.slug}: ${page.title} | tags: ${tags}${summary}`;
     })
     .join("\n");
-
-  return entries;
 }
 
 function loadDomainTagsCount(queries: Queries): string {
@@ -51,36 +155,6 @@ function loadSchema(): string {
   return fs.readFileSync(schemaPath, "utf-8");
 }
 
-function summarizeToolCalls(toolCalls: any[] = []): any[] {
-  return toolCalls.map((toolCall) => ({
-    toolName: toolCall.toolName,
-    input:
-      toolCall.input ??
-      toolCall.args ??
-      toolCall.arguments ??
-      toolCall.parameters,
-  }));
-}
-
-function summarizeToolResults(toolResults: any[] = []): any[] {
-  return toolResults.map((toolResult) => ({
-    toolName: toolResult.toolName,
-    output:
-      toolResult.output ?? toolResult.result ?? toolResult.value ?? toolResult,
-  }));
-}
-
-function summarizeStep(event: any) {
-  return {
-    stepNumber: event.stepNumber,
-    finishReason: event.finishReason,
-    text: event.text || undefined,
-    toolCalls: summarizeToolCalls(event.toolCalls),
-    toolResults: summarizeToolResults(event.toolResults),
-    usage: event.usage,
-  };
-}
-
 function loadPromptTemplate(filename: string): string {
   const promptPath = path.join(__dirname, "prompts", filename);
   return fs.readFileSync(promptPath, "utf-8");
@@ -97,56 +171,81 @@ function interpolatePrompt(
   return result;
 }
 
-export async function ingestRawSource(
-  db: Database.Database,
+function summarizeToolCalls(toolCalls: any[] = []): any[] {
+  return toolCalls.map((tc) => ({
+    toolName: tc.toolName,
+    input:
+      tc.input ?? tc.args ?? tc.arguments ?? tc.parameters,
+  }));
+}
+
+function summarizeStep(event: any) {
+  return {
+    stepNumber: event.stepNumber,
+    finishReason: event.finishReason,
+    text: event.text || undefined,
+    toolCalls: summarizeToolCalls(event.toolCalls),
+    usage: event.usage,
+  };
+}
+
+function buildSharedVars(
+  queries: Queries,
   rawSourceId: number,
   rawContent: string,
-): Promise<{ pagesWritten: number; warnings: number }> {
-  const debugEnabled = isDebugEnabled();
-  const queries = new Queries(db);
-  debugLog(
-    `[INGEST] Pipeline starting for raw-${rawSourceId}: content length=${rawContent.length}`,
-  );
-
-  // Load shared context
-  const l1Index = loadL1Index(queries);
-  const l1Schema = loadSchema();
-  const rawHeadingIndex = buildRawHeadingIndex(rawContent, rawSourceId);
-
-  debugLog(
-    `[INGEST] L1 context loaded: pages=${queries.getAllWikiPages().length}, schema length=${l1Schema.length}`,
-  );
-
-  const sharedVars: Record<string, string> = {
-    L1_INDEX: l1Index,
+): Record<string, string> {
+  return {
+    L1_INDEX: loadL1Index(queries),
     DOMAIN_TAGS_INDEX: loadDomainTagsCount(queries),
-    L1_SCHEMA: l1Schema,
-    RAW_HEADING_INDEX: rawHeadingIndex,
+    L1_SCHEMA: loadSchema(),
+    RAW_HEADING_INDEX: buildRawHeadingIndex(rawContent, rawSourceId),
     RAW_ID: rawSourceId.toString(),
   };
+}
 
-  // ── Agent 1: Planner ─────────────────────────────────────────────────
-  const plannerPrompt = interpolatePrompt(
-    loadPromptTemplate("ingest-planner.md"),
-    sharedVars,
-  );
-
-  debugLog(`[INGEST] Planner agent starting for raw-${rawSourceId}`);
-  debugLog(
-    `[INGEST] Planner system prompt for raw-${rawSourceId}`,
-    plannerPrompt,
-  );
-
-  const plannerTools = createIngestPlannerTools(db);
-
-  let plan: string;
+/** Extract and parse a JSON object from LLM text output. */
+function parsePlanJson(text: string): IngestPlan {
   try {
+    return IngestPlanSchema.parse(JSON.parse(text.trim()));
+  } catch {
+    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      return IngestPlanSchema.parse(JSON.parse(jsonMatch[1].trim()));
+    }
+    const braceMatch = text.match(/\{[\s\S]*\}/);
+    if (braceMatch) {
+      return IngestPlanSchema.parse(JSON.parse(braceMatch[0]));
+    }
+    throw new Error(
+      `Planner output is not valid JSON. Raw text: ${text.substring(0, 500)}`,
+    );
+  }
+}
+
+// ── Planner Node ───────────────────────────────────────────────────────
+
+function createPlannerNode(
+  db: Database.Database,
+  sharedVars: Record<string, string>,
+): WorkflowNode<IngestInput, IngestPlan> {
+  const debugEnabled = isDebugEnabled();
+
+  return node(async (input): Promise<IngestPlan> => {
+    debugLog(`[INGEST] Planner starting for raw-${input.rawSourceId}`);
+
+    const plannerPrompt = interpolatePrompt(
+      loadPromptTemplate("ingest-planner.md"),
+      { ...sharedVars, RAW_ID: input.rawSourceId.toString() },
+    );
+
+    const plannerTools = createIngestPlannerTools(db);
+
     const plannerResult = await llmClient.generate({
       system: plannerPrompt,
       messages: [
         {
           role: "user",
-          content: `Analiza este documento fuente (raw source ID: ${rawSourceId}) y genera el plan de ingesta:\n\n${rawContent}`,
+          content: `Analiza este documento fuente (raw source ID: ${input.rawSourceId}) y genera el plan de ingesta como JSON:\n\n${input.rawContent}`,
         },
       ],
       model: deepseek("deepseek-v4-pro"),
@@ -155,92 +254,275 @@ export async function ingestRawSource(
       onStepFinish: debugEnabled
         ? (event: any) => {
             debugLog(
-              `[INGEST] Planner step finished for raw-${rawSourceId}`,
+              `[INGEST] Planner step for raw-${input.rawSourceId}`,
               summarizeStep(event),
             );
           }
         : undefined,
     });
 
-    plan = plannerResult.text;
-    if (!plan || plan.trim().length === 0) {
-      throw new Error("Planner agent returned an empty plan");
+    const planText = plannerResult.text;
+    if (!planText || planText.trim().length === 0) {
+      throw new Error("Planner agent returned empty output");
     }
 
-    debugLog(`[INGEST] Plan generated for raw-${rawSourceId}`, plan);
+    const plan = parsePlanJson(planText);
+
     console.log(
-      `[INGEST] Planner complete for raw-${rawSourceId}: plan length=${plan.length}`,
+      `[INGEST] Planner complete for raw-${input.rawSourceId}: ${plan.pages.length} pages planned`,
     );
-  } catch (error: any) {
-    console.error(
-      `[INGEST] Planner agent failed for raw-${rawSourceId}: ${error.message}`,
+    debugLog(`[INGEST] Plan for raw-${input.rawSourceId}`, plan);
+
+    return plan;
+  });
+}
+
+// ── Writer Node ─────────────────────────────────────────────────────────
+
+function createWriterNode(
+  db: Database.Database,
+  rawSourceId: number,
+  rawContent: string,
+  sharedVars: Record<string, string>,
+): WorkflowNode<PlanItem, PageResult> {
+  return node(async (item: PlanItem): Promise<PageResult> => {
+    const debugEnabled = isDebugEnabled();
+    const slug = item.slug;
+
+    const writerPrompt = interpolatePrompt(
+      loadPromptTemplate("ingest-writer-single.md"),
+      {
+        ...sharedVars,
+        PLAN_ITEM: JSON.stringify(item, null, 2),
+        RAW_CONTENT: rawContent,
+      },
     );
-    throw new Error(`Ingest planner failed: ${error.message}`);
-  }
 
-  // ── Agent 2: Writer ───────────────────────────────────────────────────
-  const writerPrompt = interpolatePrompt(
-    loadPromptTemplate("ingest-writer.md"),
-    { ...sharedVars, INGESTION_PLAN: plan },
-  );
+    const tools = createIngestTools(db, rawSourceId);
 
-  const tools = createIngestTools(db, rawSourceId);
+    debugLog(`[INGEST] Writer starting for "${slug}" (action=${item.action})`);
 
-  debugLog(`[INGEST] Writer agent starting for raw-${rawSourceId}`);
+    try {
+      const result = await llmClient.generate({
+        system: writerPrompt,
+        messages: [
+          {
+            role: "user",
+            content: `Escribe la página wiki para el concepto "${item.title}" (slug: ${slug}) basándote en el documento fuente.`,
+          },
+        ],
+        tools,
+        model: deepseek("deepseek-v4-flash"),
+        maxSteps: 15,
+        onStepFinish: debugEnabled
+          ? (event: any) => {
+              debugLog(
+                `[INGEST] Writer step for "${slug}"`,
+                summarizeStep(event),
+              );
+            }
+          : undefined,
+      });
+
+      const toolCalls = result.steps.flatMap((s) => s.toolCalls || []);
+      const written = toolCalls.filter(
+        (tc) =>
+          tc.toolName === "add_wiki_page" || tc.toolName === "edit_wiki_page",
+      );
+      const warnCount = toolCalls.filter(
+        (tc) => tc.toolName === "report_warning",
+      ).length;
+      const action = written.length > 0 ? (written[0] as any).input?.action ?? item.action : "none";
+
+      console.log(
+        `[INGEST] Writer complete for "${slug}": action=${action}, warnings=${warnCount}`,
+      );
+
+      return {
+        slug,
+        success: written.length > 0,
+        action,
+        warnings: warnCount,
+      };
+    } catch (error: any) {
+      console.error(
+        `[INGEST] Writer failed for "${slug}": ${error.message}`,
+      );
+      return {
+        slug,
+        success: false,
+        action: "none",
+        warnings: 0,
+        error: error.message,
+      };
+    }
+  });
+}
+
+// ── Meta Node (Aggregator) ──────────────────────────────────────────────
+
+function createMetaNode(
+  db: Database.Database,
+  rawSourceId: number,
+): WorkflowNode<
+  ParallelAggregatorInput<PageResult, PlanItem, IngestPlan>,
+  IngestResult
+> {
+  return node(async (input): Promise<IngestResult> => {
+    const debugEnabled = isDebugEnabled();
+    const plan = input.input;
+
+    // Compute total from successful writers
+    const successResults = input.results.filter((r) => r.success);
+    const totalErrors = input.errors.length + input.results.filter((r) => !r.success).length;
+    const pagesWritten = successResults.length;
+    const writerWarnings = successResults.reduce(
+      (sum, r) => sum + r.warnings,
+      0,
+    );
+
+    // Build list of written slugs
+    const pagesWrittenList = successResults
+      .map((r) => `- ${r.slug}: ${r.action}`)
+      .join("\n");
+
+    // If there are no meta updates to do, return early
+    const hasInlineMentions =
+      plan.inlineMentions && plan.inlineMentions.length > 0;
+    const hasInboundUpdates =
+      plan.inboundLinkUpdates && plan.inboundLinkUpdates.length > 0;
+    const hasTagUpdates =
+      plan.tagLandscapeUpdates &&
+      plan.tagLandscapeUpdates.targetSlugUpdates &&
+      plan.tagLandscapeUpdates.targetSlugUpdates.length > 0;
+    const hasWarnings = plan.warnings && plan.warnings.length > 0;
+
+    if (
+      !hasInlineMentions &&
+      !hasInboundUpdates &&
+      !hasTagUpdates &&
+      !hasWarnings
+    ) {
+      debugLog(`[INGEST] No meta updates needed for raw-${rawSourceId}`);
+      return {
+        pagesWritten,
+        warnings: writerWarnings + plan.warnings.length,
+        partial: totalErrors > 0,
+      };
+    }
+
+    const schema = loadSchema();
+
+    const aggregatorPrompt = interpolatePrompt(
+      loadPromptTemplate("ingest-aggregator.md"),
+      {
+        RAW_ID: rawSourceId.toString(),
+        L1_SCHEMA: schema,
+        pagesWritten: pagesWrittenList || "(none)",
+        inlineMentions: JSON.stringify(plan.inlineMentions, null, 2),
+        inboundLinkUpdates: JSON.stringify(plan.inboundLinkUpdates, null, 2),
+        tagLandscapeUpdates: JSON.stringify(
+          plan.tagLandscapeUpdates,
+          null,
+          2,
+        ),
+        warnings: JSON.stringify(plan.warnings, null, 2),
+      },
+    );
+
+    const tools = createIngestTools(db, rawSourceId);
+
+    debugLog(
+      `[INGEST] Aggregator starting for raw-${rawSourceId}: ${plan.inlineMentions?.length ?? 0} mentions, ${plan.inboundLinkUpdates?.length ?? 0} link updates, ${plan.warnings?.length ?? 0} warnings`,
+    );
+
+    try {
+      const result = await llmClient.generate({
+        system: aggregatorPrompt,
+        messages: [
+          {
+            role: "user",
+            content: `Realiza las tareas de post-ingesta para el raw source ${rawSourceId}.`,
+          },
+        ],
+        tools,
+        model: deepseek("deepseek-v4-flash"),
+        maxSteps: 15,
+        onStepFinish: debugEnabled
+          ? (event: any) => {
+              debugLog(
+                `[INGEST] Aggregator step for raw-${rawSourceId}`,
+                summarizeStep(event),
+              );
+            }
+          : undefined,
+      });
+
+      const toolCalls = result.steps.flatMap((s) => s.toolCalls || []);
+      const aggWarnings = toolCalls.filter(
+        (tc) => tc.toolName === "report_warning",
+      ).length;
+
+      console.log(
+        `[INGEST] Aggregator complete for raw-${rawSourceId}: ${aggWarnings} warnings reported`,
+      );
+
+      return {
+        pagesWritten,
+        warnings: writerWarnings + aggWarnings,
+        partial: totalErrors > 0,
+      };
+    } catch (error: any) {
+      console.error(
+        `[INGEST] Aggregator failed for raw-${rawSourceId}: ${error.message}`,
+      );
+      return {
+        pagesWritten,
+        warnings: writerWarnings,
+        partial: true,
+      };
+    }
+  });
+}
+
+// ── Main entry point ────────────────────────────────────────────────────
+
+export async function ingestRawSource(
+  db: Database.Database,
+  rawSourceId: number,
+  rawContent: string,
+): Promise<{ pagesWritten: number; warnings: number }> {
+  const queries = new Queries(db);
   debugLog(
-    `[INGEST] Writer system prompt for raw-${rawSourceId}`,
-    writerPrompt,
+    `[INGEST] Pipeline starting for raw-${rawSourceId}: content length=${rawContent.length}`,
   );
 
-  try {
-    const result = await llmClient.generate({
-      system: writerPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `Ejecuta el plan de ingesta para el raw source ID: ${rawSourceId}.\n\nDocumento fuente:\n\n${rawContent}`,
-        },
-      ],
-      tools,
-      model: deepseek("deepseek-v4-flash"),
-      maxSteps: 20,
-      onStepFinish: debugEnabled
-        ? (event: any) => {
-            debugLog(
-              `[INGEST] Writer step finished for raw-${rawSourceId}`,
-              summarizeStep(event),
-            );
-          }
-        : undefined,
-    });
+  const sharedVars = buildSharedVars(queries, rawSourceId, rawContent);
 
-    // Count results from tool calls
-    const toolCalls = result.steps.flatMap((s) => s.toolCalls || []);
-    const pagesWritten = toolCalls.filter(
-      (tc) =>
-        tc.toolName === "add_wiki_page" || tc.toolName === "edit_wiki_page",
-    ).length;
-    const warnings = toolCalls.filter(
-      (tc) => tc.toolName === "report_warning",
-    ).length;
+  debugLog(
+    `[INGEST] Context loaded: pages=${queries.getAllWikiPages().length}`,
+  );
 
-    debugLog(`[INGEST] Final result for raw-${rawSourceId}`, {
-      finishReason: (result as any).finishReason,
-      text: result.text || undefined,
-      usage: (result as any).usage,
-      steps: result.steps?.length ?? 0,
-      toolCalls: summarizeToolCalls(toolCalls),
-    });
+  // ── Compose the workflow ──────────────────────────────────────────
+  const workflow = chain(
+    createPlannerNode(db, sharedVars),
+    parallel(
+      createWriterNode(db, rawSourceId, rawContent, sharedVars),
+      createMetaNode(db, rawSourceId),
+      { maxParallel: 3, itemsKey: "pages" },
+    ),
+  );
 
-    console.log(
-      `[INGEST] Writer complete for raw-${rawSourceId}: ${pagesWritten} pages written, ${warnings} warnings`,
-    );
+  const ingestInput: IngestInput = { rawSourceId, rawContent };
+  const result = await workflow.execute(ingestInput);
 
-    return { pagesWritten, warnings };
-  } catch (error: any) {
-    console.error(
-      `[INGEST] Writer agent failed for raw-${rawSourceId}: ${error.message}`,
-    );
-    throw new Error(`Ingest writer failed: ${error.message}`);
-  }
+  console.log(
+    `[INGEST] Pipeline complete for raw-${rawSourceId}: ${result.pagesWritten} pages written, ${result.warnings} warnings` +
+      (result.partial ? " (partial)" : ""),
+  );
+
+  return {
+    pagesWritten: result.pagesWritten,
+    warnings: result.warnings,
+  };
 }

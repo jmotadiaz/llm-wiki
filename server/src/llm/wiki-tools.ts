@@ -11,6 +11,7 @@ import { validateTagContract } from "./tag-validator.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+
 function extractWikiLinks(content: string): string[] {
   const linkRegex = /\[([^\]]+)\]\(\/wiki\/([^)]+)\)/g;
   const links: string[] = [];
@@ -235,30 +236,32 @@ export function createWikiEditTools(
           };
         }
 
-        const now = new Date().toISOString();
-        const pageId = queries.insertWikiPage(
-          page.slug,
-          page.title,
-          page.summary,
-          page.content,
-          page.type,
-          page.tags.join(","),
-          page.status,
-          now,
-        );
+        await queries.write(() => {
+          const now = new Date().toISOString();
+          const pageId = queries.insertWikiPage(
+            page.slug,
+            page.title,
+            page.summary,
+            page.content,
+            page.type,
+            page.tags.join(","),
+            page.status,
+            now,
+          );
 
-        const filepath = path.join(wikiDir, `${page.slug}.md`);
-        fs.writeFileSync(filepath, page.content);
+          const filepath = path.join(wikiDir, `${page.slug}.md`);
+          fs.writeFileSync(filepath, page.content);
 
-        queries.deleteWikiLinksForPage(pageId);
-        const wikiLinks = extractWikiLinks(page.content);
-        for (const linkSlug of wikiLinks) {
-          queries.insertWikiLink(pageId, linkSlug);
-        }
+          queries.deleteWikiLinksForPage(pageId);
+          const wikiLinks = extractWikiLinks(page.content);
+          for (const linkSlug of wikiLinks) {
+            queries.insertWikiLink(pageId, linkSlug);
+          }
 
-        if (rawSourceId !== undefined) {
-          queries.insertPageSource(pageId, rawSourceId);
-        }
+          if (rawSourceId !== undefined) {
+            queries.insertPageSource(pageId, rawSourceId);
+          }
+        });
 
         onPageWritten?.(page.slug);
 
@@ -432,18 +435,20 @@ export function createWikiEditTools(
           return { error: validationError };
         }
 
-        persistPage(queries, wikiDir, existingPage.id, {
-          slug: args.slug,
-          title: finalTitle,
-          summary: finalSummary,
-          content: finalContent,
-          tags: finalTags,
-          status: finalStatus,
-        });
+        await queries.write(() => {
+          persistPage(queries, wikiDir, existingPage.id, {
+            slug: args.slug,
+            title: finalTitle,
+            summary: finalSummary,
+            content: finalContent,
+            tags: finalTags,
+            status: finalStatus,
+          });
 
-        if (rawSourceId !== undefined) {
-          queries.insertPageSource(existingPage.id, rawSourceId);
-        }
+          if (rawSourceId !== undefined) {
+            queries.insertPageSource(existingPage.id, rawSourceId);
+          }
+        });
 
         onPageWritten?.(args.slug);
 
@@ -480,18 +485,20 @@ export function createWikiEditTools(
           };
         }
 
-        // Remove wiki links originating from this page
-        queries.deleteWikiLinksForPage(existingPage.id);
+        await queries.write(() => {
+          // Remove wiki links originating from this page
+          queries.deleteWikiLinksForPage(existingPage.id);
 
-        // Remove from DB
-        const stmt = db.prepare("DELETE FROM wiki_pages WHERE id = ?");
-        stmt.run(existingPage.id);
+          // Remove from DB
+          const stmt = db.prepare("DELETE FROM wiki_pages WHERE id = ?");
+          stmt.run(existingPage.id);
 
-        // Remove from filesystem
-        const filepath = path.join(wikiDir, `${slug}.md`);
-        if (fs.existsSync(filepath)) {
-          fs.unlinkSync(filepath);
-        }
+          // Remove from filesystem
+          const filepath = path.join(wikiDir, `${slug}.md`);
+          if (fs.existsSync(filepath)) {
+            fs.unlinkSync(filepath);
+          }
+        });
 
         return {
           success: true,

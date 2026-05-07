@@ -1,7 +1,21 @@
 import Database from "better-sqlite3";
+import { dbWriteSerializer } from "./serializer.js";
 
 export class Queries {
   constructor(private db: Database.Database) {}
+
+  /**
+   * Execute a synchronous write block through the singleton write
+   * serializer. All mutations touching this database connection are
+   * queued and executed one at a time, preventing SQLITE_BUSY when
+   * multiple ToolLoopAgents write concurrently.
+   *
+   * In single-threaded contexts (chat, review) the overhead is
+   * negligible: when the queue is empty the block runs immediately.
+   */
+  async write<T>(fn: () => T): Promise<T> {
+    return dbWriteSerializer.run(fn);
+  }
 
   // Raw Sources
   getRawSourceByChecksum(checksum: string) {

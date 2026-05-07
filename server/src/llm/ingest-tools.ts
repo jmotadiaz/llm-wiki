@@ -67,7 +67,9 @@ export const createIngestTools = (
       }),
       execute: async ({ type, message }) => {
         debugLog(`[Tool: report_warning] ${type}: ${message}`);
-        queries.insertLintWarning(null, type, message, "warning");
+        await queries.write(() => {
+          queries.insertLintWarning(null, type, message, "warning");
+        });
         return { success: true };
       },
     }),

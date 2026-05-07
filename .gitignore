@@ -8,6 +8,7 @@ build/
 
 # Data
 data/
+data-bk*/
 
 # Environment
 .env
