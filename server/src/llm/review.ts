@@ -168,7 +168,7 @@ export async function reviewComment(
         },
       ],
       tools,
-      model: opencodeGo("deepseek/deepseek-v4-flash"),
+      model: opencodeGo("deepseek-v4-flash"),
       maxSteps: 15,
       onStepFinish: debugEnabled
         ? (event: any) => {

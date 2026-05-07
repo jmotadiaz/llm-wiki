@@ -202,7 +202,7 @@ function createPlannerNode(): WorkflowNode<PlannerInput, LearningPathPlan> {
             "Analiza el wiki y emite el plan de learning-paths como JSON, siguiendo el schema y el modo indicado.",
         },
       ],
-      model: opencodeGo("deepseek/deepseek-v4-pro"),
+      model: opencodeGo("deepseek-v4-pro"),
       maxSteps: 1,
     });
 
@@ -252,7 +252,7 @@ function createWriterNode(
           },
         ],
         tools,
-        model: opencodeGo("deepseek/deepseek-v4-flash"),
+        model: opencodeGo("deepseek-v4-flash"),
         maxSteps: WRITER_MAX_STEPS,
         onStepFinish: debugEnabled
           ? (event: any) => {

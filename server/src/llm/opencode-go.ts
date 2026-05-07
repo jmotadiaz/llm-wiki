@@ -1,20 +1,22 @@
-import { createGateway } from "@ai-sdk/gateway";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { LanguageModel } from "ai";
 
-let _gateway: ReturnType<typeof createGateway> | undefined;
+let _provider: ReturnType<typeof createOpenAICompatible> | undefined;
 
-function getGateway() {
-  if (!_gateway) {
-    const apiKey = process.env.VERCEL_AI_GATEWAY_API_KEY;
+function getProvider() {
+  if (!_provider) {
+    const apiKey = process.env.OPENCODE_ZEN_API_KEY;
     if (!apiKey)
-      throw new Error(
-        "VERCEL_AI_GATEWAY_API_KEY environment variable is required",
-      );
-    _gateway = createGateway({ apiKey });
+      throw new Error("OPENCODE_ZEN_API_KEY environment variable is required");
+    _provider = createOpenAICompatible({
+      name: "opencode-zen-go",
+      apiKey,
+      baseURL: "https://opencode.ai/zen/go/v1",
+    });
   }
-  return _gateway;
+  return _provider;
 }
 
 export function opencodeGo(modelId: string): LanguageModel {
-  return getGateway()(modelId);
+  return getProvider()(modelId);
 }
