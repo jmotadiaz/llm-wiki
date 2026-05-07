@@ -6,7 +6,6 @@ import Database from "better-sqlite3";
 import { deepseek } from "@ai-sdk/deepseek";
 import { llmClient } from "./client.js";
 import {
-  createLearningPathPlannerTools,
   createLearningPathWriterTools,
   type LearningPathWriterResult,
 } from "./learning-path-tools.js";
@@ -26,22 +25,10 @@ const __dirname = path.dirname(__filename);
 
 export type LearningPathMode = "regenerate-all" | "review";
 
-const PLANNER_MAX_STEPS = 30;
-const WRITER_MAX_STEPS = 12;
+const WRITER_MAX_STEPS = 30;
 const MAX_PARALLEL_WRITERS = 3;
 
-// ── Zod schemas for planner output ────────────────────────────────────
-
-const StageSchema = z.object({
-  name: z.string().min(1),
-  pageSlugs: z.array(z.string().min(1)).min(1),
-  rationale: z.string().min(1),
-});
-
-const PrerequisiteSchema = z.object({
-  slug: z.string().min(1),
-  rationale: z.string().min(1),
-});
+// ── Zod schema for planner output ─────────────────────────────────────
 
 const PathPlanItemSchema = z.object({
   slug: z.string().min(1).max(60),
@@ -51,8 +38,7 @@ const PathPlanItemSchema = z.object({
   framing: z.string().min(1),
   dominantDomain: z.string().min(1),
   topicTags: z.array(z.string().min(1)).default([]),
-  prerequisites: z.array(PrerequisiteSchema).optional().default([]),
-  stages: z.array(StageSchema).min(2),
+  seedPages: z.array(z.string().min(1)).min(1),
 });
 
 const LearningPathPlanSchema = z.object({
@@ -68,7 +54,6 @@ interface PlannerInput {
   mode: LearningPathMode;
   indexMd: string;
   existingPaths: string;
-  sharedVars: Record<string, string>;
 }
 
 interface WriterResult {
@@ -125,10 +110,10 @@ function buildModeBlock(mode: LearningPathMode): string {
   return [
     "Mode: review",
     "",
-    'Existing learning-path pages remain. For each one (listed under "Existing learning-path pages"):',
+    'Existing learning-path pages remain. For each one:',
     '- Keep as-is → omit it from `paths`.',
     '- Revise → include it with action="revise".',
-    "After triaging existing paths, add new topical journeys that have emerged with action=\"new\".",
+    "After triaging, add new journeys that have emerged with action=\"new\".",
   ].join("\n");
 }
 
@@ -193,27 +178,20 @@ function deleteAllLearningPathPages(db: Database.Database): string[] {
   return deleted;
 }
 
-// ── Planner Node ──────────────────────────────────────────────────────
+// ── Planner Node (no tools — generateText from index only) ────────────
 
-function createPlannerNode(
-  db: Database.Database,
-): WorkflowNode<PlannerInput, LearningPathPlan> {
-  const debugEnabled = isDebugEnabled();
-
+function createPlannerNode(): WorkflowNode<PlannerInput, LearningPathPlan> {
   return node(async (input): Promise<LearningPathPlan> => {
     debugLog(`[LP] Planner starting (mode=${input.mode})`);
 
     const plannerPrompt = interpolatePrompt(
       loadPromptTemplate("learning-path-planner.md"),
       {
-        ...input.sharedVars,
         INDEX_MD: input.indexMd.trim(),
         EXISTING_PATHS: input.existingPaths,
         MODE_BLOCK: buildModeBlock(input.mode),
       },
     );
-
-    const tools = createLearningPathPlannerTools(db);
 
     const result = await llmClient.generate({
       system: plannerPrompt,
@@ -225,18 +203,12 @@ function createPlannerNode(
         },
       ],
       model: deepseek("deepseek-v4-pro"),
-      tools,
-      maxSteps: PLANNER_MAX_STEPS,
-      onStepFinish: debugEnabled
-        ? (event: any) => {
-            debugLog(`[LP] Planner step`, summarizeStep(event));
-          }
-        : undefined,
+      maxSteps: 1,
     });
 
     const text = result.text;
     if (!text || text.trim().length === 0) {
-      throw new Error("Planner agent returned empty output");
+      throw new Error("Planner returned empty output");
     }
 
     const plan = parsePlanJson(text);
@@ -248,13 +220,11 @@ function createPlannerNode(
   });
 }
 
-// ── Writer Node (one per path) ────────────────────────────────────────
+// ── Writer Node (one per path — autonomous exploration) ───────────────
 
 function createWriterNode(
   db: Database.Database,
   result: LearningPathWriterResult,
-  sharedVars: Record<string, string>,
-  indexMd: string,
 ): WorkflowNode<PathPlanItem, WriterResult> {
   const debugEnabled = isDebugEnabled();
 
@@ -265,8 +235,7 @@ function createWriterNode(
     const writerPrompt = interpolatePrompt(
       loadPromptTemplate("learning-path-writer-single.md"),
       {
-        ...sharedVars,
-        INDEX_MD: indexMd.trim(),
+        L1_SCHEMA: loadSchema(),
         PLAN_ITEM: JSON.stringify(item, null, 2),
       },
     );
@@ -279,7 +248,7 @@ function createWriterNode(
         messages: [
           {
             role: "user",
-            content: `Escribe la página learning-path "${item.title}" (slug: ${slug}) siguiendo el plan item.`,
+            content: `Explora el wiki y escribe la página learning-path "${item.title}" (slug: ${slug}).`,
           },
         ],
         tools,
@@ -296,21 +265,13 @@ function createWriterNode(
       const written = toolCalls.filter(
         (tc) => tc.toolName === "add_wiki_page" || tc.toolName === "edit_wiki_page",
       );
-      const success = written.length > 0;
 
-      console.log(
-        `[LP] Writer complete for "${slug}": success=${success}`,
-      );
+      console.log(`[LP] Writer complete for "${slug}": success=${written.length > 0}`);
 
-      return { slug, action: item.action, success };
+      return { slug, action: item.action, success: written.length > 0 };
     } catch (error: any) {
       console.error(`[LP] Writer failed for "${slug}": ${error.message}`);
-      return {
-        slug,
-        action: item.action,
-        success: false,
-        error: error.message,
-      };
+      return { slug, action: item.action, success: false, error: error.message };
     }
   });
 }
@@ -330,16 +291,12 @@ function createAggregatorNode(): WorkflowNode<
     const successes = input.results.filter((r) => r.success);
     const writerFailures = input.results
       .filter((r) => !r.success)
-      .map((r) => ({ slug: r.slug, error: r.error ?? "writer reported failure without an error" }));
+      .map((r) => ({ slug: r.slug, error: r.error ?? "writer reported failure" }));
     const errorFailures = input.errors.map((e) => ({
       slug: e.item.slug,
       error: e.error instanceof Error ? e.error.message : String(e.error),
     }));
-
-    return {
-      successes,
-      failures: [...writerFailures, ...errorFailures],
-    };
+    return { successes, failures: [...writerFailures, ...errorFailures] };
   });
 }
 
@@ -354,66 +311,44 @@ export async function runLearningPathAgent(
   opts: LearningPathRunOptions = {},
 ): Promise<LearningPathRunSummary> {
   const mode: LearningPathMode = opts.mode ?? "review";
-
   const deleted = mode === "regenerate-all" ? deleteAllLearningPathPages(db) : [];
 
   const indexMd = loadIndexMarkdown();
   const existingPaths = listExistingArtifacts(db);
-  const sharedVars: Record<string, string> = {
-    L1_SCHEMA: loadSchema(),
-  };
 
-  console.log(
-    `[LP] Run starting (mode=${mode}, deleted=${deleted.length})`,
-  );
+  console.log(`[LP] Run starting (mode=${mode}, deleted=${deleted.length})`);
 
   const writerResult: LearningPathWriterResult = { writtenSlugs: [] };
 
   const workflow = chain(
-    createPlannerNode(db),
+    createPlannerNode(),
     parallel(
-      createWriterNode(db, writerResult, sharedVars, indexMd),
+      createWriterNode(db, writerResult),
       createAggregatorNode(),
       { maxParallel: MAX_PARALLEL_WRITERS, itemsKey: "paths" },
     ),
   );
 
-  const plannerInput: PlannerInput = {
-    mode,
-    indexMd,
-    existingPaths,
-    sharedVars,
-  };
-
   let aggregated: AggregatedRun;
   try {
-    aggregated = await workflow.execute(plannerInput);
+    aggregated = await workflow.execute({ mode, indexMd, existingPaths });
   } catch (error: any) {
     console.error(`[LP] Pipeline failed: ${error.message}`);
-    return {
-      mode,
-      pagesWritten: [],
-      pagesDeleted: deleted,
-      partial: true,
-    };
+    return { mode, pagesWritten: [], pagesDeleted: deleted, partial: true };
   }
 
   const partial = aggregated.failures.length > 0;
-  const summary: LearningPathRunSummary = {
+  console.log(
+    `[LP] Run complete: ${writerResult.writtenSlugs.length} written, ${deleted.length} deleted` +
+      (partial
+        ? `, ${aggregated.failures.length} failed (${aggregated.failures.map((f) => f.slug).join(", ")})`
+        : ""),
+  );
+
+  return {
     mode,
     pagesWritten: writerResult.writtenSlugs,
     pagesDeleted: deleted,
     partial,
   };
-
-  console.log(
-    `[LP] Run complete: ${summary.pagesWritten.length} written, ${deleted.length} deleted` +
-      (partial
-        ? `, ${aggregated.failures.length} failed (${aggregated.failures
-            .map((f) => f.slug)
-            .join(", ")})`
-        : ""),
-  );
-
-  return summary;
 }

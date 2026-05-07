@@ -44,23 +44,26 @@ function validatePagePayload(
 }
 
 /**
- * Read-only tools for the learning-path PLANNER agent.
- * The planner inspects existing wiki pages (full body, backlinks) to decide
- * stage placement, foundationality, and whether existing learning paths need
- * revision. These tools NEVER mutate state.
+ * Tools for a single-page learning-path WRITER agent.
+ * The writer autonomously explores the wiki (full page content + backlinks)
+ * to design the curriculum and then writes the page.
  */
-export function createLearningPathPlannerTools(db: Database.Database) {
+export function createLearningPathWriterTools(
+  db: Database.Database,
+  result: LearningPathWriterResult,
+) {
   const queries = new Queries(db);
+  const wikiDir = ensureWikiDirectory();
 
   return {
     get_wiki_page: tool({
       description:
-        "Read the full content and metadata of a wiki page by slug. Use this when the index entry is not enough to decide stage placement, foundationality, or topical fit.",
+        "Read the full content and metadata of a wiki page by slug. Use this to understand the depth and scope of a page before assigning it to a stage, and to discover cross-references to other relevant pages.",
       inputSchema: z.object({
         slug: z.string().describe("The slug of the wiki page to read."),
       }),
       execute: async ({ slug }) => {
-        debugLog(`[Tool: lp.planner.get_wiki_page] slug: ${slug}`);
+        debugLog(`[Tool: lp.writer.get_wiki_page] slug: ${slug}`);
         const page = queries.getWikiPageBySlug(slug);
         if (!page) {
           return { error: `Page "${slug}" not found.` };
@@ -79,12 +82,12 @@ export function createLearningPathPlannerTools(db: Database.Database) {
 
     get_backlinks: tool({
       description:
-        "List wiki pages that link TO a given slug (backlinks). High inbound counts signal foundational pages — useful for deciding if a page belongs early in a learning path.",
+        "List wiki pages that link TO a given slug. High inbound counts signal foundational pages — use this to determine stage ordering and discover hub pages that should appear early in the path.",
       inputSchema: z.object({
         slug: z.string().describe("The slug whose inbound links you want."),
       }),
       execute: async ({ slug }) => {
-        debugLog(`[Tool: lp.planner.get_backlinks] slug: ${slug}`);
+        debugLog(`[Tool: lp.writer.get_backlinks] slug: ${slug}`);
         const backlinks = queries.getBacklinks(slug);
         return backlinks.map((page: any) => ({
           slug: page.slug,
@@ -92,44 +95,6 @@ export function createLearningPathPlannerTools(db: Database.Database) {
           type: page.type,
           tags: page.tags ? page.tags.split(",") : [],
         }));
-      },
-    }),
-  };
-}
-
-/**
- * Tools for a single-page learning-path WRITER agent.
- * The writer turns one plan item into a markdown page. It validates slug
- * shape, type, tag contract, and the no-/raw/-citations rule.
- */
-export function createLearningPathWriterTools(
-  db: Database.Database,
-  result: LearningPathWriterResult,
-) {
-  const queries = new Queries(db);
-  const wikiDir = ensureWikiDirectory();
-
-  return {
-    get_wiki_page: tool({
-      description:
-        "Read the full content and metadata of a wiki page by slug. Use this when you need a page's title to populate a bullet's link text.",
-      inputSchema: z.object({
-        slug: z.string().describe("The slug of the wiki page to read."),
-      }),
-      execute: async ({ slug }) => {
-        debugLog(`[Tool: lp.writer.get_wiki_page] slug: ${slug}`);
-        const page = queries.getWikiPageBySlug(slug);
-        if (!page) {
-          return { error: `Page "${slug}" not found.` };
-        }
-        return {
-          slug: page.slug,
-          title: page.title,
-          type: page.type,
-          status: page.status,
-          tags: (page.tags || "").split(",").map((t: string) => t.trim()).filter(Boolean),
-          summary: page.summary,
-        };
       },
     }),
 
