@@ -1,16 +1,17 @@
-import { createOpenAI } from "@ai-sdk/openai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { LanguageModel } from "ai";
 
-let _provider: ReturnType<typeof createOpenAI> | undefined;
+let _provider: ReturnType<typeof createOpenAICompatible> | undefined;
 
 function getProvider() {
   if (!_provider) {
-    const apiKey = process.env.OPENCODE_GO_API_KEY;
+    const apiKey = process.env.OPENCODE_ZEN_API_KEY;
     if (!apiKey)
-      throw new Error("OPENCODE_GO_API_KEY environment variable is required");
-    _provider = createOpenAI({
+      throw new Error("OPENCODE_ZEN_API_KEY environment variable is required");
+    _provider = createOpenAICompatible({
+      name: "opencode-zen",
       apiKey,
-      baseURL: "https://opencode.ai/zen/go/v1",
+      baseURL: "https://opencode.ai/zen/v1",
     });
   }
   return _provider;
