@@ -16,8 +16,8 @@ export function getLLMConfig(): LLMConfig {
 
   return {
     apiKey,
-    primaryModel: opencodeGo("deepseek-v4-pro"),
-    fallbackModel: opencodeGo("deepseek-v4-flash"),
+    primaryModel: opencodeGo("kimi-k2.6"),
+    fallbackModel: opencodeGo("qwen3.5-plus"),
     maxRetries: parseInt(process.env.MAX_RETRIES || "2", 10),
   };
 }
