@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Streamdown, defaultRemarkPlugins } from "streamdown";
 import { code } from "@streamdown/code";
 import remarkGfm from "remark-gfm";
@@ -11,7 +11,7 @@ interface MarkdownProps {
   streaming?: boolean;
 }
 
-export default function Markdown({
+const Markdown = memo(function Markdown({
   content,
   className = "",
   streaming = false,
@@ -92,4 +92,8 @@ export default function Markdown({
       </Streamdown>
     </div>
   );
-}
+}, (prev, next) => prev.content === next.content && prev.className === next.className);
+
+Markdown.displayName = "Markdown";
+
+export default Markdown;
