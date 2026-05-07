@@ -120,29 +120,6 @@ export function createWikiRoutes(db: Database.Database): Router {
     }
   });
 
-  // GET /api/wiki/domain-indexes - List all domain-index pages
-  router.get("/domain-indexes", (req: Request, res: Response) => {
-    try {
-      const pages = queries.getWikiPagesByType("domain-index");
-      res.json({
-        success: true,
-        count: pages.length,
-        pages: pages.map((page: any) => ({
-          slug: page.slug,
-          title: page.title,
-          type: page.type,
-          tags: (page.tags || "").split(",").filter((t: string) => t.trim()),
-          status: page.status,
-          summary: page.summary || "",
-          generated_at: page.generated_at,
-          updated_at: page.updated_at,
-        })),
-      });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   // GET /api/wiki/learning-paths - List all learning-path pages
   router.get("/learning-paths", (req: Request, res: Response) => {
     try {

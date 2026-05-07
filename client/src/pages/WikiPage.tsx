@@ -17,12 +17,11 @@ interface IndexPageEntry extends WikiPageEntry {
   updated_at: string | null;
 }
 
-type TabId = "pages" | "domains" | "learning-paths";
+type TabId = "pages" | "learning-paths";
 
 export default function WikiPage() {
   const [tab, setTab] = useQueryState("tab", { defaultValue: "pages" });
-  const activeTab: TabId =
-    tab === "domains" || tab === "learning-paths" ? tab : "pages";
+  const activeTab: TabId = tab === "learning-paths" ? tab : "pages";
 
   return (
     <div>
@@ -32,17 +31,13 @@ export default function WikiPage() {
         <TabButton id="pages" active={activeTab === "pages"} onClick={() => setTab("pages")}>
           Páginas
         </TabButton>
-        <TabButton id="domains" active={activeTab === "domains"} onClick={() => setTab("domains")}>
-          Dominios
-        </TabButton>
         <TabButton id="learning-paths" active={activeTab === "learning-paths"} onClick={() => setTab("learning-paths")}>
           Learning Paths
         </TabButton>
       </div>
 
       {activeTab === "pages" && <PagesTab />}
-      {activeTab === "domains" && <IndexListTab kind="domains" />}
-      {activeTab === "learning-paths" && <IndexListTab kind="learning-paths" />}
+      {activeTab === "learning-paths" && <LearningPathsTab />}
     </div>
   );
 }
@@ -262,24 +257,19 @@ function PagesTab() {
   );
 }
 
-function IndexListTab({ kind }: { kind: "domains" | "learning-paths" }) {
+function LearningPathsTab() {
   const [pages, setPages] = useState<IndexPageEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [runningMode, setRunningMode] = useState<null | "review" | "regenerate-all">(null);
   const [error, setError] = useState("");
 
-  const endpoint =
-    kind === "domains" ? "/api/wiki/domain-indexes" : "/api/wiki/learning-paths";
-  const category = kind === "domains" ? "domain-index" : "learning-path";
-  const heading = kind === "domains" ? "Dominios" : "Learning Paths";
+  const heading = "Learning Paths";
   const emptyMessage =
-    kind === "domains"
-      ? "Aún no hay domain-index pages. Genera para descubrir dominios."
-      : "Aún no hay learning-path pages. Genera para construir rutas de aprendizaje.";
+    "Aún no hay learning-path pages. Genera para construir rutas de aprendizaje.";
 
   function load() {
     setLoading(true);
-    fetch(endpoint)
+    fetch("/api/wiki/learning-paths")
       .then((r) => r.json() as Promise<{ pages: IndexPageEntry[] }>)
       .then((data) => {
         setPages(data.pages || []);
@@ -290,7 +280,7 @@ function IndexListTab({ kind }: { kind: "domains" | "learning-paths" }) {
 
   useEffect(() => {
     load();
-  }, [endpoint]);
+  }, []);
 
   async function runAgent(mode: "review" | "regenerate-all") {
     if (mode === "regenerate-all") {
@@ -302,14 +292,14 @@ function IndexListTab({ kind }: { kind: "domains" | "learning-paths" }) {
     setRunningMode(mode);
     setError("");
     try {
-      const res = await fetch("/api/index/generate", {
+      const res = await fetch("/api/learning-paths/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, category }),
+        body: JSON.stringify({ mode }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || `Index agent failed (${res.status})`);
+        throw new Error(data.error || `Learning-path agent failed (${res.status})`);
       }
       load();
     } catch (err: any) {

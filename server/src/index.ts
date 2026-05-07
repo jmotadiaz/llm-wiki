@@ -9,7 +9,7 @@ import { createWikiRoutes } from "./routes/api/wiki.js";
 import { createRawRoutes } from "./routes/api/raw.js";
 import { createChatRoutes } from "./routes/api/chat.js";
 import { createCommentRoutes } from "./routes/api/comments.js";
-import { createIndexAgentRoutes } from "./routes/index-agent.js";
+import { createLearningPathRoutes } from "./routes/learning-path.js";
 import { initScheduler } from "./services/scheduler.js";
 import { ReviewQueue } from "./services/review-queue.js";
 import { Queries } from "./db/queries.js";
@@ -83,7 +83,7 @@ app.use("/api/wiki", createWikiRoutes(db));
 app.use("/api/wiki", createCommentRoutes(db, reviewQueue));
 app.use("/api/raw", createRawRoutes(db));
 app.use("/api/chat", createChatRoutes(db));
-app.use("/api/index", createIndexAgentRoutes(db));
+app.use("/api/learning-paths", createLearningPathRoutes(db));
 
 // Fallback API route
 app.use("/api", (req: Request, res: Response) => {

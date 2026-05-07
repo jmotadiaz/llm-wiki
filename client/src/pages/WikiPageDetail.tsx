@@ -22,16 +22,8 @@ interface PageData {
   lintIssues: Array<{ type: string; message: string; severity: string }>;
 }
 
-function extractDomainFromIndexSlug(slug: string, type: string): string | null {
-  if (type === "domain-index") {
-    const prefix = "domain-index-";
-    return slug.startsWith(prefix) ? slug.slice(prefix.length) : null;
-  }
-  if (type === "learning-path") {
-    const prefix = "learning-path-";
-    return slug.startsWith(prefix) ? slug.slice(prefix.length) : null;
-  }
-  return null;
+function isLearningPath(type: string, slug: string): boolean {
+  return type === "learning-path" && slug.startsWith("learning-path-");
 }
 
 
@@ -64,14 +56,14 @@ export default function WikiPageDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
-  async function handleRegenerate(domain: string) {
+  async function handleRegenerate() {
     setRegenerating(true);
     setRegenError('');
     try {
-      const res = await fetch('/api/index/generate', {
+      const res = await fetch('/api/learning-paths/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ domain }),
+        body: JSON.stringify({ mode: 'review' }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -90,8 +82,7 @@ export default function WikiPageDetail() {
   if (!data) return <p className="text-gray-500">Page not found</p>;
 
   const { page, backlinks, sources, lintIssues } = data;
-  const isIndexPage = page.type === 'domain-index' || page.type === 'learning-path';
-  const domainKey = extractDomainFromIndexSlug(page.slug, page.type);
+  const isLearningPathPage = isLearningPath(page.type, page.slug);
 
   return (
     <div className="max-w-3xl">
@@ -122,23 +113,21 @@ export default function WikiPageDetail() {
             )
           })}
         </div>
-        {isIndexPage && (
+        {isLearningPathPage && (
           <div className="mt-3 flex items-center gap-3 flex-wrap">
             {page.generated_at && (
               <span className="text-xs text-gray-500 dark:text-gray-400">
                 Generado el {new Date(page.generated_at).toLocaleString()}
               </span>
             )}
-            {domainKey && (
-              <button
-                type="button"
-                onClick={() => handleRegenerate(domainKey)}
-                disabled={regenerating}
-                className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white transition-colors"
-              >
-                {regenerating ? 'Regenerando...' : 'Regenerar'}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleRegenerate}
+              disabled={regenerating}
+              className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white transition-colors"
+            >
+              {regenerating ? 'Regenerando...' : 'Regenerar'}
+            </button>
           </div>
         )}
         {regenError && (

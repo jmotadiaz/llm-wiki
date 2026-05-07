@@ -39,10 +39,9 @@ Every page has exactly one type:
 | `concept`       | Core ideas, definitions, principles, mental models                             |
 | `technique`     | Methods, procedures, patterns, step-by-step approaches                         |
 | `reference`     | Summaries of external resources, standards, tools, libraries                   |
-| `domain-index`  | Auto-generated map of a domain: concepts, techniques, tools, related pages     |
-| `learning-path` | Auto-generated ordered learning sequence for a domain, with per-page rationale |
+| `learning-path` | Auto-generated ordered learning sequence for a topic, with per-page rationale  |
 
-Pages of type `domain-index` and `learning-path` are produced by the index agent, not by the ingest pipeline. Do not create them from the ingest writer.
+Pages of type `learning-path` are produced by the learning-path agent, not by the ingest pipeline. Do not create them from the ingest writer.
 
 ### Language Policy
 
