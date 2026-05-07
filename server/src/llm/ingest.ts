@@ -248,7 +248,7 @@ function createPlannerNode(
           content: `Analiza este documento fuente (raw source ID: ${input.rawSourceId}) y genera el plan de ingesta como JSON:\n\n${input.rawContent}`,
         },
       ],
-      model: opencodeGo("kimi-k2.6"),
+      model: opencodeGo("deepseek-v4-pro"),
       tools: plannerTools,
       maxSteps: 20,
       onStepFinish: debugEnabled
@@ -312,7 +312,7 @@ function createWriterNode(
           },
         ],
         tools,
-        model: opencodeGo("qwen3.5-plus"),
+        model: opencodeGo("deepseek-v4-flash"),
         maxSteps: 15,
         onStepFinish: debugEnabled
           ? (event: any) => {
@@ -446,7 +446,7 @@ function createMetaNode(
           },
         ],
         tools,
-        model: opencodeGo("qwen3.5-plus"),
+        model: opencodeGo("deepseek-v4-flash"),
         maxSteps: 15,
         onStepFinish: debugEnabled
           ? (event: any) => {

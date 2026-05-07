@@ -67,7 +67,7 @@ export async function streamChat(
     system: systemPrompt,
     messages,
     tools,
-    model: opencodeGo("qwen3.5-plus"),
+    model: opencodeGo("deepseek-v4-flash"),
     maxSteps: 10,
   });
 }
