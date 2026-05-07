@@ -5,7 +5,7 @@ You receive a plan item with a topic, framing, and a list of **seed pages** (sta
 ## Your task
 
 1. **Explore** — use `get_wiki_page` and `get_backlinks` to understand the seed pages and discover more pages that belong in this curriculum. Do not limit yourself to the seed list.
-2. **Design** — decide the stage structure, page ordering, and prerequisites (if any).
+2. **Design** — decide the structure, ordering, and grouping that best serves a learner on this topic.
 3. **Write** — call `add_wiki_page` (for `action: "new"`) or `edit_wiki_page` (for `action: "revise"`) exactly once.
 
 ## Exploration strategy
@@ -16,52 +16,43 @@ You receive a plan item with a topic, framing, and a list of **seed pages** (sta
 
 **Assess foundationality**:
 - High inbound link count (from `get_backlinks`) → foundational, belongs early.
-- `a:fundamentals` tag → first stage. `a:advanced` tag → last stage.
+- `a:fundamentals` tag → early in sequence. `a:advanced` tag → late in sequence.
 - A page's conceptual dependencies determine its position, not ingestion order.
 
 **Stop exploring** when adding more pages would not meaningfully change the curriculum.
 
 Batch independent `get_wiki_page` and `get_backlinks` calls into a single step when possible.
 
-## Curriculum design rules
+## Invariants — non-negotiable
 
-- **At least 2 stages**, typically 3. Use Spanish stage names (e.g., "Fundamentos", "Conceptos avanzados", "Aplicación práctica").
-- **Each stage** has an intro paragraph (1–3 sentences) explaining what the learner gains, followed by bullet points for each page.
-- **Every bullet** ends with ` — <one-sentence rationale>` in Spanish explaining the page's role in the sequence.
-- **`## Prerequisitos`** section: only when there are genuine outside-the-path prerequisites. Omit if none.
-- A page may appear in multiple learning paths. Within this path, each chosen page appears in exactly one stage.
-- Only include pages you have verified exist in the wiki via `get_wiki_page` or `get_backlinks`.
+These rules apply to every learning-path page you write, regardless of structure:
+
+1. **Valid page**: slug verbatim from the plan item, type `learning-path`, status `published`, tags from `dominantDomain` + `topicTags`, title and summary verbatim from the plan item.
+2. **H1 + intro**: the page starts with an H1 (title or a natural curricular variation) followed by an intro paragraph (2–4 sentences, Spanish) that frames the journey based on the plan item's framing.
+3. **Real progression**: pages are ordered so that each step builds on the previous. A learner reading top-to-bottom should feel forward momentum, not random association.
+4. **Per-page justification**: every page included in the curriculum carries a rationale — one sentence in Spanish explaining its role in the sequence. The rationale is learner-facing: why should they read this, and what does it unlock?
+5. **Only wiki links**: all cross-references use `[text](/wiki/slug)`. Never use `/raw/` links — learning paths do not cite raw sources.
+6. **Spanish prose**: all body text, section headings, and rationales are in Spanish. Slugs and technical industry terms remain in English.
+7. **Verified pages only**: only include pages you have confirmed exist via `get_wiki_page` or `get_backlinks`.
+
+## Freedom of form
+
+Everything below is your creative decision — choose whatever structure makes the curriculum clearest and most useful:
+
+- **Number and names of stages**: use as many stages as the content warrants (minimum 2). Name them whatever communicates the learning arc best.
+- **Stage intro text**: include or omit stage-level introductory prose as needed.
+- **Prerequisites section**: include a `## Prerequisitos` section only when there are genuine outside-the-path prerequisites. Omit if none.
+- **Closing section**: optionally add a brief closing paragraph or a "next steps" note after the last stage.
+- **Nesting**: use H2 and H3 freely to reflect natural sub-groupings within a stage.
+- **Format of entries**: bullet list, numbered list, or short prose block — whichever communicates the rationale most naturally.
 
 ## Output contract
 
-- **Slug**: from the plan item (verbatim).
+- **Slug**: verbatim from the plan item.
 - **Type**: `learning-path`. **Status**: `published`.
 - **Tags**: `dominantDomain` + all `topicTags` from the plan item.
-- **Title**: from the plan item (verbatim).
-- **Summary**: from the plan item (verbatim).
-- **Body** (Spanish):
-
-```markdown
-# <H1: same as title, or a curricular variation if more natural>
-
-<Intro paragraph (2–4 sentences) based on the plan item's framing.>
-
-## Prerequisitos
-
-- [<title>](/wiki/<slug>) — <why required>
-- ...
-
-## <Stage 1 name>
-
-<Stage intro paragraph.>
-
-- [<title>](/wiki/<slug>) — <rationale>
-- ...
-
-## <Stage N name>
-
-...
-```
+- **Title**: verbatim from the plan item.
+- **Summary**: verbatim from the plan item.
 
 ## Hard constraints
 
