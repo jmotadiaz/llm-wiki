@@ -283,7 +283,7 @@ function createWriterNode(
           },
         ],
         tools,
-        model: deepseek("deepseek-v4-flash"),
+        model: deepseek("deepseek-v4-pro"),
         maxSteps: WRITER_MAX_STEPS,
         onStepFinish: debugEnabled
           ? (event: any) => {
