@@ -9,6 +9,11 @@ import Database from "better-sqlite3";
 import { buildRawHeadingIndex } from "./raw-headings.js";
 import { debugLog, isDebugEnabled } from "../utils/debug.js";
 import {
+  createTraceSession,
+  createStepLogger,
+  type TraceSession,
+} from "../utils/trace.js";
+import {
   node,
   chain,
   parallel,
@@ -172,9 +177,18 @@ function interpolatePrompt(
 
 function summarizeToolCalls(toolCalls: any[] = []): any[] {
   return toolCalls.map((tc) => ({
+    toolCallId: tc.toolCallId,
     toolName: tc.toolName,
     input:
       tc.input ?? tc.args ?? tc.arguments ?? tc.parameters,
+  }));
+}
+
+function summarizeToolResults(toolResults: any[] = []): any[] {
+  return toolResults.map((tr) => ({
+    toolCallId: tr.toolCallId,
+    toolName: tr.toolName,
+    output: tr.output ?? tr.result,
   }));
 }
 
@@ -184,6 +198,7 @@ function summarizeStep(event: any) {
     finishReason: event.finishReason,
     text: event.text || undefined,
     toolCalls: summarizeToolCalls(event.toolCalls),
+    toolResults: summarizeToolResults(event.toolResults),
     usage: event.usage,
   };
 }
@@ -226,8 +241,10 @@ function parsePlanJson(text: string): IngestPlan {
 function createPlannerNode(
   db: Database.Database,
   sharedVars: Record<string, string>,
+  session: TraceSession,
 ): WorkflowNode<IngestInput, IngestPlan> {
   const debugEnabled = isDebugEnabled();
+  const stepLogger = createStepLogger(session, "planner");
 
   return node(async (input): Promise<IngestPlan> => {
     debugLog(`[INGEST] Planner starting for raw-${input.rawSourceId}`);
@@ -250,14 +267,16 @@ function createPlannerNode(
       model: "pro",
       tools: plannerTools,
       maxSteps: 20,
-      onStepFinish: debugEnabled
-        ? (event: any) => {
-            debugLog(
-              `[INGEST] Planner step for raw-${input.rawSourceId}`,
-              summarizeStep(event),
-            );
-          }
-        : undefined,
+      onStepFinish: (event: any) => {
+        const summary = summarizeStep(event);
+        stepLogger(summary);
+        if (debugEnabled) {
+          debugLog(
+            `[INGEST] Planner step for raw-${input.rawSourceId}`,
+            summary,
+          );
+        }
+      },
     });
 
     const planText = plannerResult.text;
@@ -283,10 +302,12 @@ function createWriterNode(
   rawSourceId: number,
   rawContent: string,
   sharedVars: Record<string, string>,
+  session: TraceSession,
 ): WorkflowNode<PlanItem, PageResult> {
   return node(async (item: PlanItem): Promise<PageResult> => {
     const debugEnabled = isDebugEnabled();
     const slug = item.slug;
+    const stepLogger = createStepLogger(session, `writer-${slug}`);
 
     const writerPrompt = interpolatePrompt(
       loadPromptTemplate("ingest-writer-single.md"),
@@ -313,14 +334,13 @@ function createWriterNode(
         tools,
         model: "flash",
         maxSteps: 15,
-        onStepFinish: debugEnabled
-          ? (event: any) => {
-              debugLog(
-                `[INGEST] Writer step for "${slug}"`,
-                summarizeStep(event),
-              );
-            }
-          : undefined,
+        onStepFinish: (event: any) => {
+          const summary = summarizeStep(event);
+          stepLogger(summary);
+          if (debugEnabled) {
+            debugLog(`[INGEST] Writer step for "${slug}"`, summary);
+          }
+        },
       });
 
       const toolCalls = result.steps.flatMap((s) => s.toolCalls || []);
@@ -363,10 +383,13 @@ function createWriterNode(
 function createMetaNode(
   db: Database.Database,
   rawSourceId: number,
+  session: TraceSession,
 ): WorkflowNode<
   ParallelAggregatorInput<PageResult, PlanItem, IngestPlan>,
   IngestResult
 > {
+  const stepLogger = createStepLogger(session, "aggregator");
+
   return node(async (input): Promise<IngestResult> => {
     const debugEnabled = isDebugEnabled();
     const plan = input.input;
@@ -447,14 +470,16 @@ function createMetaNode(
         tools,
         model: "flash",
         maxSteps: 15,
-        onStepFinish: debugEnabled
-          ? (event: any) => {
-              debugLog(
-                `[INGEST] Aggregator step for raw-${rawSourceId}`,
-                summarizeStep(event),
-              );
-            }
-          : undefined,
+        onStepFinish: (event: any) => {
+          const summary = summarizeStep(event);
+          stepLogger(summary);
+          if (debugEnabled) {
+            debugLog(
+              `[INGEST] Aggregator step for raw-${rawSourceId}`,
+              summary,
+            );
+          }
+        },
       });
 
       const toolCalls = result.steps.flatMap((s) => s.toolCalls || []);
@@ -496,6 +521,11 @@ export async function ingestRawSource(
     `[INGEST] Pipeline starting for raw-${rawSourceId}: content length=${rawContent.length}`,
   );
 
+  const rawSource = queries.getRawSourceById(rawSourceId);
+  const rawTitle = rawSource?.title ?? `raw-${rawSourceId}`;
+  const session = createTraceSession(rawSourceId, rawTitle);
+  console.log(`[INGEST] Trace session for raw-${rawSourceId}: ${session.dir}`);
+
   const sharedVars = buildSharedVars(queries, rawSourceId, rawContent);
 
   debugLog(
@@ -504,10 +534,10 @@ export async function ingestRawSource(
 
   // ── Compose the workflow ──────────────────────────────────────────
   const workflow = chain(
-    createPlannerNode(db, sharedVars),
+    createPlannerNode(db, sharedVars, session),
     parallel(
-      createWriterNode(db, rawSourceId, rawContent, sharedVars),
-      createMetaNode(db, rawSourceId),
+      createWriterNode(db, rawSourceId, rawContent, sharedVars, session),
+      createMetaNode(db, rawSourceId, session),
       { maxParallel: 3, itemsKey: "pages" },
     ),
   );
