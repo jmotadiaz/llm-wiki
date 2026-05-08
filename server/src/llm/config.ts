@@ -1,10 +1,19 @@
 import { LanguageModel } from "ai";
-import { opencodeGo } from "./opencode-go.js";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { deepseek } from "@ai-sdk/deepseek";
+
+export type ModelAlias = "pro" | "flash";
+
+const opencodeGo = createOpenAICompatible({
+  name: "opencode-zen-go",
+  apiKey: process.env.OPENCODE_ZEN_API_KEY,
+  baseURL: "https://opencode.ai/zen/go/v1",
+})
 
 export interface LLMConfig {
   apiKey: string;
-  primaryModel: LanguageModel;
-  fallbackModel: LanguageModel;
+  models: Record<ModelAlias, LanguageModel>;
+  fallbackModels: Record<ModelAlias, LanguageModel>;
   maxRetries: number;
 }
 
@@ -16,8 +25,14 @@ export function getLLMConfig(): LLMConfig {
 
   return {
     apiKey,
-    primaryModel: opencodeGo("deepseek-v4-pro"),
-    fallbackModel: opencodeGo("deepseek-v4-flash"),
+    models: {
+      pro: opencodeGo("deepseek-v4-pro"),
+      flash: opencodeGo("deepseek-v4-flash"),
+    },
+    fallbackModels: {
+      pro: deepseek("deepseek-v4-pro"),
+      flash: deepseek("deepseek-v4-flash"),
+    },
     maxRetries: parseInt(process.env.MAX_RETRIES || "2", 10),
   };
 }

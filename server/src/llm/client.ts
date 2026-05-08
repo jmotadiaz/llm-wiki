@@ -9,7 +9,7 @@ import {
   stepCountIs,
   LanguageModel,
 } from "ai";
-import { getLLMConfig } from "./config.js";
+import { getLLMConfig, ModelAlias } from "./config.js";
 import { z } from "zod";
 
 export const config = getLLMConfig();
@@ -20,7 +20,8 @@ interface GenerateOptions {
   temperature?: number;
   topP?: number;
   maxOutputTokens?: number;
-  model?: LanguageModel;
+  /** Model alias: "pro" (heavy reasoning) or "flash" (fast/cheap). Default: "pro". */
+  model?: ModelAlias;
   tools?: Record<string, any>;
   maxSteps?: number;
   stopWhen?: (event: any) => boolean;
@@ -32,7 +33,8 @@ interface GenerateObjectOptions<T extends z.ZodType> {
   messages: ModelMessage[];
   temperature?: number;
   maxOutputTokens?: number;
-  model?: LanguageModel;
+  /** Model alias: "pro" (heavy reasoning) or "flash" (fast/cheap). Default: "pro". */
+  model?: ModelAlias;
   schema: T;
 }
 
@@ -41,6 +43,16 @@ interface StreamOptions extends GenerateOptions {
 }
 
 export class LLMClient {
+  private defaultModel: ModelAlias = "pro";
+
+  private resolveModel(alias?: ModelAlias): LanguageModel {
+    return config.models[alias ?? this.defaultModel];
+  }
+
+  private resolveFallbackModel(alias?: ModelAlias): LanguageModel {
+    return config.fallbackModels[alias ?? this.defaultModel];
+  }
+
   private createToolLoopAgent(
     model: LanguageModel,
     options: GenerateOptions,
@@ -60,158 +72,119 @@ export class LLMClient {
   async generate(
     options: GenerateOptions,
   ): Promise<GenerateTextResult<any, any>> {
-    let lastError: Error | null = null;
+    const alias = options.model ?? this.defaultModel;
 
-    const primary = options.model ?? config.primaryModel;
-    const commonOptions = {
-      system: options.system,
-      messages: options.messages,
-      temperature: options.temperature,
-      topP: options.topP,
-      maxOutputTokens: options.maxOutputTokens,
-    };
+    const tryGenerate = (
+      model: LanguageModel,
+    ): Promise<GenerateTextResult<any, any>> => {
 
-    // Try primary model first
-    try {
-      console.log(`[LLM] Using primary model: ${primary}`);
+      console.log(`[LLM] Using model: ${model}`);
       if (options.tools) {
-        const agent = this.createToolLoopAgent(primary, options);
-        return await agent.generate({ messages: options.messages });
+        const agent = this.createToolLoopAgent(model, options);
+        return agent.generate({ messages: options.messages });
       }
-      return await generateText({
-        model: primary,
-        ...commonOptions,
-      });
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(`Primary model (${primary}) failed:`, lastError.message);
+      return generateText({ model, ...options });
     }
 
-    // Try fallback model
     try {
-      console.log(`[LLM] Using fallback model: ${config.fallbackModel}`);
-      if (options.tools) {
-        const agent = this.createToolLoopAgent(config.fallbackModel, options);
-        return await agent.generate({ messages: options.messages });
+      return tryGenerate(this.resolveModel(alias));
+    } catch (primaryError) {
+      console.warn(`LLM model "${alias}" failed:`, (primaryError as Error).message);
+
+      // Only fallback from "pro" to "flash"; "flash" has no fallback
+      if (alias !== "pro") {
+        throw primaryError;
       }
-      return await generateText({
-        model: config.fallbackModel,
-        ...commonOptions,
-      });
-    } catch (error) {
-      throw new Error(
-        `LLM generation failed on both models: ${lastError?.message}, ${(error as Error).message}`,
-      );
+
+      try {
+        return tryGenerate(this.resolveFallbackModel(alias));
+      } catch (fallbackError) {
+        throw new Error(
+          `LLM generation failed on both models: ${(primaryError as Error).message}, ${(fallbackError as Error).message}`,
+        );
+      }
     }
   }
 
   async generateStructured<T extends z.ZodType>(
     options: GenerateObjectOptions<T>,
   ): Promise<z.infer<T>> {
-    let lastError: Error | null = null;
+    const alias = options.model ?? this.defaultModel;
 
-    const primary = options.model ?? config.primaryModel;
-    const commonOptions = {
-      schema: options.schema,
-      system: options.system,
-      messages: options.messages,
-      temperature: options.temperature ?? 0.7,
-      maxOutputTokens: options.maxOutputTokens,
+    const tryStructured = (model: LanguageModel): Promise<z.infer<T>> => {
+      console.log(`[LLM] Using model (structured): ${model}`);
+      return generateObject({ model, ...options }).then(r => r.object);
     };
 
-    // Try primary model first
     try {
-      console.log(`[LLM] Using primary model (structured): ${primary}`);
-      const { object } = await generateObject({
-        model: primary,
-        ...commonOptions,
-      });
-      return object;
-    } catch (error) {
-      lastError = error as Error;
+      return tryStructured(this.resolveModel(alias));
+    } catch (primaryError) {
       console.warn(
-        `Primary model structured (${primary}) failed:`,
-        lastError.message,
+        `LLM structured model "${alias}" failed:`,
+        (primaryError as Error).message,
       );
-    }
 
-    // Try fallback model
-    try {
-      console.log(
-        `[LLM] Using fallback model (structured): ${config.fallbackModel}`,
-      );
-      const { object } = await generateObject({
-        model: config.fallbackModel,
-        ...commonOptions,
-      });
-      return object;
-    } catch (error) {
-      throw new Error(
-        `LLM structured generation failed on both models: ${lastError?.message}, ${(error as Error).message}`,
-      );
+      if (alias !== "pro") {
+        throw primaryError;
+      }
+
+      try {
+        return tryStructured(this.resolveFallbackModel(alias));
+      } catch (fallbackError) {
+        throw new Error(
+          `LLM structured generation failed on both models: ${(primaryError as Error).message}, ${(fallbackError as Error).message}`,
+        );
+      }
     }
   }
 
   async stream(options: StreamOptions): Promise<StreamTextResult<any, any>> {
-    let lastError: Error | null = null;
+    const alias = options.model ?? this.defaultModel;
 
-    const primary = options.model ?? config.primaryModel;
-    const commonOptions = {
-      system: options.system,
-      messages: options.messages,
-      temperature: options.temperature ?? 0.7,
-      maxOutputTokens: options.maxOutputTokens,
+    const tryStream = (model: LanguageModel): Promise<StreamTextResult<any, any>> => {
+      console.log(`[LLM] Using model (stream): ${model}`);
+      if (options.tools) {
+        const agent = this.createToolLoopAgent(model, options);
+        return agent.stream({ messages: options.messages });
+      }
+      const streamOptions: Pick<
+        GenerateOptions,
+        "system" | "messages" | "temperature" | "topP" | "maxOutputTokens"
+      > = {
+        system: options.system,
+        messages: options.messages,
+        temperature: options.temperature,
+        topP: options.topP,
+        maxOutputTokens: options.maxOutputTokens,
+      };
+      const result = streamText({ model, ...streamOptions });
+
+      if (options.onChunk) {
+        this.consumeStream(result, options.onChunk);
+      }
+
+      return Promise.resolve(result);
     };
 
-    // Try primary model first
     try {
-      console.log(`[LLM] Using primary model (stream): ${primary}`);
-      if (options.tools) {
-        const agent = this.createToolLoopAgent(primary, options);
-        return await agent.stream({ messages: options.messages });
-      }
-      const result = streamText({
-        model: primary,
-        ...commonOptions,
-      });
-
-      // We need to iterate over the text stream if onChunk is provided
-      if (options.onChunk) {
-        this.consumeStream(result, options.onChunk);
-      }
-
-      return result;
-    } catch (error) {
-      lastError = error as Error;
+      return tryStream(this.resolveModel(alias));
+    } catch (primaryError) {
       console.warn(
-        `Primary model stream (${primary}) failed:`,
-        lastError.message,
+        `LLM stream model "${alias}" failed:`,
+        (primaryError as Error).message,
       );
-    }
 
-    // Try fallback model
-    try {
-      console.log(
-        `[LLM] Using fallback model (stream): ${config.fallbackModel}`,
-      );
-      if (options.tools) {
-        const agent = this.createToolLoopAgent(config.fallbackModel, options);
-        return await agent.stream({ messages: options.messages });
-      }
-      const result = streamText({
-        model: config.fallbackModel,
-        ...commonOptions,
-      });
-
-      if (options.onChunk) {
-        this.consumeStream(result, options.onChunk);
+      if (alias !== "pro") {
+        throw primaryError;
       }
 
-      return result;
-    } catch (error) {
-      throw new Error(
-        `LLM stream failed on both models: ${lastError?.message}, ${(error as Error).message}`,
-      );
+      try {
+        return tryStream(this.resolveFallbackModel(alias));
+      } catch (fallbackError) {
+        throw new Error(
+          `LLM stream failed on both models: ${(primaryError as Error).message}, ${(fallbackError as Error).message}`,
+        );
+      }
     }
   }
 
