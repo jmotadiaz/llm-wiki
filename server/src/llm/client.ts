@@ -87,7 +87,7 @@ export class LLMClient {
     }
 
     try {
-      return tryGenerate(this.resolveModel(alias));
+      return await tryGenerate(this.resolveModel(alias));
     } catch (primaryError) {
       console.warn(`LLM model "${alias}" failed:`, (primaryError as Error).message);
 
@@ -97,7 +97,7 @@ export class LLMClient {
       }
 
       try {
-        return tryGenerate(this.resolveFallbackModel(alias));
+        return await tryGenerate(this.resolveFallbackModel(alias));
       } catch (fallbackError) {
         throw new Error(
           `LLM generation failed on both models: ${(primaryError as Error).message}, ${(fallbackError as Error).message}`,
@@ -117,7 +117,7 @@ export class LLMClient {
     };
 
     try {
-      return tryStructured(this.resolveModel(alias));
+      return await tryStructured(this.resolveModel(alias));
     } catch (primaryError) {
       console.warn(
         `LLM structured model "${alias}" failed:`,
@@ -129,7 +129,7 @@ export class LLMClient {
       }
 
       try {
-        return tryStructured(this.resolveFallbackModel(alias));
+        return await tryStructured(this.resolveFallbackModel(alias));
       } catch (fallbackError) {
         throw new Error(
           `LLM structured generation failed on both models: ${(primaryError as Error).message}, ${(fallbackError as Error).message}`,
@@ -167,7 +167,7 @@ export class LLMClient {
     };
 
     try {
-      return tryStream(this.resolveModel(alias));
+      return await tryStream(this.resolveModel(alias));
     } catch (primaryError) {
       console.warn(
         `LLM stream model "${alias}" failed:`,
@@ -179,7 +179,7 @@ export class LLMClient {
       }
 
       try {
-        return tryStream(this.resolveFallbackModel(alias));
+        return await tryStream(this.resolveFallbackModel(alias));
       } catch (fallbackError) {
         throw new Error(
           `LLM stream failed on both models: ${(primaryError as Error).message}, ${(fallbackError as Error).message}`,
