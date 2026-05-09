@@ -83,7 +83,7 @@ export class LLMClient {
         const agent = this.createToolLoopAgent(model, options);
         return agent.generate({ messages: options.messages });
       }
-      return generateText({ model, ...options });
+      return generateText({ ...options, model });
     }
 
     try {
@@ -113,7 +113,7 @@ export class LLMClient {
 
     const tryStructured = (model: LanguageModel): Promise<z.infer<T>> => {
       console.log(`[LLM] Using model (structured): ${model}`);
-      return generateObject({ model, ...options }).then(r => r.object);
+      return generateObject({ ...options, model }).then(r => r.object);
     };
 
     try {
@@ -157,7 +157,7 @@ export class LLMClient {
         topP: options.topP,
         maxOutputTokens: options.maxOutputTokens,
       };
-      const result = streamText({ model, ...streamOptions });
+      const result = streamText({ ...streamOptions, model });
 
       if (options.onChunk) {
         this.consumeStream(result, options.onChunk);
