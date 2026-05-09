@@ -20,12 +20,20 @@ export interface ParallelAggregatorInput<TResult, TItem, TInput> {
 
 /**
  * Execute `worker` on every item found at `config.itemsKey` on the input,
- * batched by `maxParallel`, then pass all results plus the original input
- * to `aggregator`.
+ * with at most `maxParallel` executions in flight at any time, then pass
+ * all results plus the original input to `aggregator`.
  *
- * Uses `Promise.allSettled`: individual worker rejections are captured as
- * errors and do NOT abort the batch. The aggregator decides how to handle
- * partial failures.
+ * Concurrency model: a fixed pool of `min(maxParallel, items.length)`
+ * slots pulls items from a shared cursor. As soon as one slot finishes
+ * an item, it picks up the next one — no batch boundaries, no waiting
+ * for the slowest item of a batch before the next item starts.
+ *
+ * Individual worker rejections are captured as errors and do NOT abort
+ * the run. The aggregator decides how to handle partial failures.
+ *
+ * Result ordering: `results` and `errors` are emitted in the same order
+ * as the original `items` array (failures excluded from `results`,
+ * successes excluded from `errors`).
  *
  * @example
  *   parallel(writerNode, metaNode, { maxParallel: 3, itemsKey: "pages" })
@@ -46,25 +54,40 @@ export function parallel<
 ): WorkflowNode<TInput, TAggregated> {
   return node(async (input: TInput): Promise<TAggregated> => {
     const items: TItem[] = input[config.itemsKey];
-    const allResults: TResult[] = [];
-    const allErrors: { item: TItem; error: unknown }[] = [];
+    const outcomes: PromiseSettledResult<TResult>[] = new Array(items.length);
+    let nextIndex = 0;
 
-    for (let i = 0; i < items.length; i += config.maxParallel) {
-      const batch = items.slice(i, i + config.maxParallel);
-      const settled = await Promise.allSettled(
-        batch.map((item) => worker.execute(item)),
-      );
-
-      for (let j = 0; j < settled.length; j++) {
-        const s = settled[j];
-        if (s.status === "fulfilled") {
-          allResults.push(s.value);
-        } else {
-          allErrors.push({ item: batch[j], error: s.reason });
+    const runSlot = async (): Promise<void> => {
+      while (true) {
+        const i = nextIndex++;
+        if (i >= items.length) return;
+        try {
+          outcomes[i] = {
+            status: "fulfilled",
+            value: await worker.execute(items[i]),
+          };
+        } catch (error) {
+          outcomes[i] = { status: "rejected", reason: error };
         }
+      }
+    };
+
+    const slotCount = Math.min(config.maxParallel, items.length);
+    await Promise.all(
+      Array.from({ length: slotCount }, () => runSlot()),
+    );
+
+    const results: TResult[] = [];
+    const errors: { item: TItem; error: unknown }[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const o = outcomes[i];
+      if (o.status === "fulfilled") {
+        results.push(o.value);
+      } else {
+        errors.push({ item: items[i], error: o.reason });
       }
     }
 
-    return aggregator.execute({ results: allResults, errors: allErrors, items, input });
+    return aggregator.execute({ results, errors, items, input });
   });
 }
