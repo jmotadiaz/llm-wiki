@@ -102,6 +102,19 @@ const IngestPlanSchema = z.object({
 type PlanItem = z.infer<typeof PlanItemSchema>;
 type IngestPlan = z.infer<typeof IngestPlanSchema>;
 
+interface SiblingRef {
+  slug: string;
+  title: string;
+}
+
+interface EnrichedPlanItem extends PlanItem {
+  siblings: SiblingRef[];
+}
+
+interface EnrichedIngestPlan extends IngestPlan {
+  enrichedPages: EnrichedPlanItem[];
+}
+
 interface IngestInput {
   rawSourceId: number;
   rawContent: string;
@@ -236,6 +249,28 @@ function parsePlanJson(text: string): IngestPlan {
   }
 }
 
+function formatSiblings(siblings: SiblingRef[]): string {
+  if (siblings.length === 0) return "(none — this is the only page being written from this raw source)";
+  return siblings.map((s) => `- ${s.slug}: ${s.title}`).join("\n");
+}
+
+// ── Enrich Siblings Node ───────────────────────────────────────────────
+
+function createEnrichSiblingsNode(): WorkflowNode<
+  IngestPlan,
+  EnrichedIngestPlan
+> {
+  return node(async (plan: IngestPlan): Promise<EnrichedIngestPlan> => {
+    const enrichedPages: EnrichedPlanItem[] = plan.pages.map((page) => ({
+      ...page,
+      siblings: plan.pages
+        .filter((other) => other.slug !== page.slug)
+        .map((other) => ({ slug: other.slug, title: other.title })),
+    }));
+    return { ...plan, enrichedPages };
+  });
+}
+
 // ── Planner Node ───────────────────────────────────────────────────────
 
 function createPlannerNode(
@@ -303,17 +338,20 @@ function createWriterNode(
   rawContent: string,
   sharedVars: Record<string, string>,
   session: TraceSession,
-): WorkflowNode<PlanItem, PageResult> {
-  return node(async (item: PlanItem): Promise<PageResult> => {
+): WorkflowNode<EnrichedPlanItem, PageResult> {
+  return node(async (item: EnrichedPlanItem): Promise<PageResult> => {
     const debugEnabled = isDebugEnabled();
     const slug = item.slug;
     const stepLogger = createStepLogger(session, `writer-${slug}`);
+
+    const { siblings, ...planItemForPrompt } = item;
 
     const writerPrompt = interpolatePrompt(
       loadPromptTemplate("ingest-writer-single.md"),
       {
         ...sharedVars,
-        PLAN_ITEM: JSON.stringify(item, null, 2),
+        PLAN_ITEM: JSON.stringify(planItemForPrompt, null, 2),
+        SIBLING_SLUGS: formatSiblings(siblings),
         RAW_CONTENT: rawContent,
       },
     );
@@ -385,7 +423,7 @@ function createMetaNode(
   rawSourceId: number,
   session: TraceSession,
 ): WorkflowNode<
-  ParallelAggregatorInput<PageResult, PlanItem, IngestPlan>,
+  ParallelAggregatorInput<PageResult, EnrichedPlanItem, EnrichedIngestPlan>,
   IngestResult
 > {
   const stepLogger = createStepLogger(session, "aggregator");
@@ -535,10 +573,13 @@ export async function ingestRawSource(
   // ── Compose the workflow ──────────────────────────────────────────
   const workflow = chain(
     createPlannerNode(db, sharedVars, session),
-    parallel(
-      createWriterNode(db, rawSourceId, rawContent, sharedVars, session),
-      createMetaNode(db, rawSourceId, session),
-      { maxParallel: 3, itemsKey: "pages" },
+    chain(
+      createEnrichSiblingsNode(),
+      parallel(
+        createWriterNode(db, rawSourceId, rawContent, sharedVars, session),
+        createMetaNode(db, rawSourceId, session),
+        { maxParallel: 3, itemsKey: "enrichedPages" },
+      ),
     ),
   );
 

@@ -8,7 +8,7 @@ A set of pages was written by individual writer agents. Each writer handled exac
 
 ## Your Task
 
-1. **Inline mentions**: For each entry in `inlineMentions`, ensure the `targetPage`'s content references the `mention` concept as a `[mention](/wiki/slug)` link or as prose. Read the target page with `get_wiki_page` first, then edit if needed.
+1. **Inline mentions**: For each entry in `inlineMentions`, ensure the `targetPage`'s content references the `mention` concept as a `[mention](/wiki/slug)` link or as prose. Read the target page with `get_wiki_page` first, then edit if needed. Every `targetPage` here is a page that already existed before this ingest — pages newly written in this ingest already cross-link siblings during their initial write, so they never appear as `targetPage`.
 
 2. **Inbound link updates**: For each entry in `inboundLinkUpdates`, read the `targetSlug` page, then call `edit_wiki_page` with a targeted `edits` entry inserting a `[concept](/wiki/{addLinkTo})` link at the most natural prose location. Preserve all existing content and citations. Skip any target that was already written by the writers (check the `pagesWritten` list).
 

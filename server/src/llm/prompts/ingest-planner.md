@@ -122,7 +122,7 @@ Your final message must be a JSON object with exactly these fields:
 2. Assign tags following the Wiki Schema tag rules (exactly one `d:`, at least one `t:`, only whitelisted `a:`).
 3. Every `keyClaims` entry must be directly supported by the raw source. Never invent or extrapolate.
 4. For `update` actions, note what changes. You must have called `get_wiki_page` on that slug before choosing `update` over `new`.
-5. If a newly planned page should be linked from other planned pages, note this in the inline-only mentions section.
+5. The `inlineMentions` section is **exclusively** for cross-references that target pages already present in the Existing Wiki Index. Do NOT add entries whose `targetPage` is a slug being created in this same plan (`action: "new"`) or being rewritten via `update` — cross-links between pages of this ingest are handled directly by the writers, which receive the sibling slugs alongside their own plan item.
 6. The `inboundLinkUpdates` section is for edits to **existing** wiki pages whose only purpose is to add a `[text](/wiki/slug)` link to a newly planned concept.
 7. Use only valid section-heading fragments from the raw source for citation anchors.
 8. Your final message must be valid JSON only. Any investigation happens via tool calls in earlier steps.

@@ -33,6 +33,7 @@ Before calling any write tool:
 - Translate every claim from Step 1 into prose, with an inline citation immediately after each claim.
 - Merge closely related claims into coherent paragraphs — do not list them as bullet points unless the source itself presents them as a list.
 - A section with only one sentence is almost always incomplete. Return to the raw source for more detail.
+- **Cross-link siblings**: whenever your prose mentions a concept whose slug appears in the **Sibling Pages In This Ingest** section below, you MUST link it as `[display text](/wiki/sibling-slug)`. These slugs are valid link targets even though they are not yet in the wiki index. Failing to link a sibling concept that appears in your prose is a defect.
 
 **Minimum viable page**: an introductory paragraph + at least two H2 sections with substantive prose. A page shorter than ~200 words for a substantive concept is a failure.
 
@@ -63,6 +64,12 @@ The raw source you are processing has ID `{RAW_ID}`.
 ## Wiki Schema
 
 {L1_SCHEMA}
+
+## Sibling Pages In This Ingest
+
+The following pages are being written in parallel from the same raw source. They are not yet present in the wiki index, but their slugs are valid `/wiki/{slug}` link targets. When your prose mentions any of these concepts, link them with `[display text](/wiki/slug)` exactly as you would for an existing wiki page.
+
+{SIBLING_SLUGS}
 
 ## Plan Item (the page to write)
 
