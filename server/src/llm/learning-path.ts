@@ -93,7 +93,11 @@ function listExistingArtifacts(db: Database.Database): string {
     .map((p) => {
       const summary = p.summary ? ` — ${p.summary}` : "";
       const generated = p.generated_at ? ` | generated_at: ${p.generated_at}` : "";
-      return `- \`${p.slug}\`: ${p.title}${summary}${generated}`;
+      const outgoing = queries.getOutgoingLinks(p.id);
+      const links = outgoing.length > 0
+        ? `\n  pages: ${outgoing.join(", ")}`
+        : "";
+      return `- \`${p.slug}\`: ${p.title}${summary}${generated}${links}`;
     })
     .join("\n");
 }
