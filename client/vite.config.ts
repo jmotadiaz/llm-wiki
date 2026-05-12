@@ -8,43 +8,37 @@ import react from '@vitejs/plugin-react';
 //
 // ⚠️ Trade-off: más requests HTTP, sin tree-shaking ni code-splitting
 //    de estos paquetes. Solo recomendado si el tiempo de build es crítico.
+//
+// React, react-dom y react-router-dom NO están aquí: se bundlean localmente
+// (ruta crítica sin dependencia de CDN). Sus URLs se inyectan en el import
+// map dinámicamente desde los chunks generados, de modo que los módulos CDN
+// que declaran ?external=react,react-dom resuelven la misma instancia local.
 
 interface ExternalEntry {
-  name: string;       // bare specifier, ej. "react"
-  url: string;        // CDN URL, ej. "https://esm.sh/react@18.2.0?target=es2020"
-  preload?: boolean;  // inyectar <link rel="modulepreload"> para ruta crítica
+  name: string;  // bare specifier, ej. "streamdown"
+  url: string;   // CDN URL con ?bundle/?external adecuados
 }
 
 const EXTERNALS: ExternalEntry[] = [
-  // ── React core ──
-  // ?target=es2020 alinea el transpile de esm.sh con el target del build de Vite,
-  // evitando código duplicado y garantizando compatibilidad con los módulos locales.
-  { name: 'react',             url: 'https://esm.sh/react@18.2.0?target=es2020',                                              preload: true  },
-  { name: 'react/jsx-runtime', url: 'https://esm.sh/react@18.2.0/jsx-runtime?target=es2020',                                  preload: true  },
-  { name: 'react-dom',         url: 'https://esm.sh/react-dom@18.2.0?bundle&external=react&target=es2020' },
-  { name: 'react-dom/client',  url: 'https://esm.sh/react-dom@18.2.0/client?external=react,react-dom&target=es2020',          preload: true  },
-
-  // ── Router ──
-  { name: 'react-router-dom',  url: 'https://esm.sh/react-router-dom@6.20.1?bundle&external=react&target=es2020',             preload: true  },
-
   // ── Vercel AI SDK ──
   // @ai-sdk/react necesita `ai` en ?external para que el browser resuelva ambos
   // desde el import map y no se creen dos instancias del SDK en memoria.
-  { name: 'ai',                url: 'https://esm.sh/ai@6?bundle&external=react&target=es2020' },
-  { name: '@ai-sdk/react',     url: 'https://esm.sh/@ai-sdk/react@3?bundle&external=react,react-dom,ai&target=es2020' },
+  { name: 'ai',                   url: 'https://esm.sh/ai@6?bundle&external=react&target=es2020' },
+  { name: '@ai-sdk/react',        url: 'https://esm.sh/@ai-sdk/react@3?bundle&external=react,react-dom,ai&target=es2020' },
 
   // ── Markdown / Streamdown ──
-  // shiki sin ?bundle: lazy-load de lenguajes desde esm.sh en demanda.
+  // shiki sin ?bundle: lazy-load de lenguajes bajo demanda.
   // @streamdown/code con ?external=shiki: evita imports con hash 404.
   // streamdown con ?external=remark-gfm: remark-gfm ya está en el import map;
-  //   si esm.sh lo bundleara dentro de streamdown habría dos instancias del plugin.
-  { name: 'shiki',             url: 'https://esm.sh/shiki@3.19.0?target=es2020' },
+  //   bundlearlo dentro crearía dos instancias del plugin.
+  { name: 'shiki',                url: 'https://esm.sh/shiki@3.19.0?target=es2020' },
   { name: 'shiki/engine/javascript', url: 'https://esm.sh/shiki@3.19.0/engine/javascript?target=es2020' },
-  { name: '@streamdown/code',  url: 'https://esm.sh/@streamdown/code@1.1.1?external=shiki&target=es2020' },
-  { name: 'streamdown',        url: 'https://esm.sh/streamdown@2.5.0?bundle&external=react,react-dom,remark-gfm&target=es2020' },
-  { name: 'remark-gfm',        url: 'https://esm.sh/remark-gfm@4.0.0?bundle&target=es2020' },
+  { name: '@streamdown/code',     url: 'https://esm.sh/@streamdown/code@1.1.1?external=shiki&target=es2020' },
+  { name: 'streamdown',           url: 'https://esm.sh/streamdown@2.5.0?bundle&external=react,react-dom,remark-gfm&target=es2020' },
+  { name: 'remark-gfm',           url: 'https://esm.sh/remark-gfm@4.0.0?bundle&target=es2020' },
 
   // ── Graph ──
+  // Solo se usa en /graph; el ?bundle agrupa ~80 sub-módulos d3 en uno solo.
   { name: 'react-force-graph-2d', url: 'https://esm.sh/react-force-graph-2d@1.25.4?bundle&external=react,react-dom&target=es2020' },
 
   // ── Utils ──
@@ -52,28 +46,49 @@ const EXTERNALS: ExternalEntry[] = [
   //    de React que rompen el Router context (useNavigate falla).
   //    Se mantiene en el bundle local.
   // { name: 'nuqs',               url: 'https://esm.sh/nuqs@2.8.9?bundle&external=react' },
-  // { name: 'nuqs/adapters/react-router/v6', url: 'https://esm.sh/nuqs@2.8.9/adapters/react-router/v6?external=react' },
+  // { name: 'nuqs/adapters/react-router/v6', url: '...' },
 ];
+
+// Especificadores que los módulos CDN declaran como ?external y que el
+// bundle local provee. El nombre del chunk (valor) se usa para localizar
+// el archivo generado en transformIndexHtml e inyectar su URL local.
+const LOCAL_REACT_SPECIFIERS: Record<string, string> = {
+  'react':                 'vendor-react',
+  'react/jsx-runtime':     'vendor-react-jsx',
+  'react/jsx-dev-runtime': 'vendor-react-jsx',
+  'react-dom':             'vendor-react-dom',
+  'react-dom/client':      'vendor-react-dom-client',
+};
 
 function externalizePlugin(): Plugin {
   return {
     name: 'externalize-importmap',
     enforce: 'pre',
 
-    config(config, { command }) {
-      // Solo externalizar en build, no en dev (Vite pre-bundlea con esbuild)
+    config(_config, { command }) {
       if (command !== 'build') return;
-
-      const external = EXTERNALS.map(e => e.name);
 
       return {
         build: {
           rollupOptions: {
-            ...config.build?.rollupOptions,
-            external: [
-              ...(config.build?.rollupOptions?.external || []),
-              ...external,
-            ],
+            external: EXTERNALS.map(e => e.name),
+            output: {
+              // React y react-dom se dividen en chunks nombrados para poder
+              // referenciarlos en el import map con su URL local definitiva.
+              // Así los módulos CDN con ?external=react,react-dom obtienen
+              // la misma instancia que el bundle de la aplicación.
+              manualChunks(id: string) {
+                if (!id.includes('/node_modules/')) return;
+                const pkg = id.split('/node_modules/')[1].split('/')[0];
+
+                if (pkg === 'react') {
+                  return id.includes('jsx') ? 'vendor-react-jsx' : 'vendor-react';
+                }
+                if (pkg === 'react-dom') {
+                  return id.includes('client') ? 'vendor-react-dom-client' : 'vendor-react-dom';
+                }
+              },
+            },
           },
         },
       };
@@ -82,35 +97,34 @@ function externalizePlugin(): Plugin {
     transformIndexHtml: {
       order: 'post' as const,
       handler(html, { bundle }) {
-        // bundle solo está presente en build, no en dev
         if (!bundle) return html;
 
-        const imports: Record<string, string> = Object.fromEntries(
+        // Construir entradas locales del import map a partir de los chunks
+        // generados por Rolldown para react y react-dom.
+        const localImports: Record<string, string> = {};
+        for (const [fileName, chunk] of Object.entries(bundle)) {
+          if (chunk.type !== 'chunk') continue;
+          for (const [specifier, chunkName] of Object.entries(LOCAL_REACT_SPECIFIERS)) {
+            if (chunk.name === chunkName && !(specifier in localImports)) {
+              localImports[specifier] = `/${fileName}`;
+            }
+          }
+        }
+
+        const cdnImports: Record<string, string> = Object.fromEntries(
           EXTERNALS.map(e => [e.name, e.url])
         );
         // Prefix mapping para sub-paths de shiki (e.g. shiki/themes/nord).
-        // No puede llevar ?target porque la URL actúa como prefijo y el path
-        // se concatena directamente tras ella.
-        imports['shiki/'] = 'https://esm.sh/shiki@3.19.0/';
+        // No puede llevar ?target porque la URL actúa como prefijo.
+        cdnImports['shiki/'] = 'https://esm.sh/shiki@3.19.0/';
 
-        const importMap = { imports };
+        const importMap = { imports: { ...localImports, ...cdnImports } };
 
         // Preconnect: reduce el RTT del primer request a esm.sh
         const preconnect = `<link rel="preconnect" href="https://esm.sh" crossorigin>`;
-
-        // Modulepreload: el browser descarga y parsea los módulos críticos
-        // antes de que el bundle principal los importe, eliminando la latencia
-        // de resolución en cascada (react → jsx-runtime → react-dom/client → router).
-        const modulepreloads = EXTERNALS
-          .filter(e => e.preload)
-          .map(e => `<link rel="modulepreload" href="${e.url}" crossorigin>`)
-          .join('\n  ');
-
         const importMapScript = `<script type="importmap">\n${JSON.stringify(importMap, null, 2)}\n</script>`;
 
-        const injection = [preconnect, modulepreloads, importMapScript].join('\n  ');
-
-        return html.replace('</head>', `  ${injection}\n</head>`);
+        return html.replace('</head>', `  ${preconnect}\n  ${importMapScript}\n</head>`);
       },
     },
   };
@@ -122,8 +136,8 @@ export default defineConfig({
     react(),
   ],
   build: {
-    target: "ES2020",
-    outDir: "dist",
+    target: 'ES2020',
+    outDir: 'dist',
     sourcemap: true,
   },
   server: {
