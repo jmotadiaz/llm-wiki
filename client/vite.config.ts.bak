@@ -17,6 +17,7 @@ interface ExternalEntry {
 
 const EXTERNALS: ExternalEntry[] = [
   // ── React core ──
+  // ?external=react evita que react-dom empaquete su propia copia de React.
   { name: 'react',              url: 'https://esm.sh/react@18.2.0' },
   { name: 'react-dom',          url: 'https://esm.sh/react-dom@18.2.0?bundle&external=react' },
   { name: 'react/jsx-runtime',  url: 'https://esm.sh/react@18.2.0/jsx-runtime' },
@@ -25,28 +26,15 @@ const EXTERNALS: ExternalEntry[] = [
   // ── Router ──
   { name: 'react-router-dom',   url: 'https://esm.sh/react-router-dom@6.20.1?bundle&external=react' },
 
-  // ── Vercel AI SDK ──
+  // ── Vercel AI SDK (funciona desde ai@6.0.177; ai@6.0.0 daba 500) ──
+  // ⚠️ external=react,react-dom evita instancia duplicada de React
+  // ⚠️ ~31 sub-requests de opentelemetry + polyfills (node:buffer, zod, etc.)
   { name: 'ai',                 url: 'https://esm.sh/ai@6?bundle&external=react' },
   { name: '@ai-sdk/react',      url: 'https://esm.sh/@ai-sdk/react@3?bundle&external=react,react-dom' },
 
-  // ── Markdown / Streamdown ──
-  // shiki se carga sin ?bundle para que lazy-load lenguajes desde esm.sh.
-  // @streamdown/code usa ?external=shiki para evitar imports con hash 404.
-  { name: 'shiki',              url: 'https://esm.sh/shiki@3.19.0' },
-  { name: 'shiki/engine/javascript', url: 'https://esm.sh/shiki@3.19.0/engine/javascript' },
-  { name: '@streamdown/code',   url: 'https://esm.sh/@streamdown/code@1.1.1?external=shiki' },
-  { name: 'streamdown',         url: 'https://esm.sh/streamdown@2.5.0?bundle&external=react,react-dom' },
-  { name: 'remark-gfm',         url: 'https://esm.sh/remark-gfm@4.0.0?bundle' },
-
-  // ── Graph ──
-  { name: 'react-force-graph-2d', url: 'https://esm.sh/react-force-graph-2d@1.25.4?bundle&external=react,react-dom' },
-
-  // ── Utils ──
-  // ❌ NO externalizar: esm.sh genera bundles con instancias duplicadas
-  //    de React que rompen el Router context (useNavigate falla).
-  //    Se mantiene en el bundle local.
-  // { name: 'nuqs',               url: 'https://esm.sh/nuqs@2.8.9?bundle&external=react' },
-  // { name: 'nuqs/adapters/react-router/v6', url: 'https://esm.sh/nuqs@2.8.9/adapters/react-router/v6?external=react' },
+  // ── NO funcionan en esm.sh (se mantienen en el bundle) ──
+  // @streamdown/code → 404 en @shikijs/engine-javascript (bug de esm.sh, no versionable)
+  // react-force-graph-2d → genera 300+ sub-requests (lodash/d3 desglosados)
 ];
 
 function externalizePlugin(): Plugin {
@@ -79,13 +67,11 @@ function externalizePlugin(): Plugin {
         // bundle solo está presente en build, no en dev
         if (!bundle) return html;
 
-        const imports: Record<string, string> = Object.fromEntries(
-          EXTERNALS.map(e => [e.name, e.url])
-        );
-        // Prefix mapping correcto para shiki (subpaths sin query string)
-        imports['shiki/'] = 'https://esm.sh/shiki@3.19.0/';
-
-        const importMap = { imports };
+        const importMap = {
+          imports: Object.fromEntries(
+            EXTERNALS.map(e => [e.name, e.url])
+          ),
+        };
 
         const scriptTag = `<script type="importmap">\n${JSON.stringify(importMap, null, 2)}\n</script>`;
 

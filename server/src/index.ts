@@ -92,10 +92,41 @@ app.use("/api", (req: Request, res: Response) => {
 
 // Serve client build
 const clientDistPath = path.join(__dirname, "../../client/dist");
-app.use(express.static(clientDistPath));
+
+// Cache policy for static assets:
+// - Hashed assets (/assets/*): immutable, cached 1 year
+// - index.html: never cached (references hashed asset names)
+// - Other files: 1 day
+app.use(express.static(clientDistPath, {
+  setHeaders(res: Response, filePath: string) {
+    const relativePath = path.relative(clientDistPath, filePath);
+    const ext = path.extname(filePath).toLowerCase();
+
+    // Vite output: hashed filenames in assets/ are content-addressed → immutable
+    if (relativePath.startsWith("assets" + path.sep)) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      return;
+    }
+
+    // index.html must never be cached (references latest hashed assets)
+    if (path.basename(filePath) === "index.html") {
+      res.setHeader("Cache-Control", "no-cache");
+      return;
+    }
+
+    // Other HTML files: no cache
+    if (ext === ".html") {
+      res.setHeader("Cache-Control", "no-cache");
+    } else {
+      // Generic static files: 1 day
+      res.setHeader("Cache-Control", "public, max-age=86400");
+    }
+  },
+}));
 
 // SPA fallback - route all unmatched requests to index.html
 app.get("{*splat}", (req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-cache");
   res.sendFile(path.join(clientDistPath, "index.html"));
 });
 
