@@ -10,36 +10,42 @@ import react from '@vitejs/plugin-react';
 //    de estos paquetes. Solo recomendado si el tiempo de build es crítico.
 
 interface ExternalEntry {
-  name: string;                // bare specifier, ej. "react"
-  url: string;                 // CDN URL, ej. "https://esm.sh/react@18.2.0?bundle"
-  reason?: string;             // por qué externalizarlo
+  name: string;       // bare specifier, ej. "react"
+  url: string;        // CDN URL, ej. "https://esm.sh/react@18.2.0?target=es2020"
+  preload?: boolean;  // inyectar <link rel="modulepreload"> para ruta crítica
 }
 
 const EXTERNALS: ExternalEntry[] = [
   // ── React core ──
-  { name: 'react',              url: 'https://esm.sh/react@18.2.0' },
-  { name: 'react-dom',          url: 'https://esm.sh/react-dom@18.2.0?bundle&external=react' },
-  { name: 'react/jsx-runtime',  url: 'https://esm.sh/react@18.2.0/jsx-runtime' },
-  { name: 'react-dom/client',   url: 'https://esm.sh/react-dom@18.2.0/client?external=react,react-dom' },
+  // ?target=es2020 alinea el transpile de esm.sh con el target del build de Vite,
+  // evitando código duplicado y garantizando compatibilidad con los módulos locales.
+  { name: 'react',             url: 'https://esm.sh/react@18.2.0?target=es2020',                                              preload: true  },
+  { name: 'react/jsx-runtime', url: 'https://esm.sh/react@18.2.0/jsx-runtime?target=es2020',                                  preload: true  },
+  { name: 'react-dom',         url: 'https://esm.sh/react-dom@18.2.0?bundle&external=react&target=es2020' },
+  { name: 'react-dom/client',  url: 'https://esm.sh/react-dom@18.2.0/client?external=react,react-dom&target=es2020',          preload: true  },
 
   // ── Router ──
-  { name: 'react-router-dom',   url: 'https://esm.sh/react-router-dom@6.20.1?bundle&external=react' },
+  { name: 'react-router-dom',  url: 'https://esm.sh/react-router-dom@6.20.1?bundle&external=react&target=es2020',             preload: true  },
 
   // ── Vercel AI SDK ──
-  { name: 'ai',                 url: 'https://esm.sh/ai@6?bundle&external=react' },
-  { name: '@ai-sdk/react',      url: 'https://esm.sh/@ai-sdk/react@3?bundle&external=react,react-dom' },
+  // @ai-sdk/react necesita `ai` en ?external para que el browser resuelva ambos
+  // desde el import map y no se creen dos instancias del SDK en memoria.
+  { name: 'ai',                url: 'https://esm.sh/ai@6?bundle&external=react&target=es2020' },
+  { name: '@ai-sdk/react',     url: 'https://esm.sh/@ai-sdk/react@3?bundle&external=react,react-dom,ai&target=es2020' },
 
   // ── Markdown / Streamdown ──
-  // shiki se carga sin ?bundle para que lazy-load lenguajes desde esm.sh.
-  // @streamdown/code usa ?external=shiki para evitar imports con hash 404.
-  { name: 'shiki',              url: 'https://esm.sh/shiki@3.19.0' },
-  { name: 'shiki/engine/javascript', url: 'https://esm.sh/shiki@3.19.0/engine/javascript' },
-  { name: '@streamdown/code',   url: 'https://esm.sh/@streamdown/code@1.1.1?external=shiki' },
-  { name: 'streamdown',         url: 'https://esm.sh/streamdown@2.5.0?bundle&external=react,react-dom' },
-  { name: 'remark-gfm',         url: 'https://esm.sh/remark-gfm@4.0.0?bundle' },
+  // shiki sin ?bundle: lazy-load de lenguajes desde esm.sh en demanda.
+  // @streamdown/code con ?external=shiki: evita imports con hash 404.
+  // streamdown con ?external=remark-gfm: remark-gfm ya está en el import map;
+  //   si esm.sh lo bundleara dentro de streamdown habría dos instancias del plugin.
+  { name: 'shiki',             url: 'https://esm.sh/shiki@3.19.0?target=es2020' },
+  { name: 'shiki/engine/javascript', url: 'https://esm.sh/shiki@3.19.0/engine/javascript?target=es2020' },
+  { name: '@streamdown/code',  url: 'https://esm.sh/@streamdown/code@1.1.1?external=shiki&target=es2020' },
+  { name: 'streamdown',        url: 'https://esm.sh/streamdown@2.5.0?bundle&external=react,react-dom,remark-gfm&target=es2020' },
+  { name: 'remark-gfm',        url: 'https://esm.sh/remark-gfm@4.0.0?bundle&target=es2020' },
 
   // ── Graph ──
-  { name: 'react-force-graph-2d', url: 'https://esm.sh/react-force-graph-2d@1.25.4?bundle&external=react,react-dom' },
+  { name: 'react-force-graph-2d', url: 'https://esm.sh/react-force-graph-2d@1.25.4?bundle&external=react,react-dom&target=es2020' },
 
   // ── Utils ──
   // ❌ NO externalizar: esm.sh genera bundles con instancias duplicadas
@@ -82,15 +88,29 @@ function externalizePlugin(): Plugin {
         const imports: Record<string, string> = Object.fromEntries(
           EXTERNALS.map(e => [e.name, e.url])
         );
-        // Prefix mapping correcto para shiki (subpaths sin query string)
+        // Prefix mapping para sub-paths de shiki (e.g. shiki/themes/nord).
+        // No puede llevar ?target porque la URL actúa como prefijo y el path
+        // se concatena directamente tras ella.
         imports['shiki/'] = 'https://esm.sh/shiki@3.19.0/';
 
         const importMap = { imports };
 
-        const scriptTag = `<script type="importmap">\n${JSON.stringify(importMap, null, 2)}\n</script>`;
+        // Preconnect: reduce el RTT del primer request a esm.sh
+        const preconnect = `<link rel="preconnect" href="https://esm.sh" crossorigin>`;
 
-        // Insertar antes del primer <script> o al final de </head>
-        return html.replace('</head>', `  ${scriptTag}\n</head>`);
+        // Modulepreload: el browser descarga y parsea los módulos críticos
+        // antes de que el bundle principal los importe, eliminando la latencia
+        // de resolución en cascada (react → jsx-runtime → react-dom/client → router).
+        const modulepreloads = EXTERNALS
+          .filter(e => e.preload)
+          .map(e => `<link rel="modulepreload" href="${e.url}" crossorigin>`)
+          .join('\n  ');
+
+        const importMapScript = `<script type="importmap">\n${JSON.stringify(importMap, null, 2)}\n</script>`;
+
+        const injection = [preconnect, modulepreloads, importMapScript].join('\n  ');
+
+        return html.replace('</head>', `  ${injection}\n</head>`);
       },
     },
   };
