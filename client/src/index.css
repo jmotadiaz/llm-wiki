@@ -154,23 +154,38 @@ html:not(.dark) {
   .sb-link.indent-2 { padding-left: 2.25rem; }
 }
 
-/* Streamdown code blocks */
+/* Strip streamdown's chrome — code blocks and tables sit flush in prose,
+ * no outer card frame, no toolbar buttons (copy / download / fullscreen). */
+.prose [data-streamdown],
+.prose-doc [data-streamdown] {
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+.prose [data-streamdown] button,
+.prose-doc [data-streamdown] button {
+  display: none !important;
+}
+
 [data-streamdown="code-block-body"] {
   border: none;
   background-color: transparent;
   padding: 0;
 }
 .prose [data-streamdown="code-block-body"] pre,
+.prose-doc [data-streamdown="code-block-body"] pre,
 [data-streamdown="code-block-body"] pre {
   background-color: var(--sdm-bg, var(--bg-1));
   color: var(--sdm-fg, inherit);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 14px 16px;
   margin: 16px 0;
-  border: 1px solid var(--line);
+  border: 0;
   overflow-x: auto;
 }
 html.dark .prose [data-streamdown="code-block-body"] pre,
+html.dark .prose-doc [data-streamdown="code-block-body"] pre,
 html.dark [data-streamdown="code-block-body"] pre {
   background-color: var(--shiki-dark-bg, var(--sdm-bg, var(--bg-1)));
 }
@@ -180,3 +195,29 @@ html.dark [data-streamdown="code-block-body"] pre {
 html.dark [data-streamdown="code-block-body"] pre span {
   color: var(--shiki-dark, var(--sdm-c, inherit));
 }
+
+/* Tables in prose: no outer card, only thin row separators */
+.prose-doc table,
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14px;
+}
+.prose-doc thead th,
+.prose table thead th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--fg);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.prose-doc tbody td,
+.prose table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg-1);
+  vertical-align: top;
+}
+.prose-doc tbody tr:last-child td,
+.prose table tbody tr:last-child td { border-bottom: 0; }
