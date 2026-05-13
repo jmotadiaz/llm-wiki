@@ -154,23 +154,54 @@ html:not(.dark) {
   .sb-link.indent-2 { padding-left: 2.25rem; }
 }
 
-/* Strip streamdown's chrome — code blocks and tables sit flush in prose,
- * no outer card frame, no toolbar buttons (copy / download / fullscreen). */
-.prose [data-streamdown],
-.prose-doc [data-streamdown] {
-  border: 0 !important;
-  background: transparent !important;
-  padding: 0 !important;
-  box-shadow: none !important;
-}
-.prose [data-streamdown] button,
-.prose-doc [data-streamdown] button {
-  display: none !important;
-}
+/* Strip streamdown's outer chrome around code blocks and tables —
+ * the prose body already has its own rhythm, the extra card is heavy.
+ * Code blocks keep their copy button; tables have no toolbar at all
+ * (disabled via the `controls` prop on <Streamdown>). */
 
-[data-streamdown="code-block-body"] {
-  border: none;
-  background-color: transparent;
+/* ---- Code blocks ---- */
+.prose [data-streamdown="code-block"],
+.prose-doc [data-streamdown="code-block"] {
+  margin: 16px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  gap: 0;
+  position: relative;
+}
+.prose [data-streamdown="code-block-header"],
+.prose-doc [data-streamdown="code-block-header"] {
+  display: none;
+}
+.prose [data-streamdown="code-block-actions"],
+.prose-doc [data-streamdown="code-block-actions"] {
+  background: transparent;
+  border: 0;
+  padding: 2px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+.prose [data-streamdown="code-block-copy-button"],
+.prose-doc [data-streamdown="code-block-copy-button"] {
+  background: transparent;
+  border: 0;
+  color: var(--fg-3);
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+.prose [data-streamdown="code-block-copy-button"]:hover,
+.prose-doc [data-streamdown="code-block-copy-button"]:hover {
+  color: var(--fg);
+  background: var(--bg-2);
+}
+.prose [data-streamdown="code-block-body"],
+.prose-doc [data-streamdown="code-block-body"] {
+  border: 0;
+  background: transparent;
   padding: 0;
 }
 .prose [data-streamdown="code-block-body"] pre,
@@ -180,7 +211,7 @@ html:not(.dark) {
   color: var(--sdm-fg, inherit);
   border-radius: 6px;
   padding: 14px 16px;
-  margin: 16px 0;
+  margin: 0;
   border: 0;
   overflow-x: auto;
 }
@@ -189,35 +220,61 @@ html.dark .prose-doc [data-streamdown="code-block-body"] pre,
 html.dark [data-streamdown="code-block-body"] pre {
   background-color: var(--shiki-dark-bg, var(--sdm-bg, var(--bg-1)));
 }
-[data-streamdown="code-block-body"] pre span {
-  color: var(--sdm-c, inherit);
-}
+[data-streamdown="code-block-body"] pre span { color: var(--sdm-c, inherit); }
 html.dark [data-streamdown="code-block-body"] pre span {
   color: var(--shiki-dark, var(--sdm-c, inherit));
 }
 
-/* Tables in prose: no outer card, only thin row separators */
-.prose-doc table,
-.prose table {
+/* ---- Tables ---- */
+.prose [data-streamdown="table-wrapper"],
+.prose-doc [data-streamdown="table-wrapper"] {
+  margin: 16px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  gap: 0;
+  display: block;
+}
+/* The inner wrapper div around the <table> (added by streamdown with its own
+ * border + bg). It has no data-streamdown attribute, so target by structure. */
+.prose [data-streamdown="table-wrapper"] > div,
+.prose-doc [data-streamdown="table-wrapper"] > div {
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  overflow-x: auto;
+}
+.prose [data-streamdown="table"],
+.prose-doc [data-streamdown="table"] {
   width: 100%;
   border-collapse: collapse;
-  margin: 16px 0;
   font-size: 14px;
+  background: transparent;
 }
-.prose-doc thead th,
-.prose table thead th {
+.prose [data-streamdown="table-header"],
+.prose-doc [data-streamdown="table-header"] {
+  background: transparent;
+}
+.prose [data-streamdown="table-header-cell"],
+.prose-doc [data-streamdown="table-header-cell"] {
   text-align: left;
   font-weight: 600;
   color: var(--fg);
   padding: 10px 12px;
+  border: 0;
   border-bottom: 1px solid var(--line);
+  white-space: normal;
 }
-.prose-doc tbody td,
-.prose table tbody td {
+.prose [data-streamdown="table-cell"],
+.prose-doc [data-streamdown="table-cell"] {
   padding: 10px 12px;
+  border: 0;
   border-bottom: 1px solid var(--line);
   color: var(--fg-1);
   vertical-align: top;
 }
-.prose-doc tbody tr:last-child td,
-.prose table tbody tr:last-child td { border-bottom: 0; }
+.prose [data-streamdown="table-body"] > [data-streamdown="table-row"]:last-child [data-streamdown="table-cell"],
+.prose-doc [data-streamdown="table-body"] > [data-streamdown="table-row"]:last-child [data-streamdown="table-cell"] {
+  border-bottom: 0;
+}

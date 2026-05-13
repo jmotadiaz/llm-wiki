@@ -35,6 +35,10 @@ const Markdown = memo(function Markdown({
       <Streamdown
         plugins={{ code }}
         remarkPlugins={remarkPlugins as any}
+        controls={{
+          table: false,
+          code: { copy: true, download: false },
+        }}
         components={{
           a: ({ node, ...props }: any) => {
             const { href = "", target, rel, ...rest } = props;
