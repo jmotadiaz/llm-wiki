@@ -55,7 +55,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="max-w-[760px] mx-auto flex flex-col h-[calc(100vh-7rem)] md:h-[calc(100vh-11.5rem)] overflow-hidden">
+    <div className="max-w-[760px] mx-auto flex flex-col h-[calc(100dvh-10.5rem)] md:h-[calc(100dvh-11.5rem)] overflow-hidden">
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <div className="h-full grid place-content-center text-center gap-3">
