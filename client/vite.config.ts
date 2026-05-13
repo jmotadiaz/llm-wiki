@@ -121,10 +121,34 @@ export default defineConfig({
     externalizePlugin(),
     react(),
   ],
+  // Persistent cache for pre-bundled deps + plugin transforms. Survives
+  // between `npm run build` invocations so unchanged modules are not
+  // re-parsed.
+  cacheDir: 'node_modules/.vite',
   build: {
     target: "ES2020",
     outDir: "dist",
+    // Don't wipe the output dir before each build — Rolldown writes files
+    // with content-hashed names, so unchanged sources produce the same
+    // filename and rsync / CDNs skip them. A full reset is available via
+    // `npm run build:fresh`.
+    emptyOutDir: false,
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        // Stable manual chunking: vendor code lives in its own chunk
+        // whose hash only changes when its inputs change. App-only edits
+        // therefore re-emit just the app chunk, not the vendor chunk.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('react-force-graph') || id.includes('/d3-')) return 'graph';
+          if (id.includes('shiki') || id.includes('@streamdown') || id.includes('/streamdown/')) return 'markdown';
+          if (id.includes('/ai/') || id.includes('@ai-sdk/')) return 'ai';
+          if (id.includes('react-router') || id.includes('/nuqs/')) return 'router';
+          return 'vendor';
+        },
+      },
+    },
   },
   server: {
     proxy: {

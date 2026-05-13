@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "clean": "rm -rf dist",
-    "build": "npm run clean && tsc && vite build",
+    "clean": "rm -rf dist node_modules/.cache/tsc node_modules/.vite",
+    "build": "tsc && vite build",
+    "build:fresh": "npm run clean && npm run build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },
