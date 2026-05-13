@@ -215,25 +215,19 @@ function Entry({ page }: { page: WikiPageEntry }) {
   return (
     <Link
       to={`/wiki/${page.slug}`}
-      className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-4 py-6 -mx-4 px-4 border-b border-line cursor-pointer transition-colors hover:bg-bg-1 text-inherit"
+      className="block py-6 -mx-4 px-4 border-b border-line cursor-pointer transition-colors hover:bg-bg-1 text-inherit"
     >
-      <div>
-        <div className="flex items-baseline gap-2.5 flex-wrap">
-          <h3 className="m-0 text-[17px] font-bold leading-tight tracking-tight text-fg">{page.title}</h3>
-          <span className="tag tag-kind">{page.type}</span>
-        </div>
-        {page.summary && (
-          <p className="text-fg-1 text-sm leading-[1.55] mt-1.5 mb-2.5 max-w-[76ch]">{page.summary}</p>
-        )}
-        <div className="flex flex-wrap gap-y-[9px] gap-x-1.5">
-          {tags.map((t, i) => (
-            <span key={t.raw} className={tagClassFor(toneForTag(t.role, i))}>{t.label}</span>
-          ))}
-        </div>
+      <div className="flex items-baseline gap-2.5 flex-wrap">
+        <h3 className="m-0 text-[17px] font-bold leading-tight tracking-tight text-fg">{page.title}</h3>
+        <span className="tag tag-kind">{page.type}</span>
       </div>
-      <div className="font-mono text-[11.5px] text-fg-3 whitespace-nowrap pt-1 self-start">
-        <div>slug</div>
-        <div className="text-fg-1 mt-0.5">{page.slug}</div>
+      {page.summary && (
+        <p className="text-fg-1 text-sm leading-[1.55] mt-1.5 mb-2.5 max-w-[76ch]">{page.summary}</p>
+      )}
+      <div className="flex flex-wrap gap-y-[9px] gap-x-1.5">
+        {tags.map((t, i) => (
+          <span key={t.raw} className={tagClassFor(toneForTag(t.role, i))}>{t.label}</span>
+        ))}
       </div>
     </Link>
   );
