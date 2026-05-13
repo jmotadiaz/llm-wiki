@@ -141,10 +141,12 @@ export default defineConfig({
         // therefore re-emit just the app chunk, not the vendor chunk.
         manualChunks(id) {
           if (!id.includes('node_modules')) return;
-          if (id.includes('react-force-graph') || id.includes('/d3-')) return 'graph';
+          // react-force-graph only — d3 packages stay in vendor to avoid
+          // circular chunk: vendor -> graph -> vendor (d3 ↔ internmap/delaunator).
+          if (id.includes('react-force-graph')) return 'graph';
           if (id.includes('shiki') || id.includes('@streamdown') || id.includes('/streamdown/')) return 'markdown';
           if (id.includes('/ai/') || id.includes('@ai-sdk/')) return 'ai';
-          if (id.includes('react-router') || id.includes('/nuqs/')) return 'router';
+
           return 'vendor';
         },
       },

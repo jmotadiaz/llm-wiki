@@ -215,9 +215,9 @@ function Entry({ page }: { page: WikiPageEntry }) {
       to={`/wiki/${page.slug}`}
       className="block py-6 -mx-4 px-4 border-b border-line cursor-pointer transition-colors hover:bg-bg-1 text-inherit"
     >
-      <h3 className="m-0 text-[17px] font-bold leading-tight tracking-tight text-fg">
+      <h3 className="m-0 text-[17px] font-bold leading-tight tracking-tight text-fg flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0">
         {page.title}
-        <span className="tag tag-kind ml-2 align-middle relative -top-px">{page.type}</span>
+        <span className="tag tag-kind sm:ml-2 sm:align-middle relative -top-px">{page.type}</span>
       </h3>
       {page.summary && (
         <p className="text-fg-1 text-sm leading-[1.55] mt-1.5 mb-2.5 max-w-[76ch]">{page.summary}</p>
