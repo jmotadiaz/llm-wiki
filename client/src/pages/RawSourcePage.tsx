@@ -19,26 +19,11 @@ export default function RawSourcePage() {
   const [source, setSource] = useState<RawSource | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const userInteractedRef = useRef(false);
-
-  useEffect(() => {
-    const handleInteraction = () => { if (!userInteractedRef.current) userInteractedRef.current = true; };
-    window.addEventListener("wheel", handleInteraction, { passive: true, capture: true });
-    window.addEventListener("touchmove", handleInteraction, { passive: true, capture: true });
-    window.addEventListener("mousedown", handleInteraction, { capture: true });
-    window.addEventListener("keydown", handleInteraction, { capture: true });
-    return () => {
-      window.removeEventListener("wheel", handleInteraction, { capture: true });
-      window.removeEventListener("touchmove", handleInteraction, { capture: true });
-      window.removeEventListener("mousedown", handleInteraction, { capture: true });
-      window.removeEventListener("keydown", handleInteraction, { capture: true });
-    };
-  }, []);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!id) return;
+    setLoading(true);
     fetch(`/api/raw/${id}`)
       .then(r => r.json() as Promise<{ source: RawSource; error?: string }>)
       .then(data => {
@@ -49,22 +34,64 @@ export default function RawSourcePage() {
       .catch(err => { setError(err.message); setLoading(false); });
   }, [id]);
 
-  useEffect(() => { userInteractedRef.current = false; }, [location.hash, id]);
-
+  // Scroll to hash fragment when content is ready. Re-snap on layout shifts
+  // (markdown streaming, shiki highlight, etc.) only until the user interacts.
   useEffect(() => {
-    if (!source || !location.hash || !containerRef.current) return;
+    if (!source || !location.hash) return;
+
     const fragment = decodeURIComponent(location.hash.slice(1));
-    const scrollToFragment = () => {
-      if (userInteractedRef.current) return;
-      const element = document.getElementById(fragment);
-      if (element) element.scrollIntoView({ block: "start" });
+    if (!fragment) return;
+
+    let userMoved = false;
+    let lastTop: number | null = null;
+    let cancelled = false;
+
+    const markInteracted = () => { userMoved = true; };
+    const onKey = (e: KeyboardEvent) => {
+      if (["PageDown", "PageUp", "ArrowDown", "ArrowUp", "Home", "End", " "].includes(e.key)) {
+        userMoved = true;
+      }
     };
-    const resizeObserver = new ResizeObserver(scrollToFragment);
-    const mutationObserver = new MutationObserver(scrollToFragment);
-    resizeObserver.observe(containerRef.current);
-    mutationObserver.observe(containerRef.current, { childList: true, subtree: true });
-    const frameId = requestAnimationFrame(scrollToFragment);
-    return () => { resizeObserver.disconnect(); mutationObserver.disconnect(); cancelAnimationFrame(frameId); };
+    window.addEventListener("wheel", markInteracted, { passive: true });
+    window.addEventListener("touchmove", markInteracted, { passive: true });
+    window.addEventListener("mousedown", markInteracted);
+    window.addEventListener("keydown", onKey);
+
+    const snap = () => {
+      if (cancelled || userMoved) return;
+      const el = document.getElementById(fragment);
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      if (lastTop !== null && Math.abs(top - lastTop) < 1) return; // already aligned
+      lastTop = top;
+      el.scrollIntoView({ block: "start" });
+    };
+
+    // Try repeatedly during the streaming/render window
+    const initial = requestAnimationFrame(snap);
+    const timers = [50, 150, 400, 900, 1800].map(ms => window.setTimeout(snap, ms));
+
+    // Observe DOM changes inside the rendered content (rebound target position
+    // when blocks render in or images load)
+    const observer = new MutationObserver(() => snap());
+    if (contentRef.current) {
+      observer.observe(contentRef.current, { childList: true, subtree: true, characterData: true });
+    }
+
+    // Hard stop after the streaming window — keeps things predictable
+    const stop = window.setTimeout(() => observer.disconnect(), 4000);
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(initial);
+      timers.forEach(clearTimeout);
+      clearTimeout(stop);
+      observer.disconnect();
+      window.removeEventListener("wheel", markInteracted);
+      window.removeEventListener("touchmove", markInteracted);
+      window.removeEventListener("mousedown", markInteracted);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [source, location.hash]);
 
   if (loading) return <p className="text-fg-3">Cargando…</p>;
@@ -93,10 +120,8 @@ export default function RawSourcePage() {
         )}
       </div>
 
-      <div ref={containerRef} className="card p-5 md:p-6 mt-6">
-        <div className="prose-doc max-w-none">
-          <Markdown content={source.content} />
-        </div>
+      <div ref={contentRef} className="prose-doc max-w-none mt-8">
+        <Markdown content={source.content} />
       </div>
     </div>
   );
