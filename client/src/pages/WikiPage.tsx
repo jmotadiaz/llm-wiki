@@ -155,12 +155,10 @@ export default function WikiPage() {
     <div>
       <div className="eyebrow mb-3">Knowledge Base</div>
       <h1 className="text-3xl md:text-[38px] font-extrabold leading-tight tracking-tight">
-        {domainFilter || "Wiki Index"}
+        Wiki Index
       </h1>
       <p className="text-fg-2 text-[15px] mt-2 max-w-[60ch]">
-        {domainFilter
-          ? <>Páginas del dominio <strong className="text-fg-1">{domainFilter}</strong>. {totalShown} de {pages.length}.</>
-          : <>Una base de conocimiento curada — {pages.length} páginas en {domainTags.length} dominios.</>}
+        Una base de conocimiento curada — {pages.length} páginas en {domainTags.length} dominios.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_240px] gap-2.5 mt-4 mb-2">
