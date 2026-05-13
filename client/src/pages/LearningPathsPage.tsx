@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { displayTag } from "../utils/tagUtils";
 import Icon from "../components/Icon";
 
 interface IndexPageEntry {
@@ -119,34 +118,21 @@ export default function LearningPathsPage() {
 }
 
 function LpCard({ page }: { page: IndexPageEntry }) {
-  const tags = page.tags.map(t => displayTag(t));
   return (
     <Link
       to={`/wiki/${page.slug}`}
       className="lp-card block p-5 md:p-6 border border-line bg-bg-1 rounded-[10px] relative overflow-hidden transition-colors hover:border-accent-line text-inherit"
     >
-      <div className="flex items-baseline gap-3 flex-wrap mb-1.5">
-        <h3 className="m-0 text-[17px] font-bold leading-tight tracking-tight text-fg">{page.title}</h3>
-        <span className="tag tag-kind">LEARNING PATH</span>
-      </div>
+      <h3 className="m-0 text-[17px] font-bold leading-tight tracking-tight text-fg mb-1.5">{page.title}</h3>
       {page.summary && (
         <p className="text-fg-1 text-sm leading-[1.55] m-0 mb-3 max-w-[76ch]">{page.summary}</p>
       )}
-      <div className="flex items-center gap-3 flex-wrap">
-        {page.generated_at && (
-          <span className="font-mono text-[11px] text-fg-3 inline-flex items-center gap-1.5">
-            <Icon name="sparkle" size={12} />
-            Generado {new Date(page.generated_at).toLocaleDateString()}
-          </span>
-        )}
-        <div className="flex-1" />
-        <div className="flex flex-wrap gap-y-[9px] gap-x-1.5">
-          {tags.map((t, i) => {
-            const tone = i === 0 ? "tag-accent" : i === 1 ? "tag-green" : "tag-cyan";
-            return <span key={t.raw} className={`tag ${tone}`}>{t.label}</span>;
-          })}
-        </div>
-      </div>
+      {page.generated_at && (
+        <span className="font-mono text-[11px] text-fg-3 inline-flex items-center gap-1.5">
+          <Icon name="sparkle" size={12} />
+          Generado {new Date(page.generated_at).toLocaleDateString()}
+        </span>
+      )}
     </Link>
   );
 }

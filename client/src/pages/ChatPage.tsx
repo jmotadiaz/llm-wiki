@@ -7,13 +7,6 @@ import { clearSession, generateSessionKey, getLatestSessionKey, loadSession, sav
 
 const transport = new DefaultChatTransport({ api: "/api/chat" });
 
-const SUGGESTIONS = [
-  { q: "¿Qué páginas hay sobre AI Agents?", ctx: "AI Agents · Resumen" },
-  { q: "Diferencias entre los conceptos principales de la wiki", ctx: "Comparativa" },
-  { q: "Páginas más actualizadas recientemente", ctx: "Inventario" },
-  { q: "Sugiere un learning path por donde empezar", ctx: "Learning Path" },
-];
-
 export default function ChatPage() {
   const [input, setInput] = useState("");
   const [sessionKey, setSessionKey] = useState<string | null>(null);
@@ -62,31 +55,21 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="max-w-[760px] mx-auto flex flex-col min-h-[calc(100vh-theme(spacing.topbar)-32px)]">
-      {messages.length === 0 ? (
-        <div className="flex-1 grid place-content-center text-center gap-6 py-12">
-          <div>
+    <div className="max-w-[760px] mx-auto flex flex-col h-[calc(100vh-7rem)] md:h-[calc(100vh-11.5rem)] overflow-hidden">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        {messages.length === 0 ? (
+          <div className="h-full grid place-content-center text-center gap-3">
             <div className="w-14 h-14 rounded-2xl bg-bg-1 border border-line-strong grid place-items-center mx-auto text-accent font-mono font-extrabold text-2xl">W</div>
-            <div className="eyebrow mt-4">Chat with Wiki</div>
-            <h1 className="text-3xl md:text-[32px] font-extrabold leading-tight tracking-tight mt-1">
+            <div className="eyebrow mt-1">Chat with Wiki</div>
+            <h1 className="text-2xl md:text-[28px] font-extrabold leading-tight tracking-tight">
               ¿Sobre qué quieres preguntar?
             </h1>
-            <p className="text-fg-2 max-w-[46ch] mx-auto mt-3 text-sm">
+            <p className="text-fg-2 max-w-[46ch] mx-auto text-sm">
               Respuestas fundamentadas en tu base de conocimiento. Cada respuesta incluye citas a las fuentes originales.
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-[580px] mx-auto w-full">
-            {SUGGESTIONS.map((s, i) => (
-              <button key={i} className="suggestion p-3.5 border border-line rounded-[10px] bg-bg-1 text-left transition-colors hover:border-accent-line" onClick={() => send(s.q)}>
-                <div className="font-semibold text-fg text-sm">{s.q}</div>
-                <div className="font-mono text-[11px] text-fg-3 mt-1.5 uppercase tracking-wider">{s.ctx}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div ref={scrollRef} className="flex-1 overflow-y-auto pt-4">
-          <div className="flex flex-col gap-7">
+        ) : (
+          <div className="flex flex-col gap-7 py-4">
             {messages.map(m => (
               <div key={m.id} className="flex gap-3.5">
                 <div className={"w-[30px] h-[30px] rounded-lg flex-shrink-0 grid place-items-center font-mono font-bold text-[11px] " + (m.role === "user" ? "bg-bg-2 text-fg-1" : "bg-bg-2 text-accent border border-line-strong")}>
@@ -109,10 +92,10 @@ export default function ChatPage() {
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      <form onSubmit={handleSubmit} className="chat-input-bar sticky bottom-4 mt-4 bg-bg-1 border border-line-strong rounded-[14px] p-3 flex flex-col gap-2.5 shadow-2xl">
+      <form onSubmit={handleSubmit} className="mt-3 bg-bg-1 border border-line-strong rounded-[14px] p-3 flex flex-col gap-2.5 shadow-2xl flex-shrink-0">
         <textarea
           rows={1}
           placeholder="Pregunta sobre tu wiki…"
@@ -127,25 +110,22 @@ export default function ChatPage() {
           className="bg-transparent border-0 outline-none text-fg font-sans text-[15px] resize-none min-h-[28px] p-1 w-full placeholder:text-fg-3"
           disabled={isLoading}
         />
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex gap-1.5">
-            <button type="button" className="icon-btn" title="Adjuntar" disabled>
-              <Icon name="paperclip" size={15} />
-            </button>
-          </div>
-          <div className="ml-auto flex gap-1.5 items-center">
-            <span className="font-mono text-[11px] text-fg-3 hidden sm:inline">
-              ⏎ enviar · ⇧⏎ nueva línea
-            </span>
-            {messages.length > 0 && (
-              <button type="button" onClick={handleClear} className="btn btn-outline text-xs py-1.5 px-3" disabled={isLoading}>
-                Nueva sesión
-              </button>
-            )}
-            <button type="submit" disabled={isLoading || !input.trim()} className="btn btn-primary text-xs py-1.5 px-3">
-              <Icon name="send" size={14} /> Enviar
-            </button>
-          </div>
+        <div className="flex items-center gap-2 justify-end">
+          <button
+            type="button"
+            onClick={handleClear}
+            className="btn btn-outline text-xs py-1.5 px-3"
+            disabled={isLoading || messages.length === 0}
+          >
+            Clear
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            className="btn btn-primary text-xs py-1.5 px-3"
+          >
+            <Icon name="send" size={14} /> Enviar
+          </button>
         </div>
       </form>
     </div>

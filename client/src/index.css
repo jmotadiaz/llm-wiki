@@ -78,26 +78,28 @@ html:not(.dark) {
   }
 
   .btn {
-    @apply inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13.5px] font-semibold border border-transparent bg-bg-1 text-fg transition-colors;
+    @apply inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13.5px] font-semibold border border-transparent bg-bg-1 text-fg transition-[filter,border-color,background-color] duration-150;
   }
-  .btn:hover { @apply bg-bg-2; }
-  .btn:disabled { @apply opacity-50 cursor-not-allowed; }
+  .btn:hover { filter: brightness(0.94); }
+  html.dark .btn:hover { filter: brightness(1.18); }
+  .btn:disabled { @apply opacity-50 cursor-not-allowed; filter: none; }
   .btn-primary {
     background: var(--accent);
     color: #fff;
   }
   html.dark .btn-primary { color: #14081a; }
-  .btn-primary:hover { filter: brightness(1.06); }
+  .btn-primary:hover { filter: brightness(0.92); }
+  html.dark .btn-primary:hover { filter: brightness(1.1); }
   .btn-outline {
     @apply bg-transparent text-fg-1;
     border-color: var(--line-strong);
   }
-  .btn-outline:hover { @apply text-fg bg-transparent; border-color: var(--fg-3); }
+  .btn-outline:hover { @apply text-fg bg-transparent; border-color: var(--fg-3); filter: none; }
   .btn-danger {
     @apply bg-transparent text-red;
     border-color: var(--red-soft);
   }
-  .btn-danger:hover { background: var(--red-soft); }
+  .btn-danger:hover { background: var(--red-soft); filter: none; }
 
   .input {
     @apply w-full bg-bg-1 border border-line text-fg px-3.5 py-2.5 rounded-md text-sm transition-colors;
@@ -135,19 +137,21 @@ html:not(.dark) {
   .icon-btn {
     @apply w-[34px] h-[34px] rounded-lg bg-transparent border border-line text-fg-1 grid place-items-center transition-colors;
   }
-  .icon-btn:hover { @apply bg-bg-1 text-fg; }
+  .icon-btn:hover { @apply bg-bg-2 text-fg; }
   .icon-btn-bare {
     @apply w-[34px] h-[34px] rounded-lg bg-transparent border-0 text-fg-1 grid place-items-center transition-colors;
   }
-  .icon-btn-bare:hover { @apply bg-bg-1 text-fg; }
+  .icon-btn-bare:hover { @apply bg-bg-2 text-fg; }
 
-  /* Sidebar links */
+  /* Sidebar / TOC links — shared style */
   .sb-link {
-    @apply flex items-center gap-2 px-2.5 py-1.5 text-[13.5px] text-fg-1 rounded-md transition-colors w-full text-left bg-transparent border-0 cursor-pointer font-sans leading-tight;
+    @apply flex items-center gap-2 px-2.5 py-1.5 text-[13.5px] text-fg-1 rounded-md transition-colors w-full text-left bg-transparent border-0 cursor-pointer font-sans leading-tight no-underline;
   }
-  .sb-link:hover { @apply bg-bg-1 text-fg; }
+  .sb-link:hover { @apply bg-bg-2 text-fg; }
   .sb-link.active { @apply text-accent bg-accent-soft font-semibold; }
   .sb-link .count { @apply ml-auto font-mono text-[11px] text-fg-3; }
+  .sb-link.indent-1 { padding-left: 1.5rem; }
+  .sb-link.indent-2 { padding-left: 2.25rem; }
 }
 
 /* Streamdown code blocks */

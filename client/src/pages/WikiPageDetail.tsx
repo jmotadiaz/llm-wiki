@@ -109,22 +109,23 @@ export default function WikiPageDetail() {
 
   const tocNode = (
     <div>
-      <div className="mono-label px-2.5 mb-2.5">En esta página</div>
+      <div className="mono-label px-2.5 mb-2">En esta página</div>
       {toc.length === 0 ? (
         <div className="px-2.5 text-fg-3 text-xs">Sin encabezados</div>
       ) : (
-        <ul className="toc-list list-none p-0 m-0 border-l border-line">
+        <nav className="flex flex-col gap-px">
           {toc.map((t, i) => (
-            <li key={`${t.id}-${i}`} className={t.level === 3 ? 'h3' : t.level === 4 ? 'h4' : ''}>
-              <a
-                href={`#${t.id}`}
-                className={t.id === activeId ? 'active' : ''}
-              >
-                {t.text}
-              </a>
-            </li>
+            <a
+              key={`${t.id}-${i}`}
+              href={`#${t.id}`}
+              className={"sb-link"
+                + (t.level === 3 ? " indent-1" : t.level === 4 ? " indent-2" : "")
+                + (t.id === activeId ? " active" : "")}
+            >
+              <span className="truncate">{t.text}</span>
+            </a>
           ))}
-        </ul>
+        </nav>
       )}
     </div>
   );
