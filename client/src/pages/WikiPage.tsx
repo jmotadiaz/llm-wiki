@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useQueryState } from "nuqs";
-import { displayTag, getTagColorClass } from "../utils/tagUtils";
+import { displayTag } from "../utils/tagUtils";
+import { useSidebarExtras } from "../components/SidebarContext";
+import Icon from "../components/Icon";
 
 interface WikiPageEntry {
   slug: string;
@@ -12,383 +14,300 @@ interface WikiPageEntry {
   status: string;
 }
 
-interface IndexPageEntry extends WikiPageEntry {
-  generated_at: string | null;
-  updated_at: string | null;
+const TAG_TONES = ["accent", "green", "cyan", "violet", "red"] as const;
+type Tone = typeof TAG_TONES[number];
+
+function toneForTag(role: string, idx: number): Tone {
+  if (role === "discipline") return "accent";
+  if (role === "topic") return "green";
+  if (role === "axis") return "violet";
+  return TAG_TONES[idx % TAG_TONES.length];
 }
 
-type TabId = "pages" | "learning-paths";
+function tagClassFor(tone: Tone): string {
+  switch (tone) {
+    case "accent": return "tag tag-accent";
+    case "green": return "tag tag-green";
+    case "cyan": return "tag tag-cyan";
+    case "violet": return "tag tag-violet";
+    case "red": return "tag tag-red";
+  }
+}
 
 export default function WikiPage() {
-  const [tab, setTab] = useQueryState("tab", { defaultValue: "pages" });
-  const activeTab: TabId = tab === "learning-paths" ? tab : "pages";
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">Wiki Index</h2>
-
-      <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-gray-800">
-        <TabButton id="pages" active={activeTab === "pages"} onClick={() => setTab("pages")}>
-          Páginas
-        </TabButton>
-        <TabButton id="learning-paths" active={activeTab === "learning-paths"} onClick={() => setTab("learning-paths")}>
-          Learning Paths
-        </TabButton>
-      </div>
-
-      {activeTab === "pages" && <PagesTab />}
-      {activeTab === "learning-paths" && <LearningPathsTab />}
-    </div>
-  );
-}
-
-function TabButton({
-  id,
-  active,
-  onClick,
-  children,
-}: {
-  id: string;
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-selected={active}
-      data-tab={id}
-      onClick={onClick}
-      className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-        active
-          ? "border-blue-600 text-blue-700 dark:text-blue-400 dark:border-blue-400"
-          : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function PagesTab() {
   const [pages, setPages] = useState<WikiPageEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [domainFilter, setDomainFilter] = useQueryState("domain", { defaultValue: "" });
   const [topicFilterStr, setTopicFilterStr] = useQueryState("topics", { defaultValue: "" });
-  
-  const topicFilter = topicFilterStr ? topicFilterStr.split(',') : [];
+
+  const topicFilter = useMemo(() => (topicFilterStr ? topicFilterStr.split(",") : []), [topicFilterStr]);
 
   useEffect(() => {
     fetch("/api/wiki")
-      .then((r) => r.json() as Promise<{ pages: WikiPageEntry[] }>)
-      .then((data) => {
+      .then(r => r.json() as Promise<{ pages: WikiPageEntry[] }>)
+      .then(data => {
         setPages(data.pages || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
 
-  const allTags = [...new Set(pages.flatMap((p) => p.tags))];
-  const domainTags = allTags.filter(t => t.startsWith('d:')).map(t => displayTag(t));
-  
-  // Available topics depend on the selected domain. If no domain is selected, show all topics.
-  const pagesInDomain = domainFilter ? pages.filter(p => p.tags.includes(`d:${domainFilter}`)) : pages;
-  const availableTopics = [...new Set(pagesInDomain.flatMap((p) => p.tags))]
-    .filter(t => t.startsWith('t:'))
-    .map(t => displayTag(t))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  const allTags = useMemo(() => [...new Set(pages.flatMap(p => p.tags))], [pages]);
+  const domainTags = useMemo(
+    () => allTags.filter(t => t.startsWith("d:")).map(t => displayTag(t)),
+    [allTags]
+  );
 
-  const filtered = pages.filter((p) => {
+  // Available topics depend on the currently selected domain
+  const pagesInDomain = domainFilter ? pages.filter(p => p.tags.includes(`d:${domainFilter}`)) : pages;
+  const availableTopics = useMemo(() => (
+    [...new Set(pagesInDomain.flatMap(p => p.tags))]
+      .filter(t => t.startsWith("t:"))
+      .map(t => displayTag(t).label)
+      .sort((a, b) => a.localeCompare(b))
+  ), [pagesInDomain]);
+
+  // Counts per domain (over current search; ignores selected domain so all counts visible)
+  const countsByDomain = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of pages) {
+      const matchSearch =
+        !search || p.title.toLowerCase().includes(search.toLowerCase()) || p.slug.includes(search.toLowerCase());
+      const matchTopics =
+        topicFilter.length === 0 || topicFilter.every(t => p.tags.includes(`t:${t}`));
+      if (!matchSearch || !matchTopics) continue;
+      const d = p.tags.find(t => t.startsWith("d:"));
+      const label = d ? displayTag(d).label : "Untagged";
+      m.set(label, (m.get(label) ?? 0) + 1);
+    }
+    return m;
+  }, [pages, search, topicFilter]);
+
+  const totalShown = useMemo(
+    () => [...countsByDomain.values()].reduce((a, b) => a + b, 0),
+    [countsByDomain]
+  );
+
+  const filtered = pages.filter(p => {
     const matchSearch =
-      !search ||
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      p.slug.includes(search.toLowerCase());
-    
+      !search || p.title.toLowerCase().includes(search.toLowerCase()) || p.slug.includes(search.toLowerCase());
     const matchDomain = !domainFilter || p.tags.includes(`d:${domainFilter}`);
-    
-    // If topics are selected, the page must have ALL selected topics
     const matchTopics = topicFilter.length === 0 || topicFilter.every(t => p.tags.includes(`t:${t}`));
-    
     return matchSearch && matchDomain && matchTopics;
   });
 
-  // Group by discipline
-  const grouped: Record<string, WikiPageEntry[]> = {};
-  for (const p of filtered) {
-    const dTag = p.tags.find(t => t.startsWith('d:'));
-    const group = dTag ? displayTag(dTag).label : "untagged";
-    (grouped[group] ??= []).push(p);
-  }
+  // Group filtered by domain
+  const grouped = useMemo(() => {
+    const map = new Map<string, WikiPageEntry[]>();
+    for (const p of filtered) {
+      const d = p.tags.find(t => t.startsWith("d:"));
+      const key = d ? displayTag(d).label : "Untagged";
+      const arr = map.get(key) ?? [];
+      arr.push(p);
+      map.set(key, arr);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [filtered]);
 
-  function handleTopicClick(e: React.MouseEvent, topicLabel: string) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const newTopics = topicFilter.includes(topicLabel)
-      ? topicFilter.filter(t => t !== topicLabel)
-      : [...topicFilter, topicLabel];
-      
-    setTopicFilterStr(newTopics.length > 0 ? newTopics.join(',') : null);
-  }
+  // Sidebar extras — domain filter
+  const sidebarFilter = (
+    <div>
+      <div className="mono-label px-2.5 mb-2">Filtrar por dominio</div>
+      <div className="flex flex-col gap-px">
+        <button
+          type="button"
+          className={"sb-link" + (!domainFilter ? " active" : "")}
+          onClick={() => { setDomainFilter(null); setTopicFilterStr(null); }}
+        >
+          <span>Todos los dominios</span>
+          <span className="count">{pages.length}</span>
+        </button>
+        {domainTags.map(dt => {
+          const active = domainFilter === dt.label;
+          const c = countsByDomain.get(dt.label) ?? 0;
+          return (
+            <button
+              key={dt.raw}
+              type="button"
+              className={"sb-link" + (active ? " active" : "")}
+              onClick={() => {
+                setDomainFilter(active ? null : dt.label);
+                setTopicFilterStr(null);
+              }}
+            >
+              <span>{dt.label}</span>
+              <span className="count">{c}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
-  if (loading) return <p className="text-gray-500">Loading...</p>;
+  useSidebarExtras(sidebarFilter, [pages, domainFilter, countsByDomain, topicFilterStr]);
+
+  if (loading) {
+    return <p className="text-fg-3">Cargando…</p>;
+  }
 
   return (
     <div>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        {pages.length} pages
+      <div className="eyebrow mb-3">Knowledge Base</div>
+      <h1 className="text-3xl md:text-[38px] font-extrabold leading-tight tracking-tight">
+        {domainFilter || "Wiki Index"}
+      </h1>
+      <p className="text-fg-2 text-[15px] mt-2 max-w-[60ch]">
+        {domainFilter
+          ? <>Páginas del dominio <strong className="text-fg-1">{domainFilter}</strong>. {totalShown} de {pages.length}.</>
+          : <>Una base de conocimiento curada — {pages.length} páginas en {domainTags.length} dominios.</>}
       </p>
 
-      <div className="flex flex-col md:flex-row gap-3 mb-4">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search pages..."
-          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-        />
-        <select
-          value={domainFilter}
-          onChange={(e) => {
-            setDomainFilter(e.target.value || null);
-            setTopicFilterStr(null); // Reset topics when domain changes
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_240px] gap-2.5 mt-4 mb-2">
+        <div className="relative">
+          <Icon name="search" size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-3 pointer-events-none" />
+          <input
+            type="text"
+            className="input pl-9"
+            placeholder="Buscar por título, slug…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <TopicsDropdown
+          topics={availableTopics}
+          active={topicFilter}
+          onToggle={(t) => {
+            const next = topicFilter.includes(t) ? topicFilter.filter(x => x !== t) : [...topicFilter, t];
+            setTopicFilterStr(next.length ? next.join(",") : null);
           }}
-          className="md:w-auto px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-        >
-          <option value="">Todos los dominios</option>
-          {domainTags.map((dt) => (
-            <option key={dt.raw} value={dt.label}>
-              {dt.label}
-            </option>
-          ))}
-        </select>
+          onClear={() => setTopicFilterStr(null)}
+        />
       </div>
 
-      {availableTopics.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-6 p-3 bg-gray-50 dark:bg-gray-800/50 rounded border border-gray-100 dark:border-gray-800">
-          <span className="text-xs text-gray-500 dark:text-gray-400 mr-2 flex items-center">Filtrar por temas:</span>
-          {availableTopics.map(t => {
-            const isActive = topicFilter.includes(t.label);
-            return (
-              <button
-                key={t.raw}
-                onClick={() => {
-                  const newTopics = isActive 
-                    ? topicFilter.filter(tf => tf !== t.label)
-                    : [...topicFilter, t.label];
-                  setTopicFilterStr(newTopics.length > 0 ? newTopics.join(',') : null);
-                }}
-                className={`text-xs px-2 py-1 rounded transition-colors ${
-                  isActive 
-                    ? getTagColorClass('topic') 
-                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-              >
-                {t.label}
-              </button>
-            );
-          })}
+      {grouped.length === 0 ? (
+        <div className="py-16 text-center">
+          <div className="mono-label">sin resultados</div>
+          <div className="mt-2 text-fg-2">Prueba a quitar filtros o cambiar la búsqueda.</div>
         </div>
-      )}
-
-      {filtered.length === 0 ? (
-        <p className="text-gray-500 dark:text-gray-400 text-sm">
-          No pages found.
-        </p>
       ) : (
-        Object.entries(grouped)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([group, items]) => (
-            <div key={group} className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                {group}
-              </h3>
-              <div className="space-y-1">
-                {items.map((p) => (
-                  <Link
-                    key={p.slug}
-                    to={`/wiki/${p.slug}`}
-                    className="block p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm">{p.title}</span>
-                      <span className="text-gray-400 text-[10px] uppercase tracking-wider">
-                        {p.type}
-                      </span>
-                    </div>
-                    {p.summary && (
-                      <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-3 mb-2 leading-relaxed">
-                        {p.summary}
-                      </p>
-                    )}
-                    <div className="flex gap-1 flex-wrap">
-                      {p.tags.map((rawTag) => {
-                        const t = displayTag(rawTag);
-                        // Make topics clickable to add to filter
-                        if (t.role === 'topic') {
-                           const isFiltered = topicFilter.includes(t.label);
-                           return (
-                             <button
-                               key={t.raw}
-                               onClick={(e) => handleTopicClick(e, t.label)}
-                               className={`ml-1 text-xs px-1.5 py-0.5 rounded cursor-pointer transition-colors ${isFiltered ? 'ring-1 ring-offset-1 ring-green-400 ' : ''} ${getTagColorClass(t.role)}`}
-                             >
-                               {t.label}
-                             </button>
-                           );
-                        }
-                        return (
-                          <span
-                            key={t.raw}
-                            className={`ml-1 text-xs px-1.5 py-0.5 rounded ${getTagColorClass(t.role)}`}
-                          >
-                            {t.label}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </Link>
-                ))}
-              </div>
+        grouped.map(([groupLabel, items]) => (
+          <section key={groupLabel}>
+            <div className="flex items-center gap-3 mt-10 first:mt-6">
+              <h2 className="font-mono text-[12px] uppercase font-semibold text-accent m-0" style={{ letterSpacing: "0.12em" }}>
+                {groupLabel}
+              </h2>
+              <span className="font-mono text-[12px] text-fg-3">{items.length}</span>
+              <span className="flex-1 h-px bg-line" />
             </div>
-          ))
+            <div className="flex flex-col">
+              {items.map(p => <Entry key={p.slug} page={p} />)}
+            </div>
+          </section>
+        ))
       )}
     </div>
   );
 }
 
-function LearningPathsTab() {
-  const [pages, setPages] = useState<IndexPageEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [runningMode, setRunningMode] = useState<null | "review" | "regenerate-all">(null);
-  const [error, setError] = useState("");
+function Entry({ page }: { page: WikiPageEntry }) {
+  const tags = page.tags.map(t => displayTag(t));
+  return (
+    <Link
+      to={`/wiki/${page.slug}`}
+      className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-4 py-6 -mx-4 px-4 border-b border-line cursor-pointer transition-colors hover:bg-bg-1 text-inherit"
+    >
+      <div>
+        <div className="flex items-baseline gap-2.5 flex-wrap">
+          <h3 className="m-0 text-[17px] font-bold leading-tight tracking-tight text-fg">{page.title}</h3>
+          <span className="tag tag-kind">{page.type}</span>
+        </div>
+        {page.summary && (
+          <p className="text-fg-1 text-sm leading-[1.55] mt-1.5 mb-2.5 max-w-[76ch]">{page.summary}</p>
+        )}
+        <div className="flex flex-wrap gap-y-[9px] gap-x-1.5">
+          {tags.map((t, i) => (
+            <span key={t.raw} className={tagClassFor(toneForTag(t.role, i))}>{t.label}</span>
+          ))}
+        </div>
+      </div>
+      <div className="font-mono text-[11.5px] text-fg-3 whitespace-nowrap pt-1 self-start">
+        <div>slug</div>
+        <div className="text-fg-1 mt-0.5">{page.slug}</div>
+      </div>
+    </Link>
+  );
+}
 
-  const heading = "Learning Paths";
-  const emptyMessage =
-    "Aún no hay learning-path pages. Genera para construir rutas de aprendizaje.";
-
-  function load() {
-    setLoading(true);
-    fetch("/api/wiki/learning-paths")
-      .then((r) => r.json() as Promise<{ pages: IndexPageEntry[] }>)
-      .then((data) => {
-        setPages(data.pages || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }
+function TopicsDropdown({
+  topics, active, onToggle, onClear
+}: {
+  topics: string[];
+  active: string[];
+  onToggle: (t: string) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    load();
-  }, []);
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
 
-  async function runAgent(mode: "review" | "regenerate-all") {
-    if (mode === "regenerate-all") {
-      const ok = window.confirm(
-        `Esto eliminará todas las páginas existentes de "${heading}" y las regenerará desde cero. ¿Continuar?`,
-      );
-      if (!ok) return;
-    }
-    setRunningMode(mode);
-    setError("");
-    try {
-      const res = await fetch("/api/learning-paths/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode }),
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || `Learning-path agent failed (${res.status})`);
-      }
-      load();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setRunningMode(null);
-    }
-  }
-
-  const busy = runningMode !== null;
+  const label = active.length === 0
+    ? "Todos los temas"
+    : active.length === 1 ? active[0]
+    : `${active.length} temas seleccionados`;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {loading ? "Loading..." : `${pages.length} ${heading.toLowerCase()}`}
-        </p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => runAgent("review")}
-            disabled={busy}
-            title="El agente revisa las páginas existentes y crea nuevas si han surgido dominios; no elimina nada."
-            className="px-3 py-1.5 text-sm rounded bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white transition-colors"
-          >
-            {runningMode === "review" ? "Revisando..." : "Revisar y completar"}
-          </button>
-          <button
-            type="button"
-            onClick={() => runAgent("regenerate-all")}
-            disabled={busy}
-            title="Borra todas las páginas existentes de esta categoría y las regenera desde cero."
-            className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white transition-colors"
-          >
-            {runningMode === "regenerate-all" ? "Regenerando..." : "Regenerar todo"}
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">
-          {error}
-        </div>
-      )}
-
-      {!loading && pages.length === 0 && (
-        <p className="text-gray-500 dark:text-gray-400 text-sm">{emptyMessage}</p>
-      )}
-
-      <div className="space-y-2">
-        {pages.map((p) => (
-          <Link
-            key={p.slug}
-            to={`/wiki/${p.slug}`}
-            className="block p-3 rounded border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-medium text-sm">{p.title}</span>
-              <span className="text-gray-400 text-[10px] uppercase tracking-wider">
-                {p.type}
-              </span>
-            </div>
-            {p.summary && (
-              <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-3 mb-2 leading-relaxed">
-                {p.summary}
-              </p>
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="select flex items-center justify-between gap-2 text-left"
+      >
+        <span className={"truncate " + (active.length === 0 ? "text-fg-2" : "text-fg")}>{label}</span>
+        <Icon name="chevR" size={14} className={"text-fg-3 transition-transform " + (open ? "rotate-90" : "rotate-90")} />
+      </button>
+      {open && (
+        <div className="absolute top-full right-0 mt-1.5 w-[320px] max-h-[380px] flex flex-col bg-bg-1 border border-line-strong rounded-[10px] shadow-2xl z-30 overflow-hidden">
+          <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-line">
+            <span className="mono-label">{active.length} de {topics.length}</span>
+            {active.length > 0 && (
+              <button type="button" className="link-btn font-mono text-[11.5px] text-accent hover:text-fg" onClick={onClear}>
+                Limpiar
+              </button>
             )}
-            <div className="flex items-center gap-3 text-[11px] text-gray-400 flex-wrap">
-              {p.generated_at ? (
-                <span>Generado: {new Date(p.generated_at).toLocaleString()}</span>
-              ) : (
-                <span>Sin fecha de generación</span>
-              )}
-              {p.tags.length > 0 && (
-                <div className="flex gap-1">
-                  {p.tags.map(rawTag => {
-                    const t = displayTag(rawTag);
-                    return (
-                      <span key={t.raw} className={`px-1.5 py-0.5 rounded ${getTagColorClass(t.role)}`}>
-                        {t.label}
-                      </span>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </Link>
-        ))}
-      </div>
+          </div>
+          <div className="overflow-y-auto p-1.5 flex flex-col gap-px">
+            {topics.length === 0 ? (
+              <div className="text-fg-3 text-xs px-3 py-2">Sin temas disponibles</div>
+            ) : topics.map(t => {
+              const checked = active.includes(t);
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => onToggle(t)}
+                  className={"flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left font-mono text-[12.5px] transition-colors w-full bg-transparent border-0 cursor-pointer "
+                    + (checked ? "text-accent" : "text-fg-1 hover:bg-bg-2 hover:text-fg")}
+                >
+                  <span className={"w-3.5 h-3.5 rounded grid place-items-center flex-shrink-0 border "
+                    + (checked ? "bg-accent border-accent text-bg" : "border-line-strong bg-bg")}>
+                    {checked && <Icon name="check" size={10} />}
+                  </span>
+                  <span className="truncate">{t}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

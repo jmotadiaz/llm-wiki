@@ -5,6 +5,7 @@ import IngestPage from './pages/IngestPage';
 import ChatPage from './pages/ChatPage';
 import WikiPage from './pages/WikiPage';
 import WikiPageDetail from './pages/WikiPageDetail';
+import LearningPathsPage from './pages/LearningPathsPage';
 import RawSourcePage from './pages/RawSourcePage';
 import GraphPage from './pages/GraphPage';
 import DashboardPage from './pages/DashboardPage';
@@ -12,19 +13,20 @@ import DashboardPage from './pages/DashboardPage';
 export default function App() {
   return (
     <BrowserRouter>
-    <NuqsAdapter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<WikiPage />} />
-          <Route path="/ingest" element={<IngestPage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/wiki/:slug" element={<WikiPageDetail />} />
-          <Route path="/raw/:id" element={<RawSourcePage />} />
-          <Route path="/graph" element={<GraphPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-        </Route>
-      </Routes>
-    </NuqsAdapter>
+      <NuqsAdapter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<WikiPage />} />
+            <Route path="/learning-paths" element={<LearningPathsPage />} />
+            <Route path="/ingest" element={<IngestPage />} />
+            <Route path="/chat" element={<ChatPage />} />
+            <Route path="/wiki/:slug" element={<WikiPageDetail />} />
+            <Route path="/raw/:id" element={<RawSourcePage />} />
+            <Route path="/graph" element={<GraphPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+          </Route>
+        </Routes>
+      </NuqsAdapter>
     </BrowserRouter>
   );
 }

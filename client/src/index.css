@@ -2,41 +2,177 @@
 @tailwind components;
 @tailwind utilities;
 
-html {
-  scroll-behavior: smooth;
+/* === Design tokens — dark default === */
+:root {
+  --bg:           #0d1018;
+  --bg-1:         #131722;
+  --bg-2:         #1a1f2c;
+  --bg-3:         #222837;
+  --line:         #1f2533;
+  --line-strong:  #2a3142;
+  --fg:           #e6e8ef;
+  --fg-1:         #b1b6c4;
+  --fg-2:         #7a8092;
+  --fg-3:         #565c6d;
+
+  --accent:       oklch(72% 0.09 350);
+  --accent-soft:  oklch(72% 0.09 350 / 0.12);
+  --accent-line:  oklch(72% 0.09 350 / 0.32);
+  --cyan:         oklch(76% 0.06 220);
+  --cyan-soft:    oklch(76% 0.06 220 / 0.12);
+  --green:        oklch(76% 0.07 160);
+  --green-soft:   oklch(76% 0.07 160 / 0.12);
+  --violet:       oklch(72% 0.07 290);
+  --violet-soft:  oklch(72% 0.07 290 / 0.12);
+  --red:          oklch(68% 0.12 25);
+  --red-soft:     oklch(68% 0.12 25 / 0.14);
+  --amber:        oklch(76% 0.08 70);
 }
 
-body {
-  @apply text-gray-900 dark:text-gray-100;
+/* Light overrides — applied when html lacks .dark */
+html:not(.dark) {
+  --bg:           #faf9f6;
+  --bg-1:         #ffffff;
+  --bg-2:         #f1efea;
+  --bg-3:         #e7e4dc;
+  --line:         #e9e6de;
+  --line-strong:  #cfcbbf;
+  --fg:           #1c1c1e;
+  --fg-1:         #3f4148;
+  --fg-2:         #6a6d77;
+  --fg-3:         #9a9aa3;
+
+  --accent:       oklch(48% 0.13 350);
+  --accent-soft:  oklch(48% 0.13 350 / 0.10);
+  --accent-line:  oklch(48% 0.13 350 / 0.32);
+  --cyan:         oklch(48% 0.10 220);
+  --cyan-soft:    oklch(48% 0.10 220 / 0.10);
+  --green:        oklch(48% 0.10 160);
+  --green-soft:   oklch(48% 0.10 160 / 0.10);
+  --violet:       oklch(48% 0.10 290);
+  --violet-soft:  oklch(48% 0.10 290 / 0.10);
+  --red:          oklch(50% 0.16 25);
+  --red-soft:     oklch(50% 0.16 25 / 0.10);
+  --amber:        oklch(55% 0.13 70);
 }
 
-/* Remove streamdown code block wrapper box */
+@layer base {
+  html { scroll-behavior: smooth; }
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  h1, h2, h3, h4 { @apply text-fg; letter-spacing: -0.02em; }
+}
+
+@layer components {
+  /* Reusable atoms — kept small; component-specific layout lives inline in JSX */
+  .eyebrow {
+    @apply font-mono text-[12px] text-accent font-medium uppercase;
+    letter-spacing: 0.08em;
+  }
+  .mono-label {
+    @apply font-mono text-[11px] text-fg-3 uppercase font-medium;
+    letter-spacing: 0.08em;
+  }
+
+  .btn {
+    @apply inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13.5px] font-semibold border border-transparent bg-bg-1 text-fg transition-colors;
+  }
+  .btn:hover { @apply bg-bg-2; }
+  .btn:disabled { @apply opacity-50 cursor-not-allowed; }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  html.dark .btn-primary { color: #14081a; }
+  .btn-primary:hover { filter: brightness(1.06); }
+  .btn-outline {
+    @apply bg-transparent text-fg-1;
+    border-color: var(--line-strong);
+  }
+  .btn-outline:hover { @apply text-fg bg-transparent; border-color: var(--fg-3); }
+  .btn-danger {
+    @apply bg-transparent text-red;
+    border-color: var(--red-soft);
+  }
+  .btn-danger:hover { background: var(--red-soft); }
+
+  .input {
+    @apply w-full bg-bg-1 border border-line text-fg px-3.5 py-2.5 rounded-md text-sm transition-colors;
+  }
+  .input:focus { @apply outline-none; border-color: var(--accent-line); }
+  .input::placeholder { @apply text-fg-3; }
+  .select {
+    @apply w-full bg-bg-1 border border-line text-fg px-3.5 py-2.5 rounded-md text-sm transition-colors;
+  }
+  .select:focus { @apply outline-none; border-color: var(--accent-line); }
+
+  .tag {
+    @apply inline-flex items-center gap-1 px-2.5 py-[3px] font-mono text-[11.5px] font-medium rounded-full border border-line-strong text-fg-1 bg-transparent;
+    letter-spacing: 0.01em;
+  }
+  .tag-accent { @apply text-accent bg-accent-soft; border-color: var(--accent-line); }
+  .tag-cyan   { @apply text-cyan bg-cyan-soft; border-color: color-mix(in oklch, var(--cyan) 40%, transparent); }
+  .tag-green  { @apply text-green bg-green-soft; border-color: color-mix(in oklch, var(--green) 40%, transparent); }
+  .tag-violet { @apply text-violet bg-violet-soft; border-color: color-mix(in oklch, var(--violet) 40%, transparent); }
+  .tag-red    { @apply text-red bg-red-soft; border-color: color-mix(in oklch, var(--red) 40%, transparent); }
+  .tag-kind {
+    @apply font-mono text-[10.5px] uppercase px-1.5 py-[2px] text-fg-3 border-line;
+    letter-spacing: 0.08em;
+  }
+
+  .card { @apply bg-bg-1 border border-line rounded-[10px]; }
+
+  /* Topbar */
+  .topbar {
+    @apply sticky top-0 z-50 border-b border-line;
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .icon-btn {
+    @apply w-[34px] h-[34px] rounded-lg bg-transparent border border-line text-fg-1 grid place-items-center transition-colors;
+  }
+  .icon-btn:hover { @apply bg-bg-1 text-fg; }
+  .icon-btn-bare {
+    @apply w-[34px] h-[34px] rounded-lg bg-transparent border-0 text-fg-1 grid place-items-center transition-colors;
+  }
+  .icon-btn-bare:hover { @apply bg-bg-1 text-fg; }
+
+  /* Sidebar links */
+  .sb-link {
+    @apply flex items-center gap-2 px-2.5 py-1.5 text-[13.5px] text-fg-1 rounded-md transition-colors w-full text-left bg-transparent border-0 cursor-pointer font-sans leading-tight;
+  }
+  .sb-link:hover { @apply bg-bg-1 text-fg; }
+  .sb-link.active { @apply text-accent bg-accent-soft font-semibold; }
+  .sb-link .count { @apply ml-auto font-mono text-[11px] text-fg-3; }
+}
+
+/* Streamdown code blocks */
 [data-streamdown="code-block-body"] {
   border: none;
   background-color: transparent;
   padding: 0;
 }
-
-/* Let shiki control the pre background (overrides prose plugin) */
 .prose [data-streamdown="code-block-body"] pre,
 [data-streamdown="code-block-body"] pre {
-  background-color: var(--sdm-bg, #f6f8fa);
+  background-color: var(--sdm-bg, var(--bg-1));
   color: var(--sdm-fg, inherit);
-  border-radius: 0.375rem;
-  padding: 1rem;
-  margin: 0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  overflow-x: auto;
 }
-
-.dark .prose [data-streamdown="code-block-body"] pre,
-.dark [data-streamdown="code-block-body"] pre {
-  background-color: var(--shiki-dark-bg, var(--sdm-bg, #0d1117));
+html.dark .prose [data-streamdown="code-block-body"] pre,
+html.dark [data-streamdown="code-block-body"] pre {
+  background-color: var(--shiki-dark-bg, var(--sdm-bg, var(--bg-1)));
 }
-
-/* Token colors — mirrors streamdown's Tailwind classes that may not compile from node_modules */
 [data-streamdown="code-block-body"] pre span {
   color: var(--sdm-c, inherit);
 }
-
-.dark [data-streamdown="code-block-body"] pre span {
+html.dark [data-streamdown="code-block-body"] pre span {
   color: var(--shiki-dark, var(--sdm-c, inherit));
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import Icon from '../components/Icon';
 
 interface LintWarning {
   id: number;
@@ -41,10 +42,7 @@ export default function DashboardPage() {
     setLoading(true);
     fetch('/api/wiki/lint/status')
       .then(r => r.json() as Promise<{ lint: LintData }>)
-      .then(data => {
-        setLint(data.lint);
-        setLoading(false);
-      })
+      .then(data => { setLint(data.lint); setLoading(false); })
       .catch(() => setLoading(false));
   };
 
@@ -52,22 +50,12 @@ export default function DashboardPage() {
     setSourcesLoading(true);
     fetch('/api/raw')
       .then(r => r.json() as Promise<{ sources: RawSource[] }>)
-      .then(data => {
-        setSources(data.sources);
-        setSourcesLoading(false);
-      })
+      .then(data => { setSources(data.sources); setSourcesLoading(false); })
       .catch(() => setSourcesLoading(false));
   };
 
-  useEffect(() => {
-    fetchLintStatus();
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'sources') {
-      fetchSources();
-    }
-  }, [activeTab]);
+  useEffect(() => { fetchLintStatus(); }, []);
+  useEffect(() => { if (activeTab === 'sources') fetchSources(); }, [activeTab]);
 
   const handleAudit = async () => {
     setAuditing(true);
@@ -95,17 +83,17 @@ export default function DashboardPage() {
     (s.author && s.author.toLowerCase().includes(sourceSearch.toLowerCase()))
   );
 
-  const metricCards = lint ? [
-    { label: 'Orphan Pages', count: lint.counts['orphan_page'] || 0, color: 'text-yellow-600' },
-    { label: 'Broken Links', count: lint.counts['broken_link'] || 0, color: 'text-red-600' },
-    { label: 'Stale Pages', count: lint.counts['stale_page'] || 0, color: 'text-orange-600' },
-    { label: 'Missing Tags', count: lint.counts['missing_tags'] || 0, color: 'text-blue-600' },
-    { label: 'Invalid Metadata', count: lint.counts['invalid_metadata'] || 0, color: 'text-purple-600' },
-    { label: 'Contradictions', count: (lint.counts['contradiction'] || 0) + (lint.counts['duplicate'] || 0), color: 'text-pink-600' },
+  const kpis = lint ? [
+    { num: lint.counts['orphan_page'] || 0, label: 'Orphan Pages', tone: 'warn' },
+    { num: lint.counts['broken_link'] || 0, label: 'Broken Links', tone: 'danger' },
+    { num: lint.counts['stale_page'] || 0, label: 'Stale Pages', tone: 'ok' },
+    { num: lint.counts['missing_tags'] || 0, label: 'Missing Tags', tone: 'ok' },
+    { num: lint.counts['invalid_metadata'] || 0, label: 'Invalid Metadata', tone: 'bad' },
+    { num: (lint.counts['contradiction'] || 0) + (lint.counts['duplicate'] || 0), label: 'Contradictions', tone: 'info' },
   ] : [];
 
-  const handleDeleteSource = async (id: number) => {
-    if (!confirm(`Are you sure you want to delete source #${id}? This will remove its citations but preserved distilled content.`)) return;
+  const handleDelete = async (id: number) => {
+    if (!confirm(`¿Eliminar la fuente #${id}? Se conservará el contenido distilado pero se quitarán sus citas.`)) return;
     try {
       const res = await fetch(`/api/raw/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
@@ -115,198 +103,147 @@ export default function DashboardPage() {
     }
   };
 
-  if (activeTab === 'health') {
-    if (loading) return <p className="text-gray-500">Loading health status...</p>;
-    if (!lint) return <p className="text-gray-500">Failed to load lint data.</p>;
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Dashboard</h2>
-        <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
-          <button
-            onClick={() => setActiveTab('health')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-              activeTab === 'health'
-                ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400'
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-            }`}
-          >
-            Wiki Health
-          </button>
-          <button
-            onClick={() => setActiveTab('sources')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-              activeTab === 'sources'
-                ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 dark:text-blue-400'
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-            }`}
-          >
-            Raw Sources
-          </button>
+    <div>
+      <div className="dash-header flex items-center justify-between flex-wrap gap-4 mb-7">
+        <div>
+          <div className="eyebrow mb-3">Operations</div>
+          <h1 className="text-3xl md:text-[38px] font-extrabold leading-tight tracking-tight m-0">Dashboard</h1>
+          <p className="text-fg-2 text-sm mt-1.5">Salud semántica y trazabilidad de fuentes de tu base de conocimiento.</p>
+        </div>
+        <div className="seg inline-flex bg-bg-1 border border-line rounded-[10px] p-[3px]">
+          <button onClick={() => setActiveTab('health')} className={"px-3.5 py-1.5 text-[13px] font-semibold rounded-md transition-colors " + (activeTab === 'health' ? 'bg-bg-3 text-fg' : 'text-fg-2 hover:text-fg')}>Wiki Health</button>
+          <button onClick={() => setActiveTab('sources')} className={"px-3.5 py-1.5 text-[13px] font-semibold rounded-md transition-colors " + (activeTab === 'sources' ? 'bg-bg-3 text-fg' : 'text-fg-2 hover:text-fg')}>Raw Sources</button>
         </div>
       </div>
 
-      {activeTab === 'health' && lint && (
-        <div className="animate-in fade-in duration-300">
-          {/* Health metrics */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            {metricCards.map(m => (
-              <div key={m.label} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 text-center shadow-sm">
-                <div className={`text-3xl font-bold ${m.color}`}>{m.count}</div>
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-gray-400 mt-1">{m.label}</div>
+      {activeTab === 'health' && (
+        loading || !lint ? <p className="text-fg-3">Cargando…</p> : (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+              {kpis.map((k, i) => (
+                <div key={i} className={"card p-4 kpi " + k.tone}>
+                  <div className="num font-extrabold text-[32px] leading-none tracking-tight">{k.num}</div>
+                  <div className="mono-label mt-2">{k.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="card p-4 flex items-center gap-4 flex-wrap mb-6">
+              <button onClick={handleAudit} disabled={auditing} className="btn btn-primary">
+                <Icon name="sparkle" size={14} />
+                {auditing ? 'Running Semantic Audit…' : 'Run Full Semantic Audit'}
+              </button>
+              <div className="flex flex-col">
+                <div className="font-bold text-sm text-fg">AI Consistency Check</div>
+                <div className="font-mono text-[11.5px] text-fg-3 mt-0.5">Last run · {new Date(lint.lastRun).toLocaleString()}</div>
               </div>
-            ))}
-          </div>
-
-          {/* Audit controls */}
-          <div className="flex items-center gap-4 mb-6 bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30">
-            <button
-              onClick={handleAudit}
-              disabled={auditing}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold disabled:opacity-50 text-sm shadow-sm transition-colors"
-            >
-              {auditing ? 'Running Semantic Audit...' : 'Run Full Semantic Audit'}
-            </button>
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold text-blue-800 dark:text-blue-300">AI Consistency Check</span>
-              <span className="text-[10px] text-blue-600 dark:text-blue-400 opacity-70">
-                Last run: {new Date(lint.lastRun).toLocaleString()}
-              </span>
-            </div>
-          </div>
-
-          {auditResult && (
-            <div className={`mb-6 p-4 rounded-xl border text-sm font-medium ${
-              auditResult.includes('failed')
-                ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-400'
-                : 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-900/30 text-green-700 dark:text-green-400'
-            }`}>
-              {auditResult}
-            </div>
-          )}
-
-          {/* Warnings list */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/50">
-              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                Active Warnings <span className="ml-2 px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-400">{lint.totalWarnings}</span>
-              </h3>
-              <select
-                value={typeFilter}
-                onChange={e => setTypeFilter(e.target.value)}
-                className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-              >
-                <option value="">All Issue Types</option>
-                {warningTypes.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <div className="ml-auto flex gap-2">
+                <button onClick={fetchLintStatus} className="btn btn-outline"><Icon name="refresh" size={14} /></button>
+              </div>
             </div>
 
-            <div className="p-2">
+            {auditResult && (
+              <div className={"mb-6 p-3 rounded-md border text-sm " + (auditResult.includes('failed') ? 'border-red-soft bg-red-soft text-red' : 'border-green/30 bg-green-soft text-green')}>
+                {auditResult}
+              </div>
+            )}
+
+            <div className="card overflow-hidden">
+              <div className="flex items-center justify-between gap-4 flex-wrap p-4 border-b border-line">
+                <h2 className="m-0 text-base font-bold text-fg flex items-center gap-2.5">
+                  Active Warnings
+                  <span className="font-mono text-[11.5px] bg-bg-2 text-fg-1 px-2 py-0.5 rounded-full">{lint.totalWarnings}</span>
+                </h2>
+                <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="select w-auto py-1.5 px-2.5">
+                  <option value="">All Issue Types</option>
+                  {warningTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
               {filteredWarnings.length === 0 ? (
-                <div className="py-12 text-center">
-                  <span className="text-4xl">✨</span>
-                  <p className="mt-2 text-gray-500 dark:text-gray-400 font-medium">Wiki is completely healthy!</p>
+                <div className="py-12 text-center text-fg-2">
+                  <div className="mono-label">wiki sano</div>
+                  <div className="mt-2 text-sm">No hay warnings activos.</div>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-50 dark:divide-gray-800">
+                <div>
                   {filteredWarnings.map(w => (
-                    <Link key={w.id} to={w.slug ? `/wiki/${w.slug}` : '#'} className={`group flex items-start gap-3 p-3 transition-colors ${w.slug ? 'hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer' : ''}`}>
-                      <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
-                        w.severity === 'error' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-yellow-500'
-                      }`} />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[10px] uppercase font-bold tracking-tight text-gray-400 group-hover:text-gray-500">{w.type}</span>
-                          {w.slug && (
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded">
-                              {w.slug}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-snug">{w.message}</p>
+                    <Link key={w.id} to={w.slug ? `/wiki/${w.slug}` : '#'} className="grid grid-cols-[14px_160px_1fr_auto] items-start gap-3.5 px-4 py-3.5 border-b border-line text-[13.5px] hover:bg-bg transition-colors">
+                      <span className={"w-2 h-2 rounded-full mt-2 inline-block " + (w.severity === 'error' ? 'bg-red' : 'bg-amber')} />
+                      <div>
+                        <div className="font-mono text-[11px] uppercase text-fg-2" style={{ letterSpacing: '0.06em' }}>{w.type}</div>
+                        {w.slug && <span className="tag mt-1">{w.slug}</span>}
                       </div>
+                      <div className="text-fg-1 leading-snug">{w.message}</div>
+                      {w.slug && (
+                        <span className="btn btn-outline text-xs py-1 px-2 self-center">
+                          <Icon name="arrowUpRight" size={12} /> Ver
+                        </span>
+                      )}
                     </Link>
                   ))}
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </>
+        )
       )}
 
       {activeTab === 'sources' && (
-        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                Knowledge Inventory <span className="ml-2 px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-400">{sources.length}</span>
-              </h3>
-              <div className="relative flex-1 max-w-sm">
-                <input
-                  type="text"
-                  placeholder="Filter sources by title or author..."
-                  value={sourceSearch}
-                  onChange={e => setSourceSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-                <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+        <div className="card overflow-hidden">
+          <div className="flex items-center justify-between gap-4 flex-wrap p-4 border-b border-line">
+            <h2 className="m-0 text-base font-bold text-fg flex items-center gap-2.5">
+              Knowledge Inventory
+              <span className="font-mono text-[11.5px] bg-bg-2 text-fg-1 px-2 py-0.5 rounded-full">{sources.length}</span>
+            </h2>
+            <div className="flex gap-2 items-center">
+              <div className="relative w-[280px] max-w-full">
+                <Icon name="search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-3 pointer-events-none" />
+                <input type="text" placeholder="Filtrar por título o autor…" value={sourceSearch} onChange={e => setSourceSearch(e.target.value)} className="input pl-9 py-1.5" />
               </div>
+              <Link to="/ingest" className="btn btn-primary"><Icon name="upload" size={14} />Ingest</Link>
             </div>
+          </div>
 
-            <div className="overflow-x-auto">
-              {sourcesLoading ? (
-                <div className="p-12 text-center text-gray-500">Loading sources...</div>
-              ) : filteredSources.length === 0 ? (
-                <div className="p-12 text-center text-gray-500">No sources found.</div>
-              ) : (
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b border-gray-100 dark:border-gray-800 text-[10px] uppercase tracking-wider font-bold text-gray-400">
-                      <th className="px-6 py-3">ID</th>
-                      <th className="px-4 py-3">Source Title</th>
-                      <th className="px-4 py-3">Author</th>
-                      <th className="px-4 py-3">Import Date</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                    {filteredSources.map(s => (
-                      <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                        <td className="px-6 py-4 font-mono text-xs text-gray-400">#{s.id}</td>
-                        <td className="px-4 py-4">
-                          <div className="font-semibold text-gray-800 dark:text-gray-200 truncate max-w-md">{s.title}</div>
-                          {s.source_url && (
-                            <a href={s.source_url} target="_blank" rel="noopener" className="text-[10px] text-blue-500 hover:underline">Original Source</a>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 text-gray-500 dark:text-gray-400">{s.author || '—'}</td>
-                        <td className="px-4 py-4 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                          {new Date(s.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-4 text-right space-x-2">
-                          <a
-                            href={`/raw/${s.id}`}
-                            className="inline-flex items-center px-2 py-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-xs font-bold transition-colors"
-                          >
-                            View
+          <div className="overflow-x-auto">
+            {sourcesLoading ? (
+              <div className="p-12 text-center text-fg-3">Cargando…</div>
+            ) : filteredSources.length === 0 ? (
+              <div className="p-12 text-center text-fg-3">Sin resultados.</div>
+            ) : (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className="text-left font-mono text-[10.5px] uppercase text-fg-3 font-medium px-4 py-3 border-b border-line">ID</th>
+                    <th className="text-left font-mono text-[10.5px] uppercase text-fg-3 font-medium px-4 py-3 border-b border-line">Source title</th>
+                    <th className="text-left font-mono text-[10.5px] uppercase text-fg-3 font-medium px-4 py-3 border-b border-line">Author</th>
+                    <th className="text-left font-mono text-[10.5px] uppercase text-fg-3 font-medium px-4 py-3 border-b border-line">Import date</th>
+                    <th className="text-right font-mono text-[10.5px] uppercase text-fg-3 font-medium px-4 py-3 border-b border-line">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSources.map(s => (
+                    <tr key={s.id} className="hover:bg-bg transition-colors">
+                      <td className="px-4 py-3.5 font-mono text-fg-3 text-xs border-b border-line w-[60px]">#{s.id}</td>
+                      <td className="px-4 py-3.5 text-fg-1 text-[13.5px] border-b border-line">
+                        <div className="font-semibold text-fg">{s.title}</div>
+                        {s.source_url && (
+                          <a href={s.source_url} target="_blank" rel="noreferrer" className="text-accent text-[11.5px] font-mono inline-flex items-center gap-1 mt-1">
+                            Original Source <Icon name="ext" size={11} />
                           </a>
-                          <button
-                            onClick={() => handleDeleteSource(s.id)}
-                            className="inline-flex items-center px-2 py-1 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded text-xs font-bold transition-colors"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-fg-2 text-[13.5px] border-b border-line">{s.author || '—'}</td>
+                      <td className="px-4 py-3.5 text-fg-2 text-[13.5px] border-b border-line font-mono whitespace-nowrap">{new Date(s.created_at).toLocaleDateString()}</td>
+                      <td className="px-4 py-3.5 text-right border-b border-line whitespace-nowrap">
+                        <Link to={`/raw/${s.id}`} className="btn btn-outline text-xs py-1 px-2 mr-1.5"><Icon name="eye" size={12} /> View</Link>
+                        <button onClick={() => handleDelete(s.id)} className="btn btn-danger text-xs py-1 px-2">Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       )}

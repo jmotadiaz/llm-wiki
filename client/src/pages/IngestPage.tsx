@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import Icon from '../components/Icon';
 
 type IngestTab = 'url' | 'upload' | 'paste';
 type IngestStatus = 'idle' | 'fetching' | 'preview' | 'saving' | 'done' | 'error';
@@ -9,39 +10,26 @@ export default function IngestPage() {
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ sourceId: number; message: string } | null>(null);
 
-  // URL form state
   const [url, setUrl] = useState('');
   const [selector, setSelector] = useState('');
   const [removeSelector, setRemoveSelector] = useState('');
   const [disableFilters, setDisableFilters] = useState(false);
 
-  // Shared form state (used for both URL preview and paste)
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [description, setDescription] = useState('');
   const [publishedAt, setPublishedAt] = useState('');
   const [content, setContent] = useState('');
 
-  // File upload ref
   const fileRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
-    setUrl('');
-    setSelector('');
-    setRemoveSelector('');
-    setDisableFilters(false);
-    setTitle('');
-    setAuthor('');
-    setDescription('');
-    setPublishedAt('');
-    setContent('');
-    setError('');
-    setResult(null);
-    setStatus('idle');
+    setUrl(''); setSelector(''); setRemoveSelector(''); setDisableFilters(false);
+    setTitle(''); setAuthor(''); setDescription(''); setPublishedAt(''); setContent('');
+    setError(''); setResult(null); setStatus('idle');
     if (fileRef.current) fileRef.current.value = '';
   };
 
-  // Step 1: Fetch URL preview via Jina
   const handleFetchUrl = async () => {
     if (!url.trim()) return;
     setStatus('fetching');
@@ -59,34 +47,25 @@ export default function IngestPage() {
       });
       const data = await res.json() as any;
       if (!res.ok) throw new Error(data.error || 'Failed to fetch URL');
-
-      const { title: fetchedTitle, description: fetchedDesc, author: fetchedAuthor, publishedTime, fullContent } = data.preview;
-
+      const { title: t, description: d, author: a, publishedTime, fullContent } = data.preview;
       setContent(fullContent);
-      setTitle(fetchedTitle || url.trim());
-      setDescription(fetchedDesc || '');
-      setAuthor(fetchedAuthor || '');
-
+      setTitle(t || url.trim());
+      setDescription(d || '');
+      setAuthor(a || '');
       if (publishedTime) {
         try {
           const date = new Date(publishedTime);
-          if (!isNaN(date.getTime())) {
-            setPublishedAt(date.toISOString().split('T')[0]);
-          }
-        } catch (e) {
-          console.error('Failed to parse date:', publishedTime);
-        }
+          if (!isNaN(date.getTime())) setPublishedAt(date.toISOString().split('T')[0]);
+        } catch {}
       }
-
       setStatus('preview');
-      setTab('paste'); // Switch to paste tab to show the fetched content
+      setTab('paste');
     } catch (err: any) {
       setError(err.message);
       setStatus('error');
     }
   };
 
-  // Step 2: Save content (from URL preview or direct paste)
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) {
       setError('Title and content are required');
@@ -117,13 +96,9 @@ export default function IngestPage() {
     }
   };
 
-  // File upload handler
   const handleUpload = async () => {
     const file = fileRef.current?.files?.[0];
-    if (!file || !title.trim()) {
-      setError('File and title are required');
-      return;
-    }
+    if (!file || !title.trim()) { setError('File and title are required'); return; }
     setStatus('saving');
     setError('');
     try {
@@ -131,11 +106,7 @@ export default function IngestPage() {
       formData.append('file', file);
       formData.append('title', title.trim());
       if (author.trim()) formData.append('author', author.trim());
-
-      const res = await fetch('/api/ingest/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      const res = await fetch('/api/ingest/upload', { method: 'POST', body: formData });
       const data = await res.json() as any;
       if (!res.ok) throw new Error(data.error || 'Failed to upload');
       setResult({ sourceId: data.sourceId, message: data.message });
@@ -147,239 +118,152 @@ export default function IngestPage() {
   };
 
   return (
-    <div className="max-w-3xl">
-      <h2 className="text-2xl font-bold mb-6">Ingest Sources</h2>
+    <div className="max-w-[760px]">
+      <div className="eyebrow mb-3">Ingest</div>
+      <h1 className="text-3xl md:text-[38px] font-extrabold leading-tight tracking-tight">Importar nuevas fuentes</h1>
+      <p className="text-fg-2 text-[15px] mt-2 max-w-[60ch]">
+        Pega un enlace, sube un fichero o introduce el contenido manualmente para añadir conocimiento a la wiki.
+      </p>
 
-      {/* Tab switcher */}
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => { setTab('url'); resetForm(); }}
-          className={`px-4 py-2 rounded font-medium ${tab === 'url' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
-        >
-          From URL
-        </button>
-        <button
-          onClick={() => { setTab('upload'); resetForm(); }}
-          className={`px-4 py-2 rounded font-medium ${tab === 'upload' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
-        >
-          Upload File
-        </button>
-        <button
-          onClick={() => { setTab('paste'); resetForm(); }}
-          className={`px-4 py-2 rounded font-medium ${tab === 'paste' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
-        >
-          Paste Text
-        </button>
+      <div className="seg mt-6 inline-flex bg-bg-1 border border-line rounded-[10px] p-[3px]">
+        {(['url','upload','paste'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => { setTab(t); resetForm(); }}
+            className={"px-3.5 py-1.5 text-[13px] font-semibold rounded-md transition-colors " + (tab === t ? "bg-bg-3 text-fg" : "text-fg-2 hover:text-fg")}
+          >
+            {t === 'url' ? 'Desde URL' : t === 'upload' ? 'Subir fichero' : 'Pegar texto'}
+          </button>
+        ))}
       </div>
 
-      {/* Error display */}
       {error && (
-        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-red-700 dark:text-red-400 text-sm">
-          {error}
-        </div>
+        <div className="mt-5 p-3 border border-red-soft bg-red-soft text-red rounded-md text-sm">{error}</div>
       )}
 
-      {/* Success display */}
       {status === 'done' && result && (
-        <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-green-700 dark:text-green-400 text-sm">
-          <p className="font-medium">Source saved (ID: {result.sourceId})</p>
+        <div className="mt-5 p-3 border border-green/30 bg-green-soft text-green rounded-md text-sm">
+          <p className="font-semibold">Source guardado (ID: {result.sourceId})</p>
           <p>{result.message}</p>
-          <button onClick={resetForm} className="mt-2 text-green-600 dark:text-green-400 underline text-sm">
-            Ingest another
-          </button>
+          <button onClick={resetForm} className="link-btn mt-2 font-mono">Ingest another →</button>
         </div>
       )}
 
-      {/* URL Tab */}
       {tab === 'url' && status !== 'done' && (
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium mb-1">URL</label>
+        <div className="mt-6 flex flex-col gap-3">
+          <Field label="URL">
             <input
               type="url"
               value={url}
               onChange={e => setUrl(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleFetchUrl()}
               placeholder="https://example.com/article"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
+              className="input"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">CSS Selector (optional)</label>
-            <input
-              type="text"
-              value={selector}
-              onChange={e => setSelector(e.target.value)}
-              placeholder="article.post-content"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Exclude Selectors (optional)</label>
-            <input
-              type="text"
-              value={removeSelector}
-              onChange={e => setRemoveSelector(e.target.value)}
-              placeholder=".related-posts, #comments, .author-bio"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-            />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Selectores adicionales a ignorar, separados por coma. Se suman a los filtros por defecto cuando están activos.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
+          </Field>
+          <Field label="CSS Selector (opcional)">
+            <input type="text" value={selector} onChange={e => setSelector(e.target.value)} placeholder="article.post-content" className="input" />
+          </Field>
+          <Field label="Selectores a excluir (opcional)" hint="Selectores adicionales a ignorar, separados por coma.">
+            <input type="text" value={removeSelector} onChange={e => setRemoveSelector(e.target.value)} placeholder=".related-posts, #comments" className="input" />
+          </Field>
+          <div className="flex items-center gap-3 mt-1">
             <button
               type="button"
               role="switch"
               aria-checked={disableFilters}
               onClick={() => setDisableFilters(v => !v)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${disableFilters ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+              className={"relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors " + (disableFilters ? "bg-amber" : "bg-bg-3")}
             >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${disableFilters ? 'translate-x-5' : 'translate-x-0'}`}
-              />
+              <span className={"inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform " + (disableFilters ? "translate-x-5" : "translate-x-0")} />
             </button>
             <span className="text-sm">
-              <span className="font-medium">Desactivar filtros de ruido</span>
-              <span className="ml-1 text-gray-500 dark:text-gray-400">
-                {disableFilters ? '— se conservará todo el contenido de la página' : '— se eliminan headers, footers, ads, etc.'}
+              <span className="font-semibold text-fg">Desactivar filtros de ruido</span>
+              <span className="ml-1 text-fg-2">
+                {disableFilters ? '— se conservará todo el contenido' : '— se eliminan headers, footers, ads'}
               </span>
             </span>
           </div>
-          <button
-            onClick={handleFetchUrl}
-            disabled={!url.trim() || status === 'fetching'}
-            className="px-4 py-2 bg-blue-600 text-white rounded font-medium disabled:opacity-50"
-          >
-            {status === 'fetching' ? 'Fetching...' : 'Generate Preview'}
-          </button>
+          <div>
+            <button onClick={handleFetchUrl} disabled={!url.trim() || status === 'fetching'} className="btn btn-primary">
+              {status === 'fetching' ? 'Obteniendo…' : 'Generar preview'}
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Paste Text Tab */}
       {tab === 'paste' && status !== 'done' && (
-        <div className="space-y-3">
+        <div className="mt-6 flex flex-col gap-3">
           {status === 'preview' && url && (
-            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-blue-700 dark:text-blue-400 text-xs">
-              Content fetched from: {url}
+            <div className="p-3 border border-accent-line bg-accent-soft text-accent rounded-md text-xs">
+              Contenido obtenido desde: {url}
             </div>
           )}
-          <div className="flex flex-col md:flex-row gap-3">
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-1">Title</label>
-              <input
-                type="text"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="Document title"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-1">Author (optional)</label>
-              <input
-                type="text"
-                value={author}
-                onChange={e => setAuthor(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-1">Published Date (optional)</label>
-              <input
-                type="date"
-                value={publishedAt}
-                onChange={e => setPublishedAt(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Field label="Título"><input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Título del documento" className="input" /></Field>
+            <Field label="Autor (opcional)"><input type="text" value={author} onChange={e => setAuthor(e.target.value)} className="input" /></Field>
+            <Field label="Fecha publicación (opcional)"><input type="date" value={publishedAt} onChange={e => setPublishedAt(e.target.value)} className="input" /></Field>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Description (optional)</label>
-            <input
-              type="text"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Content ({content.length.toLocaleString()} chars)
-            </label>
+          <Field label="Descripción (opcional)">
+            <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="input" />
+          </Field>
+          <Field label={`Contenido (${content.length.toLocaleString()} caracteres)`}>
             <textarea
               value={content}
               onChange={e => setContent(e.target.value)}
-              rows={20}
-              placeholder="Paste your text or markdown here..."
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm font-mono"
+              rows={18}
+              placeholder="Pega aquí texto o markdown…"
+              className="input font-mono"
             />
-          </div>
+          </Field>
           <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              disabled={status === 'saving'}
-              className="px-4 py-2 bg-green-600 text-white rounded font-medium disabled:opacity-50"
-            >
-              {status === 'saving' ? 'Saving & Ingesting...' : 'Save & Ingest'}
+            <button onClick={handleSave} disabled={status === 'saving'} className="btn btn-primary">
+              {status === 'saving' ? 'Guardando & ingiriendo…' : 'Guardar & ingerir'}
             </button>
-            <button
-              onClick={resetForm}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-800 rounded font-medium"
-            >
-              Cancel
-            </button>
+            <button onClick={resetForm} className="btn">Cancelar</button>
           </div>
         </div>
       )}
 
-      {/* Upload Tab */}
       {tab === 'upload' && status !== 'done' && (
-        <div className="space-y-3">
+        <div className="mt-6 flex flex-col gap-3">
+          <Field label="Título">
+            <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Título del documento" className="input" />
+          </Field>
+          <Field label="Autor (opcional)">
+            <input type="text" value={author} onChange={e => setAuthor(e.target.value)} className="input" />
+          </Field>
+          <Field label="Fichero markdown (.md)">
+            <div className="card p-8 border-dashed text-center">
+              <Icon name="upload" size={24} className="mx-auto text-fg-2" />
+              <div className="mt-2 font-bold text-fg">Selecciona un fichero</div>
+              <div className="text-fg-3 text-[13px] mt-1">.md, .markdown, .txt</div>
+              <input ref={fileRef} type="file" accept=".md,.markdown,.txt" className="mt-4 text-sm" />
+            </div>
+          </Field>
           <div>
-            <label className="block text-sm font-medium mb-1">Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Source document title"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-            />
+            <button onClick={handleUpload} disabled={!title.trim() || status === 'saving'} className="btn btn-primary">
+              {status === 'saving' ? 'Subiendo & ingiriendo…' : 'Subir & ingerir'}
+            </button>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Author (optional)</label>
-            <input
-              type="text"
-              value={author}
-              onChange={e => setAuthor(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Markdown File (.md)</label>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".md,.markdown,.txt"
-              className="w-full text-sm"
-            />
-          </div>
-          <button
-            onClick={handleUpload}
-            disabled={!title.trim() || status === 'saving'}
-            className="px-4 py-2 bg-green-600 text-white rounded font-medium disabled:opacity-50"
-          >
-            {status === 'saving' ? 'Uploading & Ingesting...' : 'Upload & Ingest'}
-          </button>
         </div>
       )}
 
-      {/* Loading indicator */}
       {status === 'saving' && (
-        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-blue-700 dark:text-blue-400 text-sm">
-          Processing... The LLM ingest pipeline will compile wiki pages in the background.
+        <div className="mt-5 p-3 border border-cyan/30 bg-cyan-soft text-cyan rounded-md text-sm">
+          Procesando… El pipeline LLM compilará las páginas wiki en segundo plano.
         </div>
       )}
     </div>
+  );
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <div className="mono-label mb-1.5">{label}</div>
+      {children}
+      {hint && <p className="text-xs text-fg-3 mt-1">{hint}</p>}
+    </label>
   );
 }
