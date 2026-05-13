@@ -174,8 +174,25 @@ html:not(.dark) {
 .prose-doc [data-streamdown="code-block-header"] {
   display: none;
 }
+/* Streamdown wraps the action buttons in a sticky div with a negative
+ * margin-top that originally overlapped the language header. We hide the
+ * header, so position the action wrapper absolutely at the top-right
+ * corner of the code block instead — that keeps the copy button clickable
+ * and predictably placed. The wrapper has no data-streamdown attribute,
+ * so we target it by its `.sticky` class. */
+.prose [data-streamdown="code-block"] > .sticky,
+.prose-doc [data-streamdown="code-block"] > .sticky {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  margin: 0;
+  height: auto;
+  width: auto;
+  z-index: 2;
+}
 .prose [data-streamdown="code-block-actions"],
 .prose-doc [data-streamdown="code-block-actions"] {
+  pointer-events: auto;
   background: transparent;
   border: 0;
   padding: 2px;
@@ -192,6 +209,9 @@ html:not(.dark) {
   border-radius: 4px;
   cursor: pointer;
   transition: color .15s, background .15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .prose [data-streamdown="code-block-copy-button"]:hover,
 .prose-doc [data-streamdown="code-block-copy-button"]:hover {

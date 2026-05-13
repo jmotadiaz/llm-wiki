@@ -6,8 +6,9 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "clean": "rm -rf dist",
-    "build": "npm run clean && tsc && cp .env dist/ && mkdir -p dist/llm/prompts && cp src/llm/prompts/*.md dist/llm/prompts/",
+    "clean": "rm -rf dist node_modules/.cache/tsc",
+    "build": "tsc && mkdir -p dist/llm/prompts && cp -u src/llm/prompts/*.md dist/llm/prompts/ && ([ -f .env ] && cp -u .env dist/ || true)",
+    "build:fresh": "npm run clean && npm run build",
     "typecheck": "tsc --noEmit",
     "start": "cd dist && node index.js"
   },
