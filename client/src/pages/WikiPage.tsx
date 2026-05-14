@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQueryState } from "nuqs";
 import { displayTag } from "../utils/tagUtils";
@@ -253,16 +253,6 @@ function TopicsDropdown({
   onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
 
   const label = active.length === 0
     ? "Todos los temas"
@@ -270,7 +260,7 @@ function TopicsDropdown({
     : `${active.length} temas seleccionados`;
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -280,7 +270,13 @@ function TopicsDropdown({
         <Icon name="chevR" size={14} className={"text-fg-3 transition-transform " + (open ? "rotate-90" : "rotate-90")} />
       </button>
       {open && (
-        <div className="absolute top-full right-0 mt-1.5 w-[320px] max-h-[380px] flex flex-col bg-bg-1 border border-line-strong rounded-[10px] shadow-2xl z-30 overflow-hidden">
+        <>
+          {/* Backdrop full-screen para cerrar el dropdown al clickear fuera */}
+          <div
+            className="fixed inset-0 z-20"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute top-full right-0 mt-1.5 w-[320px] max-h-[380px] flex flex-col bg-bg-1 border border-line-strong rounded-[10px] shadow-2xl z-30 overflow-hidden">
           <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-line">
             <span className="mono-label">{active.length} de {topics.length}</span>
             {active.length > 0 && (
@@ -311,7 +307,8 @@ function TopicsDropdown({
               );
             })}
           </div>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
