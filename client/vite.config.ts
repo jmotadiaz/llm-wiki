@@ -44,6 +44,14 @@ const EXTERNALS: ExternalEntry[] = [
   // { name: 'streamdown',        url: 'https://esm.sh/streamdown@2.5.0?bundle&external=react,react-dom,remark-gfm&target=es2020' },
   // { name: 'remark-gfm',        url: 'https://esm.sh/remark-gfm@4.0.0?bundle&target=es2020' },
 
+  // ── Mermaid ──
+  // @streamdown/mermaid es un wrapper minúsculo (~1 KB) — safe con ?bundle.
+  // mermaid usa ?bundle para colapsar sus +100 sub-módulos en una sola request;
+  // si esm.sh genera hashed dynamic imports que devuelven 404 (igual que
+  // @streamdown/code + shiki), desactivar y dejar en vendor.
+  { name: '@streamdown/mermaid', url: 'https://esm.sh/@streamdown/mermaid@1.0.2?bundle&external=react,react-dom,mermaid&target=es2020' },
+  { name: 'mermaid',             url: 'https://esm.sh/mermaid@11.15.0?bundle&external=react,react-dom&target=es2020'                   },
+
   // ── Graph ──
   // { name: 'react-force-graph-2d', url: 'https://esm.sh/react-force-graph-2d@1.25.4?bundle&external=react,react-dom&target=es2020' },
 
