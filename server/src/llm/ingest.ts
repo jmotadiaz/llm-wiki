@@ -112,7 +112,7 @@ interface EnrichedPlanItem extends PlanItem {
 }
 
 interface EnrichedIngestPlan extends IngestPlan {
-  enrichedPages: EnrichedPlanItem[];
+  tasks: EnrichedPlanItem[];
 }
 
 interface IngestInput {
@@ -261,13 +261,13 @@ function createEnrichSiblingsNode(): WorkflowNode<
   EnrichedIngestPlan
 > {
   return node(async (plan: IngestPlan): Promise<EnrichedIngestPlan> => {
-    const enrichedPages: EnrichedPlanItem[] = plan.pages.map((page) => ({
+    const tasks: EnrichedPlanItem[] = plan.pages.map((page) => ({
       ...page,
       siblings: plan.pages
         .filter((other) => other.slug !== page.slug)
         .map((other) => ({ slug: other.slug, title: other.title })),
     }));
-    return { ...plan, enrichedPages };
+    return { ...plan, tasks };
   });
 }
 
@@ -578,7 +578,7 @@ export async function ingestRawSource(
       parallel(
         createWriterNode(db, rawSourceId, rawContent, sharedVars, session),
         createMetaNode(db, rawSourceId, session),
-        { maxParallel: 3, itemsKey: "enrichedPages" },
+        { maxParallel: 3 },
       ),
     ),
   );

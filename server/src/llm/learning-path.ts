@@ -46,6 +46,7 @@ const LearningPathPlanSchema = z.object({
 
 type PathPlanItem = z.infer<typeof PathPlanItemSchema>;
 type LearningPathPlan = z.infer<typeof LearningPathPlanSchema>;
+type LearningPathPlanWithTasks = LearningPathPlan & { tasks: PathPlanItem[] };
 
 // ── Workflow input/output types ───────────────────────────────────────
 
@@ -287,7 +288,7 @@ interface AggregatedRun {
 }
 
 function createAggregatorNode(): WorkflowNode<
-  ParallelAggregatorInput<WriterResult, PathPlanItem, LearningPathPlan>,
+  ParallelAggregatorInput<WriterResult, PathPlanItem, LearningPathPlanWithTasks>,
   AggregatedRun
 > {
   return node(async (input): Promise<AggregatedRun> => {
@@ -296,7 +297,7 @@ function createAggregatorNode(): WorkflowNode<
       .filter((r) => !r.success)
       .map((r) => ({ slug: r.slug, error: r.error ?? "writer reported failure" }));
     const errorFailures = input.errors.map((e) => ({
-      slug: e.item.slug,
+      slug: e.task.slug,
       error: e.error instanceof Error ? e.error.message : String(e.error),
     }));
     return { successes, failures: [...writerFailures, ...errorFailures] };
@@ -325,10 +326,16 @@ export async function runLearningPathAgent(
 
   const workflow = chain(
     createPlannerNode(),
-    parallel(
-      createWriterNode(db, writerResult),
-      createAggregatorNode(),
-      { maxParallel: MAX_PARALLEL_WRITERS, itemsKey: "paths" },
+    chain(
+      node(async (plan: LearningPathPlan): Promise<LearningPathPlanWithTasks> => ({
+        ...plan,
+        tasks: plan.paths,
+      })),
+      parallel(
+        createWriterNode(db, writerResult),
+        createAggregatorNode(),
+        { maxParallel: MAX_PARALLEL_WRITERS },
+      ),
     ),
   );
 

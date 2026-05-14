@@ -1,70 +1,67 @@
 import { WorkflowNode, node } from "./node.js";
 
-export interface ParallelConfig<K extends string = string> {
+export interface ParallelConfig {
   /** Maximum number of concurrent executions. */
   maxParallel: number;
-  /** Name of the property on the input object that holds the items array. */
-  itemsKey: K;
 }
 
-export interface ParallelAggregatorInput<TResult, TItem, TInput> {
-  /** Successfully resolved results, in the same order as items. */
+export interface ParallelAggregatorInput<TResult, TTask, TInput> {
+  /** Successfully resolved results, in the same order as tasks. */
   results: TResult[];
   /** Errors captured from rejected worker executions. */
-  errors: { item: TItem; error: unknown }[];
-  /** The original items array. */
-  items: TItem[];
+  errors: { task: TTask; error: unknown }[];
+  /** The original tasks array. */
+  tasks: TTask[];
   /** The original input passed to parallel.execute(). */
   input: TInput;
 }
 
 /**
- * Execute `worker` on every item found at `config.itemsKey` on the input,
- * with at most `maxParallel` executions in flight at any time, then pass
- * all results plus the original input to `aggregator`.
+ * Execute `worker` on every task found at `input.tasks`, with at most
+ * `maxParallel` executions in flight at any time, then pass all results
+ * plus the original input to `aggregator`.
  *
- * Concurrency model: a fixed pool of `min(maxParallel, items.length)`
- * slots pulls items from a shared cursor. As soon as one slot finishes
- * an item, it picks up the next one — no batch boundaries, no waiting
- * for the slowest item of a batch before the next item starts.
+ * Concurrency model: a fixed pool of `min(maxParallel, tasks.length)`
+ * slots pulls tasks from a shared cursor. As soon as one slot finishes
+ * a task, it picks up the next one — no batch boundaries, no waiting
+ * for the slowest task of a batch before the next task starts.
  *
  * Individual worker rejections are captured as errors and do NOT abort
  * the run. The aggregator decides how to handle partial failures.
  *
  * Result ordering: `results` and `errors` are emitted in the same order
- * as the original `items` array (failures excluded from `results`,
+ * as the original `tasks` array (failures excluded from `results`,
  * successes excluded from `errors`).
  *
  * @example
- *   parallel(writerNode, metaNode, { maxParallel: 3, itemsKey: "pages" })
+ *   parallel(writerNode, metaNode, { maxParallel: 3 })
  */
 export function parallel<
-  TItem,
+  TTask,
   TResult,
   TAggregated,
-  TInput extends Record<K, TItem[]>,
-  K extends string,
+  TInput extends Record<"tasks", TTask[]>,
 >(
-  worker: WorkflowNode<TItem, TResult>,
+  worker: WorkflowNode<TTask, TResult>,
   aggregator: WorkflowNode<
-    ParallelAggregatorInput<TResult, TItem, TInput>,
+    ParallelAggregatorInput<TResult, TTask, TInput>,
     TAggregated
   >,
-  config: ParallelConfig<K>,
+  config: ParallelConfig,
 ): WorkflowNode<TInput, TAggregated> {
   return node(async (input: TInput): Promise<TAggregated> => {
-    const items: TItem[] = input[config.itemsKey];
-    const outcomes: PromiseSettledResult<TResult>[] = new Array(items.length);
+    const tasks: TTask[] = input.tasks;
+    const outcomes: PromiseSettledResult<TResult>[] = new Array(tasks.length);
     let nextIndex = 0;
 
     const runSlot = async (): Promise<void> => {
       while (true) {
         const i = nextIndex++;
-        if (i >= items.length) return;
+        if (i >= tasks.length) return;
         try {
           outcomes[i] = {
             status: "fulfilled",
-            value: await worker.execute(items[i]),
+            value: await worker.execute(tasks[i]),
           };
         } catch (error) {
           outcomes[i] = { status: "rejected", reason: error };
@@ -72,22 +69,22 @@ export function parallel<
       }
     };
 
-    const slotCount = Math.min(config.maxParallel, items.length);
+    const slotCount = Math.min(config.maxParallel, tasks.length);
     await Promise.all(
       Array.from({ length: slotCount }, () => runSlot()),
     );
 
     const results: TResult[] = [];
-    const errors: { item: TItem; error: unknown }[] = [];
-    for (let i = 0; i < items.length; i++) {
+    const errors: { task: TTask; error: unknown }[] = [];
+    for (let i = 0; i < tasks.length; i++) {
       const o = outcomes[i];
       if (o.status === "fulfilled") {
         results.push(o.value);
       } else {
-        errors.push({ item: items[i], error: o.reason });
+        errors.push({ task: tasks[i], error: o.reason });
       }
     }
 
-    return aggregator.execute({ results, errors, items, input });
+    return aggregator.execute({ results, errors, tasks, input });
   });
 }
