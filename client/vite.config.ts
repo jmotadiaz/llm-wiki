@@ -34,23 +34,27 @@ const EXTERNALS: ExternalEntry[] = [
   // { name: '@ai-sdk/react',     url: 'https://esm.sh/@ai-sdk/react@3?bundle&external=react,react-dom,ai&target=es2020' },
 
   // ── Markdown / Streamdown ──
-  // shiki sin ?bundle: lazy-load de lenguajes desde esm.sh en demanda.
-  // @streamdown/code con ?external=shiki: evita imports con hash 404.
-  // streamdown con ?external=remark-gfm: remark-gfm ya está en el import map;
-  //   si esm.sh lo bundleara dentro de streamdown habría dos instancias del plugin.
+  // streamdown + @streamdown/code + @streamdown/mermaid se sirven como un
+  // ÚNICO sidecar prebundleado en /vendor/streamdown.mjs. Razón: cuando se
+  // externalizan vía esm.sh, el chunk dinámico interno de streamdown
+  // (mermaid-GHXKKRXX.js) se carga como módulo separado, lo que duplica el
+  // createContext(Ve) y rompe el plugin de Mermaid ("Mermaid plugin not
+  // available"). Un bundle único garantiza una sola instancia del contexto.
+  //
+  // El sidecar lo genera scripts/build-streamdown-bundle.mjs (ejecútalo
+  // cuando subas la versión de streamdown). El archivo está commiteado para
+  // que la build en la Pi no tenga que reconstruirlo.
+  //
+  // shiki y mermaid siguen externos a esm.sh — son los paquetes pesados y
+  // ambos cargan sus sub-modulos perezosamente (lenguajes para shiki,
+  // diagramas para mermaid). No participan del problema del contexto.
+  { name: 'streamdown',              url: '/vendor/streamdown.mjs' },
+  { name: '@streamdown/code',        url: '/vendor/streamdown.mjs' },
+  { name: '@streamdown/mermaid',     url: '/vendor/streamdown.mjs' },
   { name: 'shiki',                   url: 'https://esm.sh/shiki@3.19.0?target=es2020'                                                          },
   { name: 'shiki/engine/javascript', url: 'https://esm.sh/shiki@3.19.0/engine/javascript?target=es2020'                                        },
-  { name: '@streamdown/code',        url: 'https://esm.sh/@streamdown/code@1.1.1?external=shiki&target=es2020'                                  },
-  { name: 'streamdown',              url: 'https://esm.sh/streamdown@2.5.0?bundle&external=react,react-dom,remark-gfm&target=es2020'            },
   { name: 'remark-gfm',              url: 'https://esm.sh/remark-gfm@4.0.0?bundle&target=es2020'                                               },
-
-  // ── Mermaid ──
-  // @streamdown/mermaid es un wrapper minúsculo (~1 KB) — safe con ?bundle.
-  // mermaid usa ?bundle para colapsar sus +100 sub-módulos en una sola request;
-  // si esm.sh genera hashed dynamic imports que devuelven 404 (igual que
-  // @streamdown/code + shiki), desactivar y dejar en vendor.
-  { name: '@streamdown/mermaid', url: 'https://esm.sh/@streamdown/mermaid@1.0.2?bundle&external=react,react-dom,mermaid&target=es2020' },
-  { name: 'mermaid',             url: 'https://esm.sh/mermaid@11.15.0?bundle&external=react,react-dom&target=es2020'                   },
+  { name: 'mermaid',                 url: 'https://esm.sh/mermaid@11.15.0?bundle&external=react,react-dom&target=es2020'                       },
 
   // ── Graph ──
   // { name: 'react-force-graph-2d', url: 'https://esm.sh/react-force-graph-2d@1.25.4?bundle&external=react,react-dom&target=es2020' },
