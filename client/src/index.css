@@ -246,16 +246,20 @@ html.dark [data-streamdown="code-block-body"] pre span {
 }
 
 /* ---- Mermaid diagrams ----
- * Misma estética que los code blocks: sin tarjeta, sin borde, sin etiqueta
- * "mermaid" arriba; solo el diagrama y los botones de acción flotando en la
- * esquina superior derecha.
+ * Sin bordes ni tarjeta. Controles organizados en una fila superior:
+ * zoom in/out a la izquierda (sin caja), acciones a la derecha.
+ * El SVG deja espacio arriba (padding-top) para que no se solapen.
  *
  * Estructura que renderiza streamdown@2.5:
  *   div[data-streamdown="mermaid-block"]   ← contenedor exterior
  *     ├ div.flex.h-8 (etiqueta "mermaid")  ← lo ocultamos
- *     ├ div.sticky  (envuelve los botones, sólo si hay controles)
+ *     ├ div.sticky  (barra de acciones lado derecho)
  *     │   └ div[data-streamdown="mermaid-block-actions"]
- *     └ div.bg-background (envuelve el SVG real)
+ *     └ div (envuelve el SVG)
+ *         └ div[data-streamdown="mermaid"]
+ *             └ div.relative (Nn root)
+ *                 ├ div.absolute (zoom controls lado izquierdo)
+ *                 └ div (SVG con padding-top)
  */
 .prose [data-streamdown="mermaid-block"],
 .prose-doc [data-streamdown="mermaid-block"] {
@@ -267,36 +271,59 @@ html.dark [data-streamdown="code-block-body"] pre span {
   gap: 0;
   position: relative;
 }
-/* Etiqueta "mermaid" de cabecera */
+/* Etiqueta "mermaid" de cabecera: ocultar */
 .prose [data-streamdown="mermaid-block"] > div:first-child,
 .prose-doc [data-streamdown="mermaid-block"] > div:first-child {
   display: none;
 }
-/* El sticky wrapper original usa `-mt-10` (margin-top:-40px) para encajar
- * sobre la etiqueta oculta y deja el chart container debajo recibiendo los
- * eventos. Lo reposicionamos absoluto sobre el diagrama para que los botones
- * sean clickables (el chart container no los tape). */
+/* Contenedor inmediato del SVG: sin borde ni fondo */
+.prose [data-streamdown="mermaid-block"] > div:last-child,
+.prose-doc [data-streamdown="mermaid-block"] > div:last-child {
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+/* Nn root: padding-top para que el SVG no solape los controles (los zoom
+   controls son absolute dentro de Nn y se mantienen en top:6px) */
+.prose [data-streamdown="mermaid"] > div:first-child,
+.prose-doc [data-streamdown="mermaid"] > div:first-child {
+  padding-top: 36px;
+}
+/* El propio elemento [data-streamdown="mermaid"] (host del SVG) */
+[data-streamdown="mermaid"] {
+  background: transparent;
+  border: 0;
+}
+
+/* ---- Barra de acciones (lado derecho: download, copy, fullscreen) ---- */
 .prose [data-streamdown="mermaid-block"] > .sticky,
 .prose-doc [data-streamdown="mermaid-block"] > .sticky {
   position: absolute;
   top: 6px;
   right: 6px;
   margin: 0;
-  height: auto;
+  height: 28px;
   width: auto;
   z-index: 2;
   pointer-events: auto;
+  display: flex;
+  align-items: center;
 }
 .prose [data-streamdown="mermaid-block-actions"],
 .prose-doc [data-streamdown="mermaid-block-actions"] {
   pointer-events: auto;
   background: transparent;
   border: 0;
-  padding: 2px;
+  padding: 0;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: none;
+  display: flex;
+  align-items: center;
+  gap: 1px;
 }
+/* Botones de la barra de acciones */
 .prose [data-streamdown="mermaid-block-actions"] button,
 .prose-doc [data-streamdown="mermaid-block-actions"] button {
   background: transparent;
@@ -315,18 +342,40 @@ html.dark [data-streamdown="code-block-body"] pre span {
   color: var(--fg);
   background: var(--bg-2);
 }
-/* Contenedor inmediato del SVG (último hijo): quitar borde + fondo */
-.prose [data-streamdown="mermaid-block"] > div:last-child,
-.prose-doc [data-streamdown="mermaid-block"] > div:last-child {
+
+/* ---- Zoom controls (Nn component) — lado izquierdo, sin caja ---- */
+.prose [data-streamdown="mermaid"] > div:first-child > div:first-child,
+.prose-doc [data-streamdown="mermaid"] > div:first-child > div:first-child {
+  top: 6px;
+  left: 6px;
+  bottom: auto;
+  right: auto;
+  flex-direction: row;
+  gap: 2px;
   border: 0;
   background: transparent;
-  border-radius: 0;
   padding: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  border-radius: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
 }
-/* El propio elemento [data-streamdown="mermaid"] (el host del SVG) */
-[data-streamdown="mermaid"] {
-  background: transparent;
-  border: 0;
+/* Ocultar reset (3er botón, no se puede mover con CSS al lado derecho) */
+.prose [data-streamdown="mermaid"] > div:first-child > div:first-child button:nth-child(3),
+.prose-doc [data-streamdown="mermaid"] > div:first-child > div:first-child button:nth-child(3) {
+  display: none;
+}
+
+/* ---- Fullscreen mermaid (portal fuera de .prose) ---- */
+body > div.fixed.inset-0.z-50 {
+  background: var(--bg) !important;
+  backdrop-filter: none !important;
+}
+body > div.fixed.inset-0.z-50 > div {
+  padding: 0 !important;
 }
 
 /* ---- Tables ---- */

@@ -11,6 +11,12 @@ export default {
     extend: {
       colors: {
         bg: 'var(--bg)',
+        background: 'var(--bg)', /* alias que streamdown espera (bg-background) */
+        foreground: 'var(--fg)',
+        'muted-foreground': 'var(--fg-3)',
+        muted: 'var(--bg-2)',
+        border: 'var(--line)',
+        sidebar: 'var(--bg-1)',
         'bg-1': 'var(--bg-1)',
         'bg-2': 'var(--bg-2)',
         'bg-3': 'var(--bg-3)',
@@ -56,5 +62,44 @@ export default {
   },
   plugins: [
     require('@tailwindcss/typography'),
+  ],
+  // ── Safelist ──
+  // streamdown genera classes de Tailwind en su bundle externo (@streamdown/mermaid,
+  // @streamdown/code). Como Tailwind JIT escanea el source del proyecto pero no
+  // encuentra estas clases (están en el sidecar pre-bundleado), deben listarse aquí
+  // para que se incluyan en el CSS final.
+  safelist: [
+    // ── Layout & positioning ──
+    'fixed', 'inset-0', 'top-2', 'top-4', 'right-4', 'bottom-2', 'bottom-4', 'left-2', 'left-4',
+    'z-10', 'z-50',
+    'h-full', 'w-full', 'size-full', 'h-8', 'min-h-28',
+    'flex-1', 'shrink-0',
+    '-mt-10',
+    'my-4',
+    'gap-2',
+    'px-1.5', 'py-1', 'p-1.5', 'p-2',
+    'justify-end',
+    // ── Visual ──
+    'rounded-xl', 'rounded',
+    'backdrop-blur-sm',
+    // ── Tipografía ──
+    'text-xs', 'font-mono', 'lowercase', 'ml-1',
+    // ── Transiciones/efectos ──
+    'origin-center', 'duration-150', 'ease-out',
+    'group',
+    // ── Arbitrary variants ──
+    '[&_svg]:h-auto', '[&_svg]:w-auto',
+    // ── Patrones para colores streamdown (incluye variantes hover) ──
+    { pattern: /^bg-(background|muted|sidebar)$/ },
+    // Opacidad de fondo (safelist explícito porque el pattern con / no siempre casa)
+    'bg-background/80', 'bg-background/95', 'bg-sidebar/80', 'bg-sidebar/70',
+    { pattern: /^text-(muted-foreground|foreground)$/ },
+    { pattern: /^border-(border|sidebar)$/ },
+    // ── Hover / disabled states ──
+    { pattern: /^(bg-muted|text-foreground|cursor-not-allowed|opacity-50)$/, variants: ['hover', 'disabled'] },
+    // ── Soporte backdrop-filter ──
+    { pattern: /^bg-(background|sidebar)\/70$/, variants: ['supports-[backdrop-filter]'] },
+    // ── Transiciones ──
+    { pattern: /^transition-(colors|all|transform)$/ },
   ],
 };
