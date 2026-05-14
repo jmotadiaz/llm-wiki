@@ -144,7 +144,7 @@ export default defineConfig({
           // react-force-graph only — d3 packages stay in vendor to avoid
           // circular chunk: vendor -> graph -> vendor (d3 ↔ internmap/delaunator).
           if (id.includes('react-force-graph')) return 'graph';
-          if (id.includes('shiki') || id.includes('@streamdown') || id.includes('/streamdown/')) return 'markdown';
+          if (id.includes('shiki') || id.includes('@streamdown') || id.includes('/streamdown/') || id.includes('/mermaid/')) return 'markdown';
           if (id.includes('/ai/') || id.includes('@ai-sdk/')) return 'ai';
 
           return 'vendor';

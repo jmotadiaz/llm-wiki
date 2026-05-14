@@ -220,6 +220,40 @@ When adding a citation-only contribution, attach the new citation inline immedia
 - `` `code` `` for technical terms, function names, filenames, identifiers
 - Triple backticks with language spec for code blocks
 
+### Diagramas Mermaid
+
+The wiki renderer supports Mermaid diagrams. Use them when a visual representation genuinely aids understanding beyond what prose alone can convey. Include **at most one diagram per page**, placed after the introductory paragraph or at the start of the most relevant section.
+
+**When to include a diagram:**
+
+- The page describes a **multi-step process or pipeline** (e.g., data ingestion flow, training pipeline) → `flowchart`
+- The page describes **interactions between components or agents** (e.g., planner/writer handoff, API calls) → `sequenceDiagram`
+- The page describes a **data model or type hierarchy** (e.g., schema relationships, class structure) → `classDiagram`
+- The page describes a **state machine or lifecycle** (e.g., document states, agent phases) → `stateDiagram-v2`
+- The page describes a **taxonomy or concept map** with many related terms → `mindmap`
+
+**When NOT to include a diagram:**
+
+- The concept is simple enough that prose already makes it clear
+- The source material contains no structure that maps naturally to a diagram
+- The diagram would duplicate what a well-structured section already conveys
+
+**Syntax rules:**
+
+- Use a fenced code block with language `mermaid`
+- Keep diagrams focused: no more than ~10 nodes for flowcharts, ~6 participants for sequence diagrams
+- Node labels and diagram text should be in Spanish (same as body text); technical identifiers stay in English
+- Prefer `LR` (left-to-right) orientation for flowcharts describing pipelines; `TD` (top-down) for hierarchies
+
+**Example:**
+
+````mermaid
+flowchart LR
+    Fuente[Fuente raw] --> Planificador
+    Planificador --> Escritor
+    Escritor --> PáginaWiki[Página wiki]
+````
+
 ### Granularity Guide
 
 **Create a separate page** when the concept:

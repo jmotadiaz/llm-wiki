@@ -4,6 +4,7 @@ import { code } from "@streamdown/code";
 import remarkGfm from "remark-gfm";
 import { useNavigate } from "react-router-dom";
 import remarkHeadingAnchors from "./remarkHeadingAnchors";
+import { mermaidPlugin } from "./mermaidPlugin";
 
 interface MarkdownProps {
   content: string;
@@ -33,7 +34,7 @@ const Markdown = memo(function Markdown({
   return (
     <div className={`prose dark:prose-invert max-w-none ${className}`}>
       <Streamdown
-        plugins={{ code }}
+        plugins={{ code, mermaid: mermaidPlugin }}
         remarkPlugins={remarkPlugins as any}
         controls={{
           table: false,
