@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import Markdown from '../components/markdown/Markdown';
 import CommentSection from '../components/CommentSection';
 import { displayTag } from '../utils/tagUtils';
 import { useSidebarExtras } from '../components/SidebarContext';
 import Icon from '../components/Icon';
 import { getHeadingId } from '@llm-wiki/shared';
+import { scrollToFragment, scrollToCurrentHash } from '../utils/scrollToFragment';
 
 interface PageData {
   page: {
@@ -62,6 +63,7 @@ function tagTone(role: string, idx: number): string {
 
 export default function WikiPageDetail() {
   const { slug } = useParams<{ slug: string }>();
+  const location = useLocation();
   const [data, setData] = useState<PageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -86,6 +88,16 @@ export default function WikiPageDetail() {
   }
 
   useEffect(() => { loadPage(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [slug]);
+
+  // Scroll to hash fragment on initial load and when the hash changes
+  // (browser back/forward navigation). Does nothing if there is no hash.
+  useEffect(() => {
+    if (!data) return;
+    const raf = requestAnimationFrame(() => {
+      scrollToCurrentHash('smooth');
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [data, location.hash]);
 
   const toc = useMemo(() => data ? extractToc(data.page.content) : [], [data]);
 
@@ -121,6 +133,11 @@ export default function WikiPageDetail() {
               className={"sb-link"
                 + (t.level === 3 ? " indent-1" : t.level === 4 ? " indent-2" : "")
                 + (t.id === activeId ? " active" : "")}
+              onClick={(e) => {
+                e.preventDefault();
+                window.history.replaceState(null, '', `#${t.id}`);
+                scrollToFragment(t.id);
+              }}
             >
               <span className="truncate">{t.text}</span>
             </a>

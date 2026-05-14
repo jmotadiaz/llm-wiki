@@ -15,18 +15,18 @@
   --fg-2:         #7a8092;
   --fg-3:         #565c6d;
 
-  --accent:       oklch(72% 0.09 350);
-  --accent-soft:  oklch(72% 0.09 350 / 0.12);
-  --accent-line:  oklch(72% 0.09 350 / 0.32);
-  --cyan:         oklch(76% 0.06 220);
-  --cyan-soft:    oklch(76% 0.06 220 / 0.12);
-  --green:        oklch(76% 0.07 160);
-  --green-soft:   oklch(76% 0.07 160 / 0.12);
-  --violet:       oklch(72% 0.07 290);
-  --violet-soft:  oklch(72% 0.07 290 / 0.12);
-  --red:          oklch(68% 0.12 25);
-  --red-soft:     oklch(68% 0.12 25 / 0.14);
-  --amber:        oklch(76% 0.08 70);
+  --accent:       oklch(63% 0.06 260);
+  --accent-soft:  oklch(63% 0.06 260 / 0.12);
+  --accent-line:  oklch(63% 0.06 260 / 0.32);
+  --cyan:         oklch(70% 0.04 230);
+  --cyan-soft:    oklch(70% 0.04 230 / 0.12);
+  --green:        oklch(70% 0.05 160);
+  --green-soft:   oklch(70% 0.05 160 / 0.12);
+  --violet:       oklch(66% 0.05 290);
+  --violet-soft:  oklch(66% 0.05 290 / 0.12);
+  --red:          oklch(63% 0.09 25);
+  --red-soft:     oklch(63% 0.09 25 / 0.14);
+  --amber:        oklch(70% 0.06 70);
 }
 
 /* Light overrides — applied when html lacks .dark */
@@ -42,18 +42,18 @@ html:not(.dark) {
   --fg-2:         #6a6d77;
   --fg-3:         #9a9aa3;
 
-  --accent:       oklch(48% 0.13 350);
-  --accent-soft:  oklch(48% 0.13 350 / 0.10);
-  --accent-line:  oklch(48% 0.13 350 / 0.32);
-  --cyan:         oklch(48% 0.10 220);
-  --cyan-soft:    oklch(48% 0.10 220 / 0.10);
-  --green:        oklch(48% 0.10 160);
-  --green-soft:   oklch(48% 0.10 160 / 0.10);
-  --violet:       oklch(48% 0.10 290);
-  --violet-soft:  oklch(48% 0.10 290 / 0.10);
-  --red:          oklch(50% 0.16 25);
-  --red-soft:     oklch(50% 0.16 25 / 0.10);
-  --amber:        oklch(55% 0.13 70);
+  --accent:       oklch(38% 0.07 260);
+  --accent-soft:  oklch(38% 0.07 260 / 0.10);
+  --accent-line:  oklch(38% 0.07 260 / 0.32);
+  --cyan:         oklch(45% 0.04 230);
+  --cyan-soft:    oklch(45% 0.04 230 / 0.10);
+  --green:        oklch(45% 0.05 160);
+  --green-soft:   oklch(45% 0.05 160 / 0.10);
+  --violet:       oklch(42% 0.05 290);
+  --violet-soft:  oklch(42% 0.05 290 / 0.10);
+  --red:          oklch(48% 0.10 25);
+  --red-soft:     oklch(48% 0.10 25 / 0.10);
+  --amber:        oklch(50% 0.08 70);
 }
 
 @layer base {
@@ -87,9 +87,9 @@ html:not(.dark) {
     background: var(--accent);
     color: #fff;
   }
-  html.dark .btn-primary { color: #14081a; }
+
   .btn-primary:hover { filter: brightness(0.92); }
-  html.dark .btn-primary:hover { filter: brightness(1.1); }
+  html.dark .btn-primary:hover { filter: brightness(1.06); }
   .btn-outline {
     @apply bg-transparent text-fg-1;
     border-color: var(--line-strong);

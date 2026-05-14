@@ -7,10 +7,10 @@ interface GraphEdge { source: string; target: string }
 interface GraphData { nodes: GraphNode[]; links: GraphEdge[] }
 
 const TYPE_COLORS: Record<string, string> = {
-  concept: '#7aa7d3',
-  technique: '#7fc7a8',
-  reference: '#d4a373',
-  index: '#a78bca',
+  concept: '#6b8a9e',
+  technique: '#7a9b85',
+  reference: '#9a8c7a',
+  index: '#8a7f9a',
 };
 
 export default function GraphPage() {

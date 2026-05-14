@@ -10,7 +10,6 @@ import { createRawRoutes } from "./routes/api/raw.js";
 import { createChatRoutes } from "./routes/api/chat.js";
 import { createCommentRoutes } from "./routes/api/comments.js";
 import { createLearningPathRoutes } from "./routes/learning-path.js";
-import { initScheduler } from "./services/scheduler.js";
 import { ReviewQueue } from "./services/review-queue.js";
 import { Queries } from "./db/queries.js";
 
@@ -70,8 +69,8 @@ for (const comment of pendingComments) {
   reviewQueue.enqueue(comment.id);
 }
 
-// Initialize scheduler
-initScheduler(db);
+// Scheduler disabled — cron jobs removed. Use API endpoints for on-demand operations:
+// POST /api/wiki/lint, POST /api/learning-paths/generate
 
 // Middleware
 app.use(express.json({ limit: "10mb" }));

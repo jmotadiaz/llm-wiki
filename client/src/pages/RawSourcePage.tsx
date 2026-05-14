@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import Markdown from "../components/markdown/Markdown";
 import Icon from "../components/Icon";
+import { scrollToFragment } from "../utils/scrollToFragment";
 
 interface RawSource {
   id: number;
@@ -64,7 +65,7 @@ export default function RawSourcePage() {
       const top = el.getBoundingClientRect().top + window.scrollY;
       if (lastTop !== null && Math.abs(top - lastTop) < 1) return; // already aligned
       lastTop = top;
-      el.scrollIntoView({ block: "start" });
+      scrollToFragment(fragment, 'instant');
     };
 
     // Try repeatedly during the streaming/render window

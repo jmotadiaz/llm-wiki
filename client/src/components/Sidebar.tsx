@@ -50,21 +50,21 @@ export default function Sidebar() {
   return (
     <>
       {/* Desktop sidebar — column inside the shell grid */}
-      <aside className="hidden md:block border-r border-line py-9 pr-6 sticky top-topbar self-start max-h-[calc(100vh-64px)] overflow-y-auto">
+      <aside className="hidden lg:block border-r border-line py-9 pr-6 sticky top-topbar self-start max-h-[calc(100vh-64px)] overflow-y-auto">
         {navContent}
       </aside>
 
       {/* Mobile drawer */}
       {mobileOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/55 z-[70] backdrop-blur-sm"
+          className="lg:hidden fixed inset-0 bg-black/55 z-[70] backdrop-blur-sm"
           onClick={closeOnMobile}
           aria-hidden="true"
         />
       )}
       <aside
         className={[
-          'md:hidden fixed top-0 left-0 bottom-0 w-[min(86vw,320px)]',
+          'lg:hidden fixed top-0 left-0 bottom-0 w-[min(86vw,320px)]',
           'bg-bg border-r border-line-strong z-[80] overflow-y-auto pt-4 pb-8 px-3',
           'transition-transform duration-200 ease-out shadow-2xl',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',

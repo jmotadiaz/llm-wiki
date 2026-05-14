@@ -13,7 +13,7 @@ export default function Topbar() {
         {/* Mobile-only sidebar toggle, LEFT of brand */}
         <button
           type="button"
-          className="icon-btn md:hidden"
+          className="icon-btn lg:hidden"
           aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
           onClick={() => setMobileOpen(!mobileOpen)}
         >

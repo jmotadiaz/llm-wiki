@@ -1,5 +1,6 @@
 import { visit } from "unist-util-visit";
 import { getHeadingId } from "@llm-wiki/shared";
+import { SCROLL_OFFSET } from "../../utils/scrollToFragment";
 
 interface MarkdownNode {
   type?: string;
@@ -41,6 +42,7 @@ export default function remarkHeadingAnchors() {
       node.data.hProperties = {
         ...(node.data.hProperties || {}),
         id: fragment,
+        style: `scroll-margin-top: ${SCROLL_OFFSET}px`,
       };
     });
   };
