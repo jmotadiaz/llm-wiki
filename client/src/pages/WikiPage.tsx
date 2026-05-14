@@ -59,14 +59,27 @@ export default function WikiPage() {
     [allTags]
   );
 
-  // Available topics depend on the currently selected domain
+  // Pages matching domain filter
   const pagesInDomain = domainFilter ? pages.filter(p => p.tags.includes(`d:${domainFilter}`)) : pages;
+
+  // Pages matching domain + search + already selected topics → used to derive available topics
+  const topicCandidatePages = useMemo(() => {
+    return pagesInDomain.filter(p => {
+      const matchSearch =
+        !search || p.title.toLowerCase().includes(search.toLowerCase()) || p.slug.includes(search.toLowerCase());
+      const matchTopics =
+        topicFilter.length === 0 || topicFilter.every(t => p.tags.includes(`t:${t}`));
+      return matchSearch && matchTopics;
+    });
+  }, [pagesInDomain, search, topicFilter]);
+
+  // Available topics: when topics are selected, only show those that coexist with all of them
   const availableTopics = useMemo(() => (
-    [...new Set(pagesInDomain.flatMap(p => p.tags))]
+    [...new Set(topicCandidatePages.flatMap(p => p.tags))]
       .filter(t => t.startsWith("t:"))
       .map(t => displayTag(t).label)
       .sort((a, b) => a.localeCompare(b))
-  ), [pagesInDomain]);
+  ), [topicCandidatePages]);
 
   // Counts per domain (over current search; ignores selected domain so all counts visible)
   const countsByDomain = useMemo(() => {
