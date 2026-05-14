@@ -38,11 +38,11 @@ const EXTERNALS: ExternalEntry[] = [
   // @streamdown/code con ?external=shiki: evita imports con hash 404.
   // streamdown con ?external=remark-gfm: remark-gfm ya está en el import map;
   //   si esm.sh lo bundleara dentro de streamdown habría dos instancias del plugin.
-  // { name: 'shiki',             url: 'https://esm.sh/shiki@3.19.0?target=es2020' },
-  // { name: 'shiki/engine/javascript', url: 'https://esm.sh/shiki@3.19.0/engine/javascript?target=es2020' },
-  // { name: '@streamdown/code',  url: 'https://esm.sh/@streamdown/code@1.1.1?external=shiki&target=es2020' },
-  // { name: 'streamdown',        url: 'https://esm.sh/streamdown@2.5.0?bundle&external=react,react-dom,remark-gfm&target=es2020' },
-  // { name: 'remark-gfm',        url: 'https://esm.sh/remark-gfm@4.0.0?bundle&target=es2020' },
+  { name: 'shiki',                   url: 'https://esm.sh/shiki@3.19.0?target=es2020'                                                          },
+  { name: 'shiki/engine/javascript', url: 'https://esm.sh/shiki@3.19.0/engine/javascript?target=es2020'                                        },
+  { name: '@streamdown/code',        url: 'https://esm.sh/@streamdown/code@1.1.1?external=shiki&target=es2020'                                  },
+  { name: 'streamdown',              url: 'https://esm.sh/streamdown@2.5.0?bundle&external=react,react-dom,remark-gfm&target=es2020'            },
+  { name: 'remark-gfm',              url: 'https://esm.sh/remark-gfm@4.0.0?bundle&target=es2020'                                               },
 
   // ── Mermaid ──
   // @streamdown/mermaid es un wrapper minúsculo (~1 KB) — safe con ?bundle.
