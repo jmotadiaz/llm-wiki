@@ -144,9 +144,16 @@ export default defineConfig({
           // react-force-graph only — d3 packages stay in vendor to avoid
           // circular chunk: vendor -> graph -> vendor (d3 ↔ internmap/delaunator).
           if (id.includes('react-force-graph')) return 'graph';
-          // mermaid and its transitive deps (cytoscape, dagre, d3-*) stay in vendor
-          // to avoid circular chunks — same pattern as react-force-graph above.
-          if (id.includes('shiki') || id.includes('@streamdown') || id.includes('/streamdown/')) return 'markdown';
+          // @streamdown/mermaid imports the mermaid package (and all its heavy
+          // transitive deps: cytoscape, dagre, d3-*). Routing it to vendor prevents
+          // Rolldown from pulling those deps into the markdown chunk, which would
+          // create a circular dependency (markdown -> vendor -> markdown).
+          // Must come before the generic @streamdown rule below.
+          // Markdown stack (streamdown, shiki, mermaid) all goes to vendor.
+          // Splitting them into a separate 'markdown' chunk causes a circular
+          // dependency (markdown -> vendor -> markdown) due to @shikijs/core
+          // importing hast-util-to-html and its transitive deps — same pattern
+          // as the react-force-graph / d3 problem above.
           if (id.includes('/ai/') || id.includes('@ai-sdk/')) return 'ai';
 
           return 'vendor';
