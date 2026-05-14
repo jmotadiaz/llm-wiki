@@ -245,6 +245,90 @@ html.dark [data-streamdown="code-block-body"] pre span {
   color: var(--shiki-dark, var(--sdm-c, inherit));
 }
 
+/* ---- Mermaid diagrams ----
+ * Misma estética que los code blocks: sin tarjeta, sin borde, sin etiqueta
+ * "mermaid" arriba; solo el diagrama y los botones de acción flotando en la
+ * esquina superior derecha.
+ *
+ * Estructura que renderiza streamdown@2.5:
+ *   div[data-streamdown="mermaid-block"]   ← contenedor exterior
+ *     ├ div.flex.h-8 (etiqueta "mermaid")  ← lo ocultamos
+ *     ├ div.sticky  (envuelve los botones, sólo si hay controles)
+ *     │   └ div[data-streamdown="mermaid-block-actions"]
+ *     └ div.bg-background (envuelve el SVG real)
+ */
+.prose [data-streamdown="mermaid-block"],
+.prose-doc [data-streamdown="mermaid-block"] {
+  margin: 16px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  gap: 0;
+  position: relative;
+}
+/* Etiqueta "mermaid" de cabecera */
+.prose [data-streamdown="mermaid-block"] > div:first-child,
+.prose-doc [data-streamdown="mermaid-block"] > div:first-child {
+  display: none;
+}
+/* El sticky wrapper original usa `-mt-10` (margin-top:-40px) para encajar
+ * sobre la etiqueta oculta y deja el chart container debajo recibiendo los
+ * eventos. Lo reposicionamos absoluto sobre el diagrama para que los botones
+ * sean clickables (el chart container no los tape). */
+.prose [data-streamdown="mermaid-block"] > .sticky,
+.prose-doc [data-streamdown="mermaid-block"] > .sticky {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  margin: 0;
+  height: auto;
+  width: auto;
+  z-index: 2;
+  pointer-events: auto;
+}
+.prose [data-streamdown="mermaid-block-actions"],
+.prose-doc [data-streamdown="mermaid-block-actions"] {
+  pointer-events: auto;
+  background: transparent;
+  border: 0;
+  padding: 2px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+.prose [data-streamdown="mermaid-block-actions"] button,
+.prose-doc [data-streamdown="mermaid-block-actions"] button {
+  background: transparent;
+  border: 0;
+  color: var(--fg-3);
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color .15s, background .15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.prose [data-streamdown="mermaid-block-actions"] button:hover,
+.prose-doc [data-streamdown="mermaid-block-actions"] button:hover {
+  color: var(--fg);
+  background: var(--bg-2);
+}
+/* Contenedor inmediato del SVG (último hijo): quitar borde + fondo */
+.prose [data-streamdown="mermaid-block"] > div:last-child,
+.prose-doc [data-streamdown="mermaid-block"] > div:last-child {
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+/* El propio elemento [data-streamdown="mermaid"] (el host del SVG) */
+[data-streamdown="mermaid"] {
+  background: transparent;
+  border: 0;
+}
+
 /* ---- Tables ---- */
 .prose [data-streamdown="table-wrapper"],
 .prose-doc [data-streamdown="table-wrapper"] {
