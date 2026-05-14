@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import streamdownSidecarPlugin from './plugins/streamdown-sidecar';
 
 // ── Externalización vía import maps (solo en build) ──
 // Marcar como external evita que Rolldown procese estos paquetes,
@@ -41,9 +42,9 @@ const EXTERNALS: ExternalEntry[] = [
   // createContext(Ve) y rompe el plugin de Mermaid ("Mermaid plugin not
   // available"). Un bundle único garantiza una sola instancia del contexto.
   //
-  // El sidecar lo genera scripts/build-streamdown-bundle.mjs (ejecútalo
-  // cuando subas la versión de streamdown). El archivo está commiteado para
-  // que la build en la Pi no tenga que reconstruirlo.
+  // El sidecar lo genera automáticamente el plugin streamdown-sidecar,
+  // cacheado en node_modules/.cache/streamdown-sidecar/. Se reconstruye
+  // solo cuando cambia la versión instalada de streamdown.
   //
   // shiki y mermaid siguen externos a esm.sh — son los paquetes pesados y
   // ambos cargan sus sub-modulos perezosamente (lenguajes para shiki,
@@ -131,6 +132,7 @@ function externalizePlugin(): Plugin {
 export default defineConfig({
   plugins: [
     externalizePlugin(),
+    streamdownSidecarPlugin(),
     react(),
   ],
   // Persistent cache for pre-bundled deps + plugin transforms. Survives

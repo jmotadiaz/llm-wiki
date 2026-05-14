@@ -1,4 +1,15 @@
 /**
+ * ════════════════════════════════════════════════════════════
+ * ⚠️  OBSOLETO  —  Reemplazado por el plugin de Vite
+ *
+ * El plugin streamdown-sidecar (client/plugins/streamdown-sidecar.ts)
+ * genera este bundle automáticamente durante `vite build`, cacheado en
+ * node_modules/.cache/streamdown-sidecar/.
+ *
+ * Este script se mantiene por si se necesita regenerar el sidecar
+ * manualmente (p. ej., para depuración o desarrollo local sin build).
+ * ════════════════════════════════════════════════════════════
+ *
  * Prebuild streamdown + @streamdown/code + @streamdown/mermaid into a single
  * self-contained ESM file: client/public/vendor/streamdown.mjs.
  *
