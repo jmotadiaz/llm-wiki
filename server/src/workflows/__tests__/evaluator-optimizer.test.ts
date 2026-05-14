@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { node } from "./node.js";
+import { node } from "../node.js";
 import {
   evaluatorOptimizer,
   EvaluatorVerdict,
   OptimizerInput,
   EvaluatorInput,
-} from "./evaluator-optimizer.js";
+} from "../evaluator-optimizer.js";
 
 type Input = { topic: string };
 type Solution = { text: string };
@@ -20,7 +20,7 @@ describe("evaluatorOptimizer", () => {
     );
     const evaluator = node(
       async (_: EvaluatorInput<Input, Solution>): Promise<EvaluatorVerdict<Feedback>> => ({
-        status: "ok",
+        accepted: true,
       }),
     );
 
@@ -44,8 +44,8 @@ describe("evaluatorOptimizer", () => {
     const evaluator = node(
       async (_: EvaluatorInput<Input, Solution>): Promise<EvaluatorVerdict<Feedback>> => {
         calls++;
-        if (calls === 1) return { status: "ko", feedback: { issues: ["too short"] } };
-        return { status: "ok" };
+        if (calls === 1) return { accepted: false, feedback: { issues: ["too short"] } };
+        return { accepted: true };
       },
     );
 
@@ -70,7 +70,7 @@ describe("evaluatorOptimizer", () => {
     );
     const evaluator = node(
       async ({ solution }: EvaluatorInput<Input, Solution>): Promise<EvaluatorVerdict<Feedback>> => ({
-        status: "ko",
+        accepted: false,
         feedback: { issues: [`reject-${solution.text}`] },
       }),
     );
@@ -94,7 +94,7 @@ describe("evaluatorOptimizer", () => {
     );
     const evaluator = node(
       async (_: EvaluatorInput<Input, Solution>): Promise<EvaluatorVerdict<Feedback>> => ({
-        status: "ok",
+        accepted: true,
       }),
     );
 

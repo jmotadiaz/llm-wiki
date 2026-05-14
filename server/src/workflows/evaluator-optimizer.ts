@@ -1,13 +1,13 @@
 import { WorkflowNode, node } from "./node.js";
 
 /**
- * Discriminated verdict returned by the evaluator. The `status` field is the
- * sole signal used by the loop to decide whether to stop or iterate, so no
- * predicate callback is needed in the config.
+ * Discriminated verdict returned by the evaluator. The `accepted` field is
+ * the sole signal used by the loop to decide whether to stop or iterate, so
+ * no predicate callback is needed in the config.
  */
 export type EvaluatorVerdict<TFeedback> =
-  | { status: "ok" }
-  | { status: "ko"; feedback: TFeedback };
+  | { accepted: true }
+  | { accepted: false; feedback: TFeedback };
 
 /**
  * Input shape received by the generator on every iteration. On the first
@@ -32,9 +32,9 @@ export interface EvaluatorOptimizerConfig {
 }
 
 /**
- * Result of the loop. `accepted: true` means the evaluator returned `ok`;
- * `accepted: false` means the cap was hit and the latest feedback is exposed
- * so the caller can surface it (logs, warnings, downstream lint).
+ * Result of the loop. `accepted: true` means the evaluator accepted a
+ * solution; `accepted: false` means the cap was hit and the latest feedback
+ * is exposed so the caller can surface it (logs, warnings, downstream lint).
  */
 export type EvaluatorOptimizerResult<TSolution, TFeedback> =
   | { accepted: true; solution: TSolution; iterations: number }
@@ -49,7 +49,7 @@ export type EvaluatorOptimizerResult<TSolution, TFeedback> =
  * Compose a generator and an evaluator into a self-refining loop.
  *
  * Each iteration: generator produces a solution → evaluator returns a verdict.
- * On `status: "ok"` the loop returns immediately. On `status: "ko"` the
+ * When `accepted` is true the loop returns immediately. When false the
  * critique is fed back into the next generator call. If the cap is reached
  * without acceptance, the last solution and feedback are returned with
  * `accepted: false`.
@@ -84,7 +84,7 @@ export function evaluatorOptimizer<TIn, TSolution, TFeedback>(
           feedback,
         });
         const verdict = await evaluator.execute({ input, solution });
-        if (verdict.status === "ok") {
+        if (verdict.accepted) {
           return { accepted: true, solution, iterations: i + 1 };
         }
         previousSolution = solution;
