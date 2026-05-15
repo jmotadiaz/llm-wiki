@@ -2,14 +2,8 @@ import { tool } from "ai";
 import { z } from "zod";
 import { Queries } from "../db/queries.js";
 import Database from "better-sqlite3";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { debugLog } from "../utils/debug.js";
 import { validateTagContract } from "./tag-validator.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 
 function extractWikiLinks(content: string): string[] {
@@ -65,14 +59,6 @@ function findRawLinksThatShouldBeWikiLinks(
     .filter((link) => link.slug.length > 0 && knownSlugs.has(link.slug));
 }
 
-export function ensureWikiDirectory(): string {
-  const wikiDir = path.join(__dirname, "../../..", "data", "wiki");
-  if (!fs.existsSync(wikiDir)) {
-    fs.mkdirSync(wikiDir, { recursive: true });
-  }
-  return wikiDir;
-}
-
 /**
  * Shared page content validations used by add_wiki_page and edit_wiki_page.
  * Returns an error string if invalid, or null if valid.
@@ -112,13 +98,8 @@ function validatePageContent(
   return null;
 }
 
-/**
- * Shared helper to write a page to the DB, filesystem, and update wiki links.
- * Does NOT create page_sources entries.
- */
 function persistPage(
   queries: Queries,
-  wikiDir: string,
   pageId: number,
   page: {
     slug: string;
@@ -137,9 +118,6 @@ function persistPage(
     page.tags.join(","),
     page.status,
   );
-
-  const filepath = path.join(wikiDir, `${page.slug}.md`);
-  fs.writeFileSync(filepath, page.content);
 
   queries.deleteWikiLinksForPage(pageId);
   const wikiLinks = extractWikiLinks(page.content);
@@ -176,7 +154,6 @@ export function createWikiEditTools(
   options: WikiToolsOptions,
 ) {
   const queries = new Queries(db);
-  const wikiDir = ensureWikiDirectory();
   const { allowRawCitations, onPageWritten, rawSourceId } = options;
 
   return {
@@ -248,9 +225,6 @@ export function createWikiEditTools(
             page.status,
             now,
           );
-
-          const filepath = path.join(wikiDir, `${page.slug}.md`);
-          fs.writeFileSync(filepath, page.content);
 
           queries.deleteWikiLinksForPage(pageId);
           const wikiLinks = extractWikiLinks(page.content);
@@ -436,7 +410,7 @@ export function createWikiEditTools(
         }
 
         await queries.write(() => {
-          persistPage(queries, wikiDir, existingPage.id, {
+          persistPage(queries, existingPage.id, {
             slug: args.slug,
             title: finalTitle,
             summary: finalSummary,
@@ -486,18 +460,9 @@ export function createWikiEditTools(
         }
 
         await queries.write(() => {
-          // Remove wiki links originating from this page
           queries.deleteWikiLinksForPage(existingPage.id);
-
-          // Remove from DB
           const stmt = db.prepare("DELETE FROM wiki_pages WHERE id = ?");
           stmt.run(existingPage.id);
-
-          // Remove from filesystem
-          const filepath = path.join(wikiDir, `${slug}.md`);
-          if (fs.existsSync(filepath)) {
-            fs.unlinkSync(filepath);
-          }
         });
 
         return {

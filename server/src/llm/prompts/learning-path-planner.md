@@ -54,12 +54,12 @@ After triaging existing paths, add new ones with `action: "new"` for journeys th
 
 - `slug`: `learning-path-<topic-kebab>`, lowercase kebab-case English.
 - `action: "revise"` only for slugs in the "Existing learning-path pages" section.
-- `seedPages`: slugs that exist in `index.md`. At least 3. These are hints — the writer may add or drop pages.
+- `seedPages`: slugs from the master index below. At least 3. These are hints — the writer may add or drop pages.
 - `dominantDomain`: the single `d:<kebab>` tag for this path (schema requires exactly one).
 - `topicTags`: always include `t:learning-path`. Add `t:<topic>` tags for the subject.
 - Final message: JSON only. No tool calls, no preamble, no markdown fences.
 
-## Master index (data/index.md)
+## Master index
 
 {INDEX_MD}
 

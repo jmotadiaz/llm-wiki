@@ -184,15 +184,25 @@ export default function WikiPageDetail() {
     <div className="max-w-[760px]">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-[13px] text-fg-2 font-mono mb-3.5 flex-wrap">
-        <Link to="/" className="hover:text-fg">Wiki</Link>
-        {domainLabel && (
+        {isLearningPathPage ? (
           <>
+            <Link to="/learning-paths" className="hover:text-fg">Learning paths</Link>
             <span className="text-fg-3">/</span>
-            <Link to={`/?domain=${encodeURIComponent(domainLabel)}`} className="hover:text-fg">{domainLabel}</Link>
+            <span className="text-fg-1">{page.slug}</span>
+          </>
+        ) : (
+          <>
+            <Link to="/" className="hover:text-fg">Wiki</Link>
+            {domainLabel && (
+              <>
+                <span className="text-fg-3">/</span>
+                <Link to={`/?domain=${encodeURIComponent(domainLabel)}`} className="hover:text-fg">{domainLabel}</Link>
+              </>
+            )}
+            <span className="text-fg-3">/</span>
+            <span className="text-fg-1">{page.slug}</span>
           </>
         )}
-        <span className="text-fg-3">/</span>
-        <span className="text-fg-1">{page.slug}</span>
       </div>
 
       {/* Page header */}

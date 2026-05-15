@@ -20,6 +20,7 @@ import {
   type WorkflowNode,
   type ParallelAggregatorInput,
 } from "../workflows/index.js";
+import { buildIngestIndex } from "./wiki-index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -136,19 +137,6 @@ interface IngestResult {
 
 // ── Shared helpers ─────────────────────────────────────────────────────
 
-function loadL1Index(queries: Queries): string {
-  const pages = queries.getAllWikiPages();
-  if (pages.length === 0) {
-    return "(No pages in wiki yet)";
-  }
-  return pages
-    .map((page) => {
-      const tags = page.tags || "untagged";
-      const summary = page.summary ? ` | summary: ${page.summary}` : "";
-      return `- /wiki/${page.slug}: ${page.title} | tags: ${tags}${summary}`;
-    })
-    .join("\n");
-}
 
 function loadDomainTagsCount(queries: Queries): string {
   const pages = queries.getAllWikiPages();
@@ -222,7 +210,7 @@ function buildSharedVars(
   rawContent: string,
 ): Record<string, string> {
   return {
-    L1_INDEX: loadL1Index(queries),
+    L1_INDEX: buildIngestIndex(queries),
     DOMAIN_TAGS_INDEX: loadDomainTagsCount(queries),
     L1_SCHEMA: loadSchema(),
     RAW_HEADING_INDEX: buildRawHeadingIndex(rawContent, rawSourceId),

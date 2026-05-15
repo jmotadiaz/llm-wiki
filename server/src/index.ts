@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 
 function ensureDataDirectory() {
   const dataDir = path.join(__dirname, "../../data");
-  const dirs = [dataDir, path.join(dataDir, "raw"), path.join(dataDir, "wiki")];
+  const dirs = [dataDir, path.join(dataDir, "raw")];
 
   for (const dir of dirs) {
     if (!fs.existsSync(dir)) {
@@ -28,11 +28,6 @@ function ensureDataDirectory() {
   }
 
   const files = [
-    {
-      path: path.join(dataDir, "index.md"),
-      content:
-        "This is the master index of all wiki pages. Pages are listed with their slug, title, summary, and tags.\n\n## Format\n\n```\n- `slug`: Page title | tags: tag1, tag2 | summary: Short summary text\n```\n\n## Pages\n",
-    },
     {
       path: path.join(dataDir, "log.md"),
       content:

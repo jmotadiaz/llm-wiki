@@ -8,8 +8,8 @@ import {
   createLearningPathWriterTools,
   type LearningPathWriterResult,
 } from "./learning-path-tools.js";
-import { ensureWikiDirectory } from "./wiki-tools.js";
 import { Queries } from "../db/queries.js";
+import { buildDetailedIndex } from "./wiki-index.js";
 import { debugLog, isDebugEnabled } from "../utils/debug.js";
 import {
   node,
@@ -80,11 +80,6 @@ function loadPromptTemplate(filename: string): string {
   return fs.readFileSync(path.join(__dirname, "prompts", filename), "utf-8");
 }
 
-function loadIndexMarkdown(): string {
-  const indexPath = path.join(__dirname, "../../..", "data", "index.md");
-  if (!fs.existsSync(indexPath)) return "(index.md not found — wiki is empty)";
-  return fs.readFileSync(indexPath, "utf-8");
-}
 
 function listExistingArtifacts(db: Database.Database): string {
   const queries = new Queries(db);
@@ -166,7 +161,6 @@ function parsePlanJson(text: string): LearningPathPlan {
 
 function deleteAllLearningPathPages(db: Database.Database): string[] {
   const queries = new Queries(db);
-  const wikiDir = ensureWikiDirectory();
   const pages = queries.getWikiPagesByType("learning-path");
   const deleteStmt = db.prepare("DELETE FROM wiki_pages WHERE id = ?");
   const deleted: string[] = [];
@@ -174,8 +168,6 @@ function deleteAllLearningPathPages(db: Database.Database): string[] {
   for (const page of pages) {
     queries.deleteWikiLinksForPage(page.id);
     deleteStmt.run(page.id);
-    const filepath = path.join(wikiDir, `${page.slug}.md`);
-    if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
     deleted.push(page.slug);
   }
 
@@ -317,7 +309,8 @@ export async function runLearningPathAgent(
   const mode: LearningPathMode = opts.mode ?? "review";
   const deleted = mode === "regenerate-all" ? deleteAllLearningPathPages(db) : [];
 
-  const indexMd = loadIndexMarkdown();
+  const queries = new Queries(db);
+  const indexMd = buildDetailedIndex(queries);
   const existingPaths = listExistingArtifacts(db);
 
   console.log(`[LP] Run starting (mode=${mode}, deleted=${deleted.length})`);

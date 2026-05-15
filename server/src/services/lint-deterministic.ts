@@ -33,11 +33,10 @@ export class DeterministicLinter {
         }
       }
 
-      // Check 2: Orphan pages (no incoming links, not in index)
+      // Check 2: Orphan pages (no incoming links, not a self-contained entry point)
       const backlinks = queries.getBacklinks(page.slug);
-      if (backlinks.length === 0 && page.type !== 'index') {
-        // Count links in index.md manually by checking if slug is referenced
-        // For now, flag as warning
+      const standaloneTypes = new Set(['index', 'domain-index', 'learning-path']);
+      if (backlinks.length === 0 && !standaloneTypes.has(page.type)) {
         issues.push({
           type: 'orphan_page',
           pageId: page.id,
@@ -68,11 +67,11 @@ export class DeterministicLinter {
       // This is already handled by broken_link check
 
       // Check 5: Metadata validation
-      if (!page.type || !['concept', 'technique', 'reference', 'index'].includes(page.type)) {
+      if (!page.type || !['concept', 'technique', 'reference', 'index', 'domain-index', 'learning-path'].includes(page.type)) {
         issues.push({
           type: 'invalid_metadata',
           pageId: page.id,
-          message: `Invalid page type: "${page.type}" (must be: concept, technique, reference, index)`,
+          message: `Invalid page type: "${page.type}" (must be: concept, technique, reference, index, domain-index, learning-path)`,
           severity: 'error',
         });
       }

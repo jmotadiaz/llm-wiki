@@ -3,10 +3,7 @@ import { z } from "zod";
 import { Queries } from "../db/queries.js";
 import Database from "better-sqlite3";
 import { debugLog } from "../utils/debug.js";
-import { ensureWikiDirectory } from "./wiki-tools.js";
 import { validateTagContract } from "./tag-validator.js";
-import fs from "fs";
-import path from "path";
 
 export interface LearningPathWriterResult {
   writtenSlugs: string[];
@@ -53,7 +50,6 @@ export function createLearningPathWriterTools(
   result: LearningPathWriterResult,
 ) {
   const queries = new Queries(db);
-  const wikiDir = ensureWikiDirectory();
 
   return {
     get_wiki_page: tool({
@@ -137,9 +133,6 @@ export function createLearningPathWriterTools(
           now,
         );
 
-        const filepath = path.join(wikiDir, `${page.slug}.md`);
-        fs.writeFileSync(filepath, page.content);
-
         const linkRegex = /\[([^\]]+)\]\(\/wiki\/([^)]+)\)/g;
         let match;
         while ((match = linkRegex.exec(page.content)) !== null) {
@@ -199,9 +192,6 @@ export function createLearningPathWriterTools(
           finalStatus,
           new Date().toISOString(),
         );
-
-        const filepath = path.join(wikiDir, `${args.slug}.md`);
-        fs.writeFileSync(filepath, finalContent);
 
         queries.deleteWikiLinksForPage(existingPage.id);
         const linkRegex = /\[([^\]]+)\]\(\/wiki\/([^)]+)\)/g;

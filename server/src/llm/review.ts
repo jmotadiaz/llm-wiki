@@ -6,6 +6,7 @@ import { createReviewTools, ReviewAgentKind } from "./review-tools.js";
 import { Queries } from "../db/queries.js";
 import Database from "better-sqlite3";
 import { debugLog, isDebugEnabled } from "../utils/debug.js";
+import { buildIngestIndex } from "./wiki-index.js";
 
 const KNOWN_TYPES = new Set([
   "concept",
@@ -36,22 +37,6 @@ function resolveReviewConfig(pageType: string): {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function loadL1Index(queries: Queries): string {
-  const pages = queries.getAllWikiPages();
-  if (pages.length === 0) {
-    return "(No pages in wiki yet)";
-  }
-
-  const entries = pages
-    .map((page) => {
-      const tags = page.tags || "untagged";
-      const summary = page.summary ? ` | summary: ${page.summary}` : "";
-      return `- /wiki/${page.slug}: ${page.title} | tags: ${tags}${summary}`;
-    })
-    .join("\n");
-
-  return entries;
-}
 
 function loadSchema(): string {
   const schemaPath = path.join(__dirname, "prompts", "schema.md");
@@ -129,7 +114,7 @@ export async function reviewComment(
   ].join("\n");
 
   // Load shared context
-  const l1Index = loadL1Index(queries);
+  const l1Index = buildIngestIndex(queries);
   const l1Schema = loadSchema();
 
   const vars: Record<string, string> = {
