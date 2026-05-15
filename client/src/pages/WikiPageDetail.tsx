@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link, useLocation, Navigate } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import Markdown from '../components/markdown/Markdown';
 import CommentSection from '../components/CommentSection';
 import { displayTag } from '../utils/tagUtils';
@@ -176,10 +176,6 @@ export default function WikiPageDetail() {
 
   const { page, backlinks, sources, lintIssues } = data;
   const isLearningPathPage = isLearningPath(page.type);
-
-  if (isLearningPathPage && location.pathname.startsWith('/wiki/')) {
-    return <Navigate to={`/learning-paths/${page.slug}`} replace />;
-  }
 
   const domainTag = page.tags.find(t => t.startsWith('d:'));
   const domainLabel = domainTag ? displayTag(domainTag).label : null;

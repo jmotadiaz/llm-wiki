@@ -104,11 +104,6 @@ export function createLearningPathWriterTools(
       execute: async (page) => {
         const guard = validatePagePayload(page.slug, page.content, page.tags);
         if (guard) return { error: guard };
-        if (page.slug.startsWith("learning-path-")) {
-          return {
-            error: `Slug "${page.slug}" must not start with "learning-path-". Use a clean topic slug instead (e.g. "llm-agents").`,
-          };
-        }
 
         const existing = queries.getWikiPageBySlug(page.slug);
         if (existing) {
