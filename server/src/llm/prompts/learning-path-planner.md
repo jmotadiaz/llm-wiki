@@ -37,7 +37,7 @@ After triaging existing paths, add new ones with `action: "new"` for journeys th
 {
   "paths": [
     {
-      "slug": "learning-path-<topic-kebab>",
+      "slug": "<topic-kebab>",
       "action": "new",
       "title": "string (Spanish, curricular framing)",
       "summary": "string (Spanish, ≤150 chars, names topic and progression)",
@@ -52,7 +52,7 @@ After triaging existing paths, add new ones with `action: "new"` for journeys th
 
 ## Constraints
 
-- `slug`: `learning-path-<topic-kebab>`, lowercase kebab-case English.
+- `slug`: clean topic kebab-case English (e.g. `llm-agents`). Do NOT prepend `learning-path-`. For `action: "revise"`, use the existing slug verbatim (legacy paths may still have the `learning-path-` prefix).
 - `action: "revise"` only for slugs in the "Existing learning-path pages" section.
 - `seedPages`: slugs from the master index below. At least 3. These are hints — the writer may add or drop pages.
 - `dominantDomain`: the single `d:<kebab>` tag for this path (schema requires exactly one).

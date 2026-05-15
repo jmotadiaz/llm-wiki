@@ -16,8 +16,7 @@ export default function Sidebar() {
   const location = useLocation();
   const closeOnMobile = () => setMobileOpen(false);
 
-  const onLearningPathPage = location.pathname.startsWith('/wiki/learning-path-');
-  const onWikiIndex = (location.pathname === '/' || location.pathname.startsWith('/wiki/')) && !onLearningPathPage;
+  const onWikiIndex = location.pathname === '/' || location.pathname.startsWith('/wiki/');
 
   const navContent = (
     <>
@@ -27,9 +26,7 @@ export default function Sidebar() {
           {NAV_ITEMS.map(item => {
             const isActive = item.exact
               ? onWikiIndex
-              : item.to === '/learning-paths'
-                ? location.pathname === '/learning-paths' || onLearningPathPage
-                : location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+              : location.pathname === item.to || location.pathname.startsWith(item.to + '/');
             return (
               <NavLink
                 key={item.to}

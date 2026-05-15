@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link, useLocation } from 'react-router-dom';
+import { useParams, Link, useLocation, Navigate } from 'react-router-dom';
 import Markdown from '../components/markdown/Markdown';
 import CommentSection from '../components/CommentSection';
 import { displayTag } from '../utils/tagUtils';
@@ -26,8 +26,8 @@ interface PageData {
   lintIssues: Array<{ type: string; message: string; severity: string }>;
 }
 
-function isLearningPath(type: string, slug: string): boolean {
-  return type === "learning-path" && slug.startsWith("learning-path-");
+function isLearningPath(type: string): boolean {
+  return type === "learning-path";
 }
 
 interface TocItem { id: string; text: string; level: 2 | 3 | 4 }
@@ -175,7 +175,11 @@ export default function WikiPageDetail() {
   if (!data) return <p className="text-fg-3">Página no encontrada</p>;
 
   const { page, backlinks, sources, lintIssues } = data;
-  const isLearningPathPage = isLearningPath(page.type, page.slug);
+  const isLearningPathPage = isLearningPath(page.type);
+
+  if (isLearningPathPage && location.pathname.startsWith('/wiki/')) {
+    return <Navigate to={`/learning-paths/${page.slug}`} replace />;
+  }
 
   const domainTag = page.tags.find(t => t.startsWith('d:'));
   const domainLabel = domainTag ? displayTag(domainTag).label : null;

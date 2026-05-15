@@ -11,7 +11,6 @@ export interface LearningPathWriterResult {
 
 const SLUG_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const REQUIRED_TOPIC_TAG = "t:learning-path";
-const SLUG_PREFIX = "learning-path-";
 
 function validatePagePayload(
   slug: string,
@@ -20,12 +19,6 @@ function validatePagePayload(
 ): string | null {
   if (!SLUG_REGEX.test(slug)) {
     return `Slug "${slug}" is not valid kebab-case (must match ^[a-z0-9]+(-[a-z0-9]+)*$).`;
-  }
-  if (!slug.startsWith(SLUG_PREFIX)) {
-    return `Slug "${slug}" must start with "${SLUG_PREFIX}".`;
-  }
-  if (slug.length === SLUG_PREFIX.length) {
-    return `Slug "${slug}" must include a topic segment after "${SLUG_PREFIX}".`;
   }
   if (content.includes("/raw/")) {
     return `Learning-path pages MUST NOT contain /raw/ citations. Use only [text](/wiki/slug) links to wiki pages.`;
@@ -96,9 +89,9 @@ export function createLearningPathWriterTools(
 
     add_wiki_page: tool({
       description:
-        'Create a new learning-path page. The slug MUST follow "learning-path-<topic-kebab>" and the type MUST be "learning-path". Call this exactly once for action="new".',
+        'Create a new learning-path page. The slug MUST be a clean topic kebab-case (e.g. "llm-agents") — do NOT prepend "learning-path-". The type MUST be "learning-path". Call this exactly once for action="new".',
       inputSchema: z.object({
-        slug: z.string().describe('Formatted as "learning-path-<topic-kebab>".'),
+        slug: z.string().describe('Clean topic kebab-case, no "learning-path-" prefix (e.g. "llm-agents").'),
         title: z.string().describe("The human-readable title (Spanish)."),
         type: z.literal("learning-path"),
         status: z.enum(["draft", "published", "archived"]),
@@ -111,6 +104,11 @@ export function createLearningPathWriterTools(
       execute: async (page) => {
         const guard = validatePagePayload(page.slug, page.content, page.tags);
         if (guard) return { error: guard };
+        if (page.slug.startsWith("learning-path-")) {
+          return {
+            error: `Slug "${page.slug}" must not start with "learning-path-". Use a clean topic slug instead (e.g. "llm-agents").`,
+          };
+        }
 
         const existing = queries.getWikiPageBySlug(page.slug);
         if (existing) {
@@ -152,7 +150,7 @@ export function createLearningPathWriterTools(
       description:
         "Update an existing learning-path page. Always pass full `content` (no `edits` patches for learning paths).",
       inputSchema: z.object({
-        slug: z.string().describe('Formatted as "learning-path-<topic-kebab>".'),
+        slug: z.string().describe('The slug of the learning-path page to edit (matches the existing record).'),
         title: z.string().optional(),
         status: z.enum(["draft", "published", "archived"]).optional(),
         tags: z.array(z.string()).optional(),

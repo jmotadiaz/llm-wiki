@@ -120,7 +120,7 @@ export default function LearningPathsPage() {
 function LpCard({ page }: { page: IndexPageEntry }) {
   return (
     <Link
-      to={`/wiki/${page.slug}`}
+      to={`/learning-paths/${page.slug}`}
       className="lp-card block p-5 md:p-6 border border-line bg-bg-1 rounded-[10px] relative overflow-hidden transition-colors hover:border-accent-line text-inherit"
     >
       <h3 className="m-0 text-[17px] font-bold leading-tight tracking-tight text-fg mb-1.5">{page.title}</h3>

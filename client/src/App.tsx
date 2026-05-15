@@ -21,6 +21,7 @@ export default function App() {
             <Route path="/ingest" element={<IngestPage />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/wiki/:slug" element={<WikiPageDetail />} />
+            <Route path="/learning-paths/:slug" element={<WikiPageDetail />} />
             <Route path="/raw/:id" element={<RawSourcePage />} />
             <Route path="/graph" element={<GraphPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
