@@ -12,6 +12,11 @@ import { Queries } from "../db/queries.js";
 import { buildDetailedIndex } from "./wiki-index.js";
 import { debugLog, isDebugEnabled } from "../utils/debug.js";
 import {
+  createNamedTraceSession,
+  createStepLogger,
+  type TraceSession,
+} from "../utils/trace.js";
+import {
   node,
   chain,
   parallel,
@@ -140,6 +145,33 @@ function summarizeStep(event: any) {
   };
 }
 
+function promptStats(text: string) {
+  return {
+    chars: text.length,
+    lines: text.split("\n").length,
+  };
+}
+
+function summarizeError(error: any) {
+  const base = {
+    name: error?.name ?? "Error",
+    message: error?.message ?? String(error),
+    stack: error?.stack,
+  };
+  const extras: Record<string, unknown> = {};
+  for (const key of [
+    "code",
+    "status",
+    "statusCode",
+    "responseBody",
+    "url",
+    "cause",
+  ]) {
+    if (error?.[key] !== undefined) extras[key] = error[key];
+  }
+  return { ...base, ...extras };
+}
+
 function parsePlanJson(text: string): LearningPathPlan {
   const trimmed = text.trim();
   try {
@@ -176,7 +208,12 @@ function deleteAllLearningPathPages(db: Database.Database): string[] {
 
 // ── Planner Node (no tools — generateText from index only) ────────────
 
-function createPlannerNode(): WorkflowNode<PlannerInput, LearningPathPlan> {
+function createPlannerNode(
+  session: TraceSession,
+): WorkflowNode<PlannerInput, LearningPathPlan> {
+  const debugEnabled = isDebugEnabled();
+  const stepLogger = createStepLogger(session, "planner");
+
   return node(async (input): Promise<LearningPathPlan> => {
     debugLog(`[LP] Planner starting (mode=${input.mode})`);
 
@@ -189,27 +226,74 @@ function createPlannerNode(): WorkflowNode<PlannerInput, LearningPathPlan> {
       },
     );
 
-    const result = await llmClient.generate({
-      system: plannerPrompt,
-      messages: [
-        {
-          role: "user",
-          content:
-            "Analiza el wiki y emite el plan de learning-paths como JSON, siguiendo el schema y el modo indicado.",
-        },
-      ],
-      model: "pro",
-      maxSteps: 1,
-    });
+    const stats = promptStats(plannerPrompt);
+    stepLogger({ phase: "start", mode: input.mode, model: "pro", prompt: stats });
+    console.log(
+      `[LP] Planner prompt: ${stats.chars} chars / ${stats.lines} lines (mode=${input.mode})`,
+    );
 
+    const startedAt = Date.now();
+    let result;
+    try {
+      result = await llmClient.generate({
+        system: plannerPrompt,
+        messages: [
+          {
+            role: "user",
+            content:
+              "Analiza el wiki y emite el plan de learning-paths como JSON, siguiendo el schema y el modo indicado.",
+          },
+        ],
+        model: "pro",
+        maxSteps: 1,
+        onStepFinish: (event: any) => {
+          const summary = summarizeStep(event);
+          stepLogger({ phase: "step", ...summary });
+          if (debugEnabled) {
+            debugLog(`[LP] Planner step`, summary);
+          }
+        },
+      });
+    } catch (error: any) {
+      const elapsedMs = Date.now() - startedAt;
+      const errInfo = summarizeError(error);
+      stepLogger({ phase: "error", elapsedMs, prompt: stats, error: errInfo });
+      console.error(
+        `[LP] Planner failed after ${elapsedMs}ms (prompt=${stats.chars} chars): ${errInfo.message}`,
+      );
+      throw error;
+    }
+
+    const elapsedMs = Date.now() - startedAt;
     const text = result.text;
     if (!text || text.trim().length === 0) {
+      stepLogger({ phase: "error", elapsedMs, reason: "empty_output" });
       throw new Error("Planner returned empty output");
     }
 
-    const plan = parsePlanJson(text);
+    let plan: LearningPathPlan;
+    try {
+      plan = parsePlanJson(text);
+    } catch (error: any) {
+      stepLogger({
+        phase: "error",
+        elapsedMs,
+        reason: "parse_failed",
+        rawText: text.slice(0, 2000),
+        error: summarizeError(error),
+      });
+      throw error;
+    }
 
-    console.log(`[LP] Planner complete: ${plan.paths.length} paths planned`);
+    stepLogger({
+      phase: "complete",
+      elapsedMs,
+      pathsPlanned: plan.paths.length,
+      paths: plan.paths.map((p) => ({ slug: p.slug, action: p.action })),
+    });
+    console.log(
+      `[LP] Planner complete in ${elapsedMs}ms: ${plan.paths.length} paths planned`,
+    );
     debugLog(`[LP] Plan`, plan);
 
     return plan;
@@ -221,11 +305,13 @@ function createPlannerNode(): WorkflowNode<PlannerInput, LearningPathPlan> {
 function createWriterNode(
   db: Database.Database,
   result: LearningPathWriterResult,
+  session: TraceSession,
 ): WorkflowNode<PathPlanItem, WriterResult> {
   const debugEnabled = isDebugEnabled();
 
   return node(async (item: PathPlanItem): Promise<WriterResult> => {
     const slug = item.slug;
+    const stepLogger = createStepLogger(session, `writer-${slug}`);
     debugLog(`[LP] Writer starting for "${slug}" (action=${item.action})`);
 
     const writerPrompt = interpolatePrompt(
@@ -236,7 +322,18 @@ function createWriterNode(
       },
     );
 
+    const stats = promptStats(writerPrompt);
+    stepLogger({
+      phase: "start",
+      slug,
+      action: item.action,
+      model: "flash",
+      maxSteps: WRITER_MAX_STEPS,
+      prompt: stats,
+    });
+
     const tools = createLearningPathWriterTools(db, result);
+    const startedAt = Date.now();
 
     try {
       const llmResult = await llmClient.generate({
@@ -250,24 +347,40 @@ function createWriterNode(
         tools,
         model: "flash",
         maxSteps: WRITER_MAX_STEPS,
-        onStepFinish: debugEnabled
-          ? (event: any) => {
-              debugLog(`[LP] Writer step for "${slug}"`, summarizeStep(event));
-            }
-          : undefined,
+        onStepFinish: (event: any) => {
+          const summary = summarizeStep(event);
+          stepLogger({ phase: "step", ...summary });
+          if (debugEnabled) {
+            debugLog(`[LP] Writer step for "${slug}"`, summary);
+          }
+        },
       });
 
+      const elapsedMs = Date.now() - startedAt;
       const toolCalls = llmResult.steps.flatMap((s) => s.toolCalls || []);
       const written = toolCalls.filter(
         (tc) => tc.toolName === "add_wiki_page" || tc.toolName === "edit_wiki_page",
       );
 
-      console.log(`[LP] Writer complete for "${slug}": success=${written.length > 0}`);
+      stepLogger({
+        phase: "complete",
+        elapsedMs,
+        steps: llmResult.steps.length,
+        success: written.length > 0,
+      });
+      console.log(
+        `[LP] Writer complete for "${slug}" in ${elapsedMs}ms (steps=${llmResult.steps.length}): success=${written.length > 0}`,
+      );
 
       return { slug, action: item.action, success: written.length > 0 };
     } catch (error: any) {
-      console.error(`[LP] Writer failed for "${slug}": ${error.message}`);
-      return { slug, action: item.action, success: false, error: error.message };
+      const elapsedMs = Date.now() - startedAt;
+      const errInfo = summarizeError(error);
+      stepLogger({ phase: "error", elapsedMs, prompt: stats, error: errInfo });
+      console.error(
+        `[LP] Writer failed for "${slug}" after ${elapsedMs}ms (prompt=${stats.chars} chars): ${errInfo.message}`,
+      );
+      return { slug, action: item.action, success: false, error: errInfo.message };
     }
   });
 }
@@ -279,10 +392,14 @@ interface AggregatedRun {
   failures: { slug: string; error: string }[];
 }
 
-function createAggregatorNode(): WorkflowNode<
+function createAggregatorNode(
+  session: TraceSession,
+): WorkflowNode<
   ParallelAggregatorInput<WriterResult, PathPlanItem, LearningPathPlanWithTasks>,
   AggregatedRun
 > {
+  const stepLogger = createStepLogger(session, "aggregator");
+
   return node(async (input): Promise<AggregatedRun> => {
     const successes = input.results.filter((r) => r.success);
     const writerFailures = input.results
@@ -291,8 +408,17 @@ function createAggregatorNode(): WorkflowNode<
     const errorFailures = input.errors.map((e) => ({
       slug: e.task.slug,
       error: e.error instanceof Error ? e.error.message : String(e.error),
+      errorDetails: e.error instanceof Error ? summarizeError(e.error) : undefined,
     }));
-    return { successes, failures: [...writerFailures, ...errorFailures] };
+    const aggregated = { successes, failures: [...writerFailures, ...errorFailures] };
+    stepLogger({
+      phase: "complete",
+      successCount: successes.length,
+      failureCount: aggregated.failures.length,
+      successes: successes.map((s) => s.slug),
+      failures: aggregated.failures,
+    });
+    return aggregated;
   });
 }
 
@@ -313,20 +439,37 @@ export async function runLearningPathAgent(
   const indexMd = buildDetailedIndex(queries);
   const existingPaths = listExistingArtifacts(db);
 
-  console.log(`[LP] Run starting (mode=${mode}, deleted=${deleted.length})`);
+  const session = createNamedTraceSession(`learning-paths-${mode}`);
+  const runLogger = createStepLogger(session, "run");
+  const startedAt = Date.now();
+  const indexStats = promptStats(indexMd);
+  const existingStats = promptStats(existingPaths);
+
+  runLogger({
+    phase: "start",
+    mode,
+    deleted,
+    indexMd: indexStats,
+    existingPaths: existingStats,
+    pageCount: queries.getAllWikiPages().length,
+  });
+  console.log(
+    `[LP] Run starting (mode=${mode}, deleted=${deleted.length}, indexMd=${indexStats.chars} chars / ${indexStats.lines} lines)`,
+  );
+  console.log(`[LP] Trace session: ${session.dir}`);
 
   const writerResult: LearningPathWriterResult = { writtenSlugs: [] };
 
   const workflow = chain(
-    createPlannerNode(),
+    createPlannerNode(session),
     chain(
       node(async (plan: LearningPathPlan): Promise<LearningPathPlanWithTasks> => ({
         ...plan,
         tasks: plan.paths,
       })),
       parallel(
-        createWriterNode(db, writerResult),
-        createAggregatorNode(),
+        createWriterNode(db, writerResult, session),
+        createAggregatorNode(session),
         { maxParallel: MAX_PARALLEL_WRITERS },
       ),
     ),
@@ -336,13 +479,27 @@ export async function runLearningPathAgent(
   try {
     aggregated = await workflow.execute({ mode, indexMd, existingPaths });
   } catch (error: any) {
-    console.error(`[LP] Pipeline failed: ${error.message}`);
+    const elapsedMs = Date.now() - startedAt;
+    const errInfo = summarizeError(error);
+    runLogger({ phase: "error", elapsedMs, error: errInfo });
+    console.error(
+      `[LP] Pipeline failed after ${elapsedMs}ms: ${errInfo.message}`,
+    );
     return { mode, pagesWritten: [], pagesDeleted: deleted, partial: true };
   }
 
+  const elapsedMs = Date.now() - startedAt;
   const partial = aggregated.failures.length > 0;
+  runLogger({
+    phase: "complete",
+    elapsedMs,
+    writtenCount: writerResult.writtenSlugs.length,
+    deletedCount: deleted.length,
+    failures: aggregated.failures,
+    partial,
+  });
   console.log(
-    `[LP] Run complete: ${writerResult.writtenSlugs.length} written, ${deleted.length} deleted` +
+    `[LP] Run complete in ${elapsedMs}ms: ${writerResult.writtenSlugs.length} written, ${deleted.length} deleted` +
       (partial
         ? `, ${aggregated.failures.length} failed (${aggregated.failures.map((f) => f.slug).join(", ")})`
         : ""),

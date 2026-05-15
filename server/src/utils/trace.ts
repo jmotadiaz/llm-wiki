@@ -38,6 +38,15 @@ export function createTraceSession(
   return { dir, rawSourceId };
 }
 
+export function createNamedTraceSession(name: string): TraceSession {
+  const slug = slugifyTitle(name);
+  const shortId = crypto.randomBytes(4).toString("hex");
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  const dir = path.join(TRACES_ROOT, `${slug}-${ts}-${shortId}`);
+  fs.mkdirSync(dir, { recursive: true });
+  return { dir, rawSourceId: 0 };
+}
+
 export type StepLogger = (event: unknown) => void;
 
 export function createStepLogger(
