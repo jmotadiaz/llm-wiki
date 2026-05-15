@@ -350,7 +350,7 @@ html.dark [data-streamdown="code-block-body"] pre span {
   left: 6px;
   bottom: auto;
   right: auto;
-  flex-direction: row;
+  flex-direction: row-reverse;
   gap: 2px;
   border: 0;
   background: transparent;
