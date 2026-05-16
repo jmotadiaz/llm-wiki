@@ -32,11 +32,6 @@ const MAX_PARALLEL_WRITERS = 3;
 const PathPlanItemSchema = z.object({
   slug: z.string().min(1).max(60),
   action: z.enum(["new", "revise"]),
-  title: z.string().min(1),
-  summary: z.string().min(1),
-  framing: z.string().min(1),
-  dominantDomain: z.string().min(1),
-  topicTags: z.array(z.string().min(1)).default([]),
   seedPages: z.array(z.string().min(1)).min(1),
 });
 
@@ -198,7 +193,7 @@ function createPlannerNode(): WorkflowNode<PlannerInput, LearningPathPlan> {
             "Analiza el wiki y emite el plan de learning-paths como JSON, siguiendo el schema y el modo indicado.",
         },
       ],
-      model: "pro",
+      model: "flash",
       maxSteps: 1,
     });
 
