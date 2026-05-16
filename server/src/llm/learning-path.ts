@@ -239,7 +239,7 @@ function createWriterNode(
         messages: [
           {
             role: "user",
-            content: `Explora el wiki y escribe la página learning-path "${item.title}" (slug: ${slug}).`,
+            content: `Explora el wiki y escribe la página learning-path con slug "${slug}" (action: ${item.action}).`,
           },
         ],
         tools,
