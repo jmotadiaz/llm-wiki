@@ -1,3 +1,4 @@
+import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import {
   generateText,
   streamText,
@@ -26,6 +27,8 @@ interface GenerateOptions {
   maxSteps?: number;
   stopWhen?: (event: any) => boolean;
   onStepFinish?: (event: any) => Promise<void> | void;
+  /** Provider-specific options (e.g. reasoningEffort). */
+  providerOptions?: ProviderOptions;
 }
 
 interface GenerateObjectOptions<T extends z.ZodType> {
@@ -65,6 +68,7 @@ export class LLMClient {
       temperature: options.temperature,
       topP: options.topP,
       maxOutputTokens: options.maxOutputTokens,
+      providerOptions: options.providerOptions,
       onStepFinish: options.onStepFinish,
     });
   }

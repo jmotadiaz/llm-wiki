@@ -194,6 +194,9 @@ function createPlannerNode(): WorkflowNode<PlannerInput, LearningPathPlan> {
         },
       ],
       model: "flash",
+      providerOptions: {
+        opencodeZenGo: { reasoningEffort: "max" },
+      },
       maxSteps: 1,
     });
 

@@ -287,9 +287,12 @@ function createPlannerNode(
           content: `Analiza este documento fuente (raw source ID: ${input.rawSourceId}) y genera el plan de ingesta como JSON:\n\n${input.rawContent}`,
         },
       ],
-      model: "pro",
+      model: "flash",
       tools: plannerTools,
       maxSteps: 20,
+      providerOptions: {
+        opencodeZenGo: { reasoningEffort: "max" },
+      },
       onStepFinish: (event: any) => {
         const summary = summarizeStep(event);
         stepLogger(summary);
