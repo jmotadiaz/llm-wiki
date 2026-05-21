@@ -243,12 +243,12 @@ The wiki renderer supports Mermaid diagrams. Use them when a visual representati
 - Use a fenced code block with language `mermaid`
 - Keep diagrams focused: no more than ~10 nodes for flowcharts, ~6 participants for sequence diagrams
 - Node labels and diagram text should be in Spanish (same as body text); technical identifiers stay in English
-- Prefer `LR` (left-to-right) orientation for flowcharts describing pipelines; `TD` (top-down) for hierarchies
+- **Prefer `TD` (top-down) over `LR` (left-to-right)** for flowcharts. Vertical diagrams are more readable on mobile screens without horizontal scrolling.
 
 **Example:**
 
 ````mermaid
-flowchart LR
+flowchart TD
     Fuente[Fuente raw] --> Planificador
     Planificador --> Escritor
     Escritor --> PáginaWiki[Página wiki]

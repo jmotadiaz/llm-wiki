@@ -1,6 +1,15 @@
 import Database from "better-sqlite3";
 import { dbWriteSerializer } from "./serializer.js";
 
+/** Build a thread array from a legacy comment that has no `thread` column yet. */
+function buildThreadFromLegacyComment(comment: any): Array<{ role: string; content: string }> {
+  const msgs: Array<{ role: string; content: string }> = [{ role: "user", content: comment.content }];
+  if (comment.reply) {
+    msgs.push({ role: "assistant", content: comment.reply });
+  }
+  return msgs;
+}
+
 export class Queries {
   constructor(private db: Database.Database) {}
 
@@ -286,7 +295,11 @@ export class Queries {
   appendToCommentThread(commentId: number, role: string, content: string) {
     const comment = this.getCommentById(commentId);
     if (!comment) return;
-    const thread = comment.thread ? JSON.parse(comment.thread) : [{ role: "user", content: comment.content }];
+    // When building a new thread from scratch (thread was null), also migrate
+    // any existing assistant reply so it isn't lost when reply is later cleared.
+    const thread = comment.thread
+      ? JSON.parse(comment.thread)
+      : buildThreadFromLegacyComment(comment);
     thread.push({ role, content });
     const stmt = this.db.prepare("UPDATE page_comments SET thread = ? WHERE id = ?");
     stmt.run(JSON.stringify(thread), commentId);

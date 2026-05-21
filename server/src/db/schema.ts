@@ -89,6 +89,18 @@ export function initializeDatabase(): Database.Database {
     db.exec('ALTER TABLE page_comments ADD COLUMN thread TEXT');
   }
 
+  // Migration: backfill thread for legacy comments that have a reply but no thread yet.
+  // This ensures existing assistant responses are visible when replying.
+  db.exec(`
+    UPDATE page_comments
+    SET thread = CASE
+      WHEN reply IS NOT NULL
+        THEN json_array(json_object('role', 'user', 'content', content), json_object('role', 'assistant', 'content', reply))
+      ELSE json_array(json_object('role', 'user', 'content', content))
+    END
+    WHERE thread IS NULL AND content IS NOT NULL
+  `);
+
   // Startup reset: reset any processing comments back to pending
   db.exec('UPDATE page_comments SET status = \'pending\' WHERE status = \'processing\'');
 
