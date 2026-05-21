@@ -33,6 +33,7 @@ export function createCommentRoutes(
           status: c.status,
           pages_edited: c.pages_edited ? JSON.parse(c.pages_edited) : [],
           error: c.error,
+          thread: c.thread ? JSON.parse(c.thread) : null,
           created_at: c.created_at,
           answered_at: c.answered_at,
         })),
@@ -90,6 +91,58 @@ export function createCommentRoutes(
       res.status(201).json({
         success: true,
         comment,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/wiki/:slug/comments/:id/reply - Reply to an answered/failed comment (continues the thread)
+  router.post("/:slug/comments/:id/reply", (req: Request, res: Response) => {
+    try {
+      const commentId = parseInt(req.params.id as string, 10);
+      const { content } = req.body;
+
+      if (!content || typeof content !== "string" || content.trim().length === 0) {
+        res.status(400).json({ error: "Reply content is required and must not be empty" });
+        return;
+      }
+
+      const comment = queries.getCommentById(commentId);
+      if (!comment) {
+        res.status(404).json({ error: "Comment not found" });
+        return;
+      }
+
+      if (comment.status !== "answered" && comment.status !== "failed") {
+        res.status(400).json({
+          error: `Cannot reply to comment in "${comment.status}" status. Only "answered" or "failed" comments can receive replies.`,
+        });
+        return;
+      }
+
+      // Append reply to thread and reset status to pending for re-review
+      queries.resetCommentForReply(commentId, content.trim());
+
+      // Enqueue a new review job for the same comment
+      reviewQueue.enqueue(commentId);
+
+      // Return the updated comment
+      const updated = queries.getCommentById(commentId);
+
+      res.json({
+        success: true,
+        comment: {
+          id: updated.id,
+          content: updated.content,
+          reply: updated.reply,
+          status: updated.status,
+          pages_edited: updated.pages_edited ? JSON.parse(updated.pages_edited) : [],
+          error: updated.error,
+          thread: updated.thread ? JSON.parse(updated.thread) : null,
+          created_at: updated.created_at,
+          answered_at: updated.answered_at,
+        },
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

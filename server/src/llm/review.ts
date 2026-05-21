@@ -4,6 +4,10 @@ import { fileURLToPath } from "url";
 import { llmClient } from "./client.js";
 import { createReviewTools, ReviewAgentKind } from "./review-tools.js";
 import { Queries } from "../db/queries.js";
+import {
+  createReviewTraceSession,
+  createReviewStepLogger,
+} from "../utils/trace.js";
 import Database from "better-sqlite3";
 import { debugLog, isDebugEnabled } from "../utils/debug.js";
 import { buildIngestIndex } from "./wiki-index.js";
@@ -92,7 +96,26 @@ export async function reviewComment(
   }
 
   const pageSlug = comment.slug;
-  const feedbackText = comment.content;
+
+  // Resolve feedback text from thread (for threaded conversations) or from content (single-shot)
+  let feedbackText = comment.content;
+  let threadMessages: Array<{ role: "user" | "assistant"; content: string }> | null = null;
+
+  if (comment.thread) {
+    try {
+      const parsed = JSON.parse(comment.thread);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        threadMessages = parsed;
+        // Use the latest user message as the feedback for the system prompt
+        const lastUserMsg = [...parsed].reverse().find((m: any) => m.role === "user");
+        if (lastUserMsg) {
+          feedbackText = lastUserMsg.content;
+        }
+      }
+    } catch {
+      // invalid JSON, fall back to comment.content
+    }
+  }
 
   debugLog(
     `[REVIEW] Comment ${commentId} is for page "${pageSlug}": "${feedbackText.substring(0, 50)}..."`,
@@ -126,6 +149,10 @@ export async function reviewComment(
 
   const { promptFile, kind } = resolveReviewConfig(page.type);
 
+  // Create trace session
+  const session = createReviewTraceSession(commentId, pageSlug);
+  const stepLogger = createReviewStepLogger(session);
+
   const reviewerPrompt = interpolatePrompt(
     loadPromptTemplate(promptFile),
     vars,
@@ -142,26 +169,36 @@ export async function reviewComment(
   // Create tools with closure to track pagesEdited
   const tools = createReviewTools(db, commentId, pageSlug, kind);
 
+  // Build messages: use thread history if available (multi-turn conversation),
+  // otherwise a single user message with the feedback wrapper
+  const messages = threadMessages && threadMessages.length > 1
+    ? threadMessages
+    : [
+        {
+          role: "user" as const,
+          content: `Por favor, revisa la siguiente retroalimentación sobre la página wiki y toma acciones si es necesario:\n\nRetroalimentación: ${feedbackText}\n\nPágina: /wiki/${pageSlug}`,
+        },
+      ];
+
   try {
     const result = await llmClient.generate({
       system: reviewerPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `Por favor, revisa la siguiente retroalimentación sobre la página wiki y toma acciones si es necesario:\n\nRetroalimentación: ${feedbackText}\n\nPágina: /wiki/${pageSlug}`,
-        },
-      ],
+      messages,
       tools,
-      model: "flash",
+      model: "pro",
       maxSteps: 15,
-      onStepFinish: debugEnabled
-        ? (event: any) => {
-            debugLog(
-              `[REVIEW] Step finished for comment ${commentId}`,
-              summarizeStep(event),
-            );
-          }
-        : undefined,
+      providerOptions: {
+        opencodeZenGo: { reasoningEffort: "max" },
+      },
+      onStepFinish: (event: any) => {
+        stepLogger(summarizeStep(event));
+        if (debugEnabled) {
+          debugLog(
+            `[REVIEW] Step finished for comment ${commentId}`,
+            summarizeStep(event),
+          );
+        }
+      },
     });
 
     // Check if reply_to_comment was called

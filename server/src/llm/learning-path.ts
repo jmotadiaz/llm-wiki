@@ -8,6 +8,12 @@ import {
   createLearningPathWriterTools,
   type LearningPathWriterResult,
 } from "./learning-path-tools.js";
+import {
+  createLearningPathTraceSession,
+  createLPStepLogger,
+  type LearningPathTraceSession,
+  type StepLogger,
+} from "../utils/trace.js";
 import { Queries } from "../db/queries.js";
 import { buildDetailedIndex } from "./wiki-index.js";
 import { debugLog, isDebugEnabled } from "../utils/debug.js";
@@ -131,6 +137,10 @@ function summarizeStep(event: any) {
       toolName: tc.toolName,
       input: tc.input ?? tc.args ?? tc.arguments ?? tc.parameters,
     })),
+    toolResults: (event.toolResults || []).map((tr: any) => ({
+      toolName: tr.toolName,
+      output: tr.output ?? tr.result,
+    })),
     usage: event.usage,
   };
 }
@@ -171,7 +181,12 @@ function deleteAllLearningPathPages(db: Database.Database): string[] {
 
 // ── Planner Node (no tools — generateText from index only) ────────────
 
-function createPlannerNode(): WorkflowNode<PlannerInput, LearningPathPlan> {
+function createPlannerNode(
+  session: LearningPathTraceSession,
+): WorkflowNode<PlannerInput, LearningPathPlan> {
+  const debugEnabled = isDebugEnabled();
+  const stepLogger = createLPStepLogger(session, "planner");
+
   return node(async (input): Promise<LearningPathPlan> => {
     debugLog(`[LP] Planner starting (mode=${input.mode})`);
 
@@ -198,6 +213,12 @@ function createPlannerNode(): WorkflowNode<PlannerInput, LearningPathPlan> {
         opencodeZenGo: { reasoningEffort: "max" },
       },
       maxSteps: 1,
+      onStepFinish: (event: any) => {
+        stepLogger(summarizeStep(event));
+        if (debugEnabled) {
+          debugLog(`[LP] Planner step`, summarizeStep(event));
+        }
+      },
     });
 
     const text = result.text;
@@ -219,11 +240,13 @@ function createPlannerNode(): WorkflowNode<PlannerInput, LearningPathPlan> {
 function createWriterNode(
   db: Database.Database,
   result: LearningPathWriterResult,
+  session: LearningPathTraceSession,
 ): WorkflowNode<PathPlanItem, WriterResult> {
   const debugEnabled = isDebugEnabled();
 
   return node(async (item: PathPlanItem): Promise<WriterResult> => {
     const slug = item.slug;
+    const stepLogger = createLPStepLogger(session, `writer-${slug}`);
     debugLog(`[LP] Writer starting for "${slug}" (action=${item.action})`);
 
     const writerPrompt = interpolatePrompt(
@@ -248,11 +271,12 @@ function createWriterNode(
         tools,
         model: "flash",
         maxSteps: WRITER_MAX_STEPS,
-        onStepFinish: debugEnabled
-          ? (event: any) => {
-              debugLog(`[LP] Writer step for "${slug}"`, summarizeStep(event));
-            }
-          : undefined,
+        onStepFinish: (event: any) => {
+          stepLogger(summarizeStep(event));
+          if (debugEnabled) {
+            debugLog(`[LP] Writer step for "${slug}"`, summarizeStep(event));
+          }
+        },
       });
 
       const toolCalls = llmResult.steps.flatMap((s) => s.toolCalls || []);
@@ -313,17 +337,19 @@ export async function runLearningPathAgent(
 
   console.log(`[LP] Run starting (mode=${mode}, deleted=${deleted.length})`);
 
+  // Create trace session for this run
+  const session = createLearningPathTraceSession(mode);
   const writerResult: LearningPathWriterResult = { writtenSlugs: [] };
 
   const workflow = chain(
-    createPlannerNode(),
+    createPlannerNode(session),
     chain(
       node(async (plan: LearningPathPlan): Promise<LearningPathPlanWithTasks> => ({
         ...plan,
         tasks: plan.paths,
       })),
       parallel(
-        createWriterNode(db, writerResult),
+        createWriterNode(db, writerResult, session),
         createAggregatorNode(),
         { maxParallel: MAX_PARALLEL_WRITERS },
       ),

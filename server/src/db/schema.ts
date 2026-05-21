@@ -74,11 +74,19 @@ export function initializeDatabase(): Database.Database {
         status TEXT DEFAULT 'pending',
         pages_edited TEXT,
         error TEXT,
+        thread TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         answered_at DATETIME,
         FOREIGN KEY (page_id) REFERENCES wiki_pages(id) ON DELETE CASCADE
       )
     `);
+  }
+
+  // Migration: add thread column to page_comments
+  const pageCommentsInfo2 = db.prepare("PRAGMA table_info(page_comments)").all() as any[];
+  const hasThread = pageCommentsInfo2.some((col: any) => col.name === 'thread');
+  if (!hasThread) {
+    db.exec('ALTER TABLE page_comments ADD COLUMN thread TEXT');
   }
 
   // Startup reset: reset any processing comments back to pending
@@ -123,6 +131,7 @@ export function initializeDatabase(): Database.Database {
       status TEXT DEFAULT 'pending',
       pages_edited TEXT,
       error TEXT,
+      thread TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       answered_at DATETIME,
       FOREIGN KEY (page_id) REFERENCES wiki_pages(id) ON DELETE CASCADE

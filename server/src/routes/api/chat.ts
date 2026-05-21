@@ -16,7 +16,7 @@ export function createChatRoutes(db: Database.Database): Router {
    */
   router.post("/", async (req: Request, res: Response) => {
     try {
-      const { messages } = req.body;
+      const { messages, sessionId } = req.body;
 
       if (!messages || !Array.isArray(messages)) {
         res.status(400).json({ error: "Messages array is required" });
@@ -28,7 +28,7 @@ export function createChatRoutes(db: Database.Database): Router {
       const modelMessages = await convertToModelMessages(messages);
 
       // Initiates the agent loop and streaming
-      const result = await streamChat(db, modelMessages);
+      const result = await streamChat(db, modelMessages, sessionId);
 
       // Pipes the stream directly to the Express response
       // This handles necessary headers (SSE) and data formatting in the Vercel AI Data Stream Protocol

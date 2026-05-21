@@ -270,11 +270,34 @@ export class Queries {
 
   // Page Comments
   insertComment(pageId: number, content: string) {
+    const thread = JSON.stringify([{ role: "user", content }]);
     const stmt = this.db.prepare(
-      "INSERT INTO page_comments (page_id, content) VALUES (?, ?)",
+      "INSERT INTO page_comments (page_id, content, thread) VALUES (?, ?, ?)",
     );
-    const result = stmt.run(pageId, content);
+    const result = stmt.run(pageId, content, thread);
     return result.lastInsertRowid as number;
+  }
+
+  getCommentById(commentId: number) {
+    const stmt = this.db.prepare("SELECT * FROM page_comments WHERE id = ?");
+    return stmt.get(commentId) as any;
+  }
+
+  appendToCommentThread(commentId: number, role: string, content: string) {
+    const comment = this.getCommentById(commentId);
+    if (!comment) return;
+    const thread = comment.thread ? JSON.parse(comment.thread) : [{ role: "user", content: comment.content }];
+    thread.push({ role, content });
+    const stmt = this.db.prepare("UPDATE page_comments SET thread = ? WHERE id = ?");
+    stmt.run(JSON.stringify(thread), commentId);
+  }
+
+  resetCommentForReply(commentId: number, newContent: string) {
+    this.appendToCommentThread(commentId, "user", newContent);
+    const stmt = this.db.prepare(
+      "UPDATE page_comments SET status = 'pending', reply = NULL, pages_edited = NULL, error = NULL, answered_at = NULL WHERE id = ?",
+    );
+    stmt.run(commentId);
   }
 
   getCommentsByPageId(pageId: number) {
@@ -296,6 +319,8 @@ export class Queries {
     reasoning: string,
     pagesEdited: string[],
   ) {
+    // Append assistant response to thread
+    this.appendToCommentThread(commentId, "assistant", reasoning);
     const stmt = this.db.prepare(
       "UPDATE page_comments SET status = ?, reply = ?, pages_edited = ?, answered_at = CURRENT_TIMESTAMP WHERE id = ?",
     );
