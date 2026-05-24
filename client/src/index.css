@@ -363,6 +363,19 @@ html.dark [data-streamdown="code-block-body"] pre span {
   display: flex;
   align-items: center;
 }
+/* ---- Centrar el diagrama Mermaid ----
+ * El SVG wrapper (div[role="img"]) tiene display:flex y justify-content:center,
+ * pero el SVG tiene width="100%" (generado por Mermaid), por lo que el centrado
+ * vía flex no tiene efecto. Convertimos el wrapper a block con fit-content para
+ * que su ancho sea el tamaño natural del SVG, y lo centramos con margin: auto.
+ * El PanZoom content div (su padre) ya tiene justify-content:center.
+ */
+[data-streamdown="mermaid"] div[role="img"] {
+  display: block !important;
+  width: fit-content !important;
+  margin: 0 auto !important;
+}
+
 /* Ocultar reset (3er botón, no se puede mover con CSS al lado derecho) */
 .prose [data-streamdown="mermaid"] > div:first-child > div:first-child button:nth-child(3),
 .prose-doc [data-streamdown="mermaid"] > div:first-child > div:first-child button:nth-child(3) {
