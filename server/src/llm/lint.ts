@@ -126,6 +126,10 @@ export async function runTier3Audit(db: Database.Database): Promise<Verification
     messages: [{ role: 'user', content: 'Perform Phase 1 triage. Analyze the wiki index and lint queue to identify high-risk page pairs that may contain contradictions, duplications, or inconsistencies. Return the triage JSON.' }],
     temperature: 0.3,
     maxOutputTokens: 2048,
+    model: "flash",
+    providerOptions: {
+      opencodeZenGo: { reasoningEffort: "max" },
+    },
   });
 
   const triageData = parseJSON<TriageResult>(triageResult.text);
@@ -170,6 +174,10 @@ export async function runTier3Audit(db: Database.Database): Promise<Verification
     ],
     temperature: 0.3,
     maxOutputTokens: 4096,
+    model: "flash",
+    providerOptions: {
+      opencodeZenGo: { reasoningEffort: "max" },
+    },
   });
 
   const verifyData = parseJSON<VerificationResult>(verifyResult.text);

@@ -185,7 +185,7 @@ export async function reviewComment(
       system: reviewerPrompt,
       messages,
       tools,
-      model: "pro",
+      model: "flash",
       maxSteps: 15,
       providerOptions: {
         opencodeZenGo: { reasoningEffort: "max" },

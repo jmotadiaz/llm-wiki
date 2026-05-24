@@ -55,6 +55,12 @@ export default {
         DEFAULT: {
           css: {
             maxWidth: '70ch',
+            p: {
+              fontSize: '1.0625rem',
+            },
+            li: {
+              fontSize: '1.0625rem',
+            },
           },
         },
       },
