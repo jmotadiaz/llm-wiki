@@ -363,14 +363,15 @@ html.dark [data-streamdown="code-block-body"] pre span {
   display: flex;
   align-items: center;
 }
-/* ---- Centrar el diagrama Mermaid ----
+/* ---- Centrar el diagrama Mermaid (solo modo normal, no fullscreen) ----
  * El SVG wrapper (div[role="img"]) tiene display:flex y justify-content:center,
  * pero el SVG tiene width="100%" (generado por Mermaid), por lo que el centrado
  * vía flex no tiene efecto. Convertimos el wrapper a block con fit-content para
  * que su ancho sea el tamaño natural del SVG, y lo centramos con margin: auto.
  * El PanZoom content div (su padre) ya tiene justify-content:center.
  */
-[data-streamdown="mermaid"] div[role="img"] {
+.prose [data-streamdown="mermaid"] div[role="img"],
+.prose-doc [data-streamdown="mermaid"] div[role="img"] {
   display: block !important;
   width: fit-content !important;
   margin: 0 auto !important;
@@ -382,7 +383,34 @@ html.dark [data-streamdown="code-block-body"] pre span {
   display: none;
 }
 
-/* ---- Fullscreen mermaid (portal fuera de .prose) ---- */
+/* ---- Fullscreen mermaid (portal fuera de .prose) ----
+ * Problema mobile (Safari/Android):
+ * 1. Streamdown aplica [&_svg]:w-auto → width:auto en el SVG.
+ *    En Safari/Android un SVG con viewBox + width:auto puede colapsar
+ *    porque anula el width="100%" de Mermaid y no tiene dimensión
+ *    intrínseca explícita.
+ * 2. La cadena de alturas (size-full/h-full) dentro del portal puede
+ *    romperse en mobile cuando el contenedor no tiene height definida.
+ * 3. overflow:hidden en PanZoom recorta el diagrama si excede viewport.
+ *
+ * Solución: SVG con ancho fijo 100% + altura proporcional, el contenedor
+ *   del diagrama ocupa todo el espacio, y overflow:auto en vez de hidden.
+ */
+body > div.fixed.inset-0.z-50 [data-streamdown="mermaid"] svg {
+  width: 100% !important;
+  height: auto !important;
+}
+body > div.fixed.inset-0.z-50 [data-streamdown="mermaid"] {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex;
+  flex-direction: column;
+}
+body > div.fixed.inset-0.z-50 [data-streamdown="mermaid"] > div:first-child {
+  overflow: auto !important;
+  min-height: 0;
+  flex: 1;
+}
 body > div.fixed.inset-0.z-50 {
   background: var(--bg) !important;
   backdrop-filter: none !important;
