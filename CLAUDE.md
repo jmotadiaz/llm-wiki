@@ -11,17 +11,17 @@ LLM Wiki is a knowledge base application that automatically ingests web content 
 ### Server
 ```bash
 cd server
-npm run dev      # Start with tsx watch (hot-reload)
-npm run build    # Compile TypeScript + copy .env and prompts to dist/
-npm start        # Run compiled dist/index.js (production)
+pnpm dev      # Start with tsx watch (hot-reload)
+pnpm build    # Compile TypeScript + copy .env and prompts to dist/
+pnpm start    # Run compiled dist/index.js (production)
 ```
 
 ### Client
 ```bash
 cd client
-npm run dev      # Vite dev server (proxies /api to localhost:3005)
-npm run build    # tsc + vite build to dist/
-npm run preview  # Preview production build
+pnpm dev      # Vite dev server (proxies /api to localhost:3005)
+pnpm build    # tsc + vite build to dist/
+pnpm preview  # Preview production build
 ```
 
 ### Production (PM2)
@@ -87,6 +87,42 @@ Server reads from `.env` (not committed). Required:
 - `OPENROUTER_API_KEY` — used for all LLM calls (primary and fallback models)
 - `JINA_API_KEY` — optional; Jina URL extraction works without it but with rate limits
 - `DEBUG_ENABLED=1` — enables verbose LLM step logging
+
+## Package Manager
+
+This project uses **pnpm** as the package manager. Always use `pnpm` instead of `npm` or `yarn` for installing dependencies and running scripts.
+
+### Monorepo (pnpm workspaces)
+
+This is a **pnpm monorepo**. The workspace packages are:
+- `@llm-wiki/server` — `server/`
+- `@llm-wiki/client` — `client/`
+- `@llm-wiki/shared` — `shared/`
+
+**Always run commands from the repo root**, using `--filter` to target specific packages:
+
+```bash
+# Build all packages
+pnpm -r build
+
+# Build only server
+pnpm --filter @llm-wiki/server build
+
+# Add a dependency to a specific package
+pnpm --filter @llm-wiki/server add <package>
+pnpm --filter @llm-wiki/client add <package>
+
+# Run dev on a specific package
+pnpm --filter @llm-wiki/server dev
+```
+
+### pnpm strict dependency resolution
+
+pnpm uses **strict dependency resolution**: only direct dependencies declared in `package.json` are accessible via `import`. If you get a `TS2307: Cannot find module` error for a package that exists in `node_modules/`, it means that package is only a transitive dependency. **Add it as a direct dependency** with:
+
+```bash
+pnpm --filter <workspace-package> add <missing-package>
+```
 
 ## Key Conventions
 

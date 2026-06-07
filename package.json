@@ -4,15 +4,12 @@
   "description": "Personal knowledge base compiled from raw sources with LLM",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "server",
-    "client",
-    "shared"
-  ],
   "scripts": {
-    "dev": "npm run dev -w server & npm run dev -w client",
-    "build": "npm run build -w client && npm run build -w server",
-    "start": "npm run start -w server"
+    "dev": "pnpm --parallel -r dev",
+    "build": "pnpm -r build",
+    "build:fresh": "pnpm -r build:fresh",
+    "typecheck": "pnpm -r typecheck",
+    "start": "pnpm --filter @llm-wiki/server start"
   },
   "devDependencies": {
     "typescript": "^6.0.0"

@@ -3,10 +3,10 @@
  *
  * Replaces the manual scripts/build-streamdown-bundle.mjs.
  * Automatically builds and caches a self-contained ESM bundle of
- * streamdown + @streamdown/code + @streamdown/mermaid.
+ * streamdown + @streamdown/code + @streamdown/mermaid + @streamdown/math.
  *
  * ── How it works ──
- *  1. Computes a hash from the installed versions of the three packages.
+ *  1. Computes a hash from the installed versions of the four packages.
  *  2. Cache: node_modules/.cache/streamdown-sidecar/streamdown-<hash>.mjs
  *  3. On buildStart(): if cache exists → reuse. If not → run esbuild + cache.
  *  4. Emits the cached file as dist/vendor/streamdown.mjs during the build.
@@ -40,6 +40,7 @@ const VENDOR_ASSET_FILE = 'vendor/streamdown.mjs';
 //  y sus ~50 dependencias transitivas al build host).
 // Se actualiza manualmente en sincronía con la versión de streamdown.
 const FALLBACK_MERMAID_VERSION = '1.0.2';
+const FALLBACK_MATH_VERSION = '1.0.2';
 
 // Paquetes que streamdown necesita en runtime (bajados via import map en
 // index.html). Mantenerlos externos evita duplicar código en el sidecar.
@@ -52,6 +53,7 @@ const EXTERNAL = [
   'shiki/*',
   '@shikijs/*',
   'mermaid',
+  'katex',
 ];
 
 // ── Helpers ──
@@ -84,9 +86,10 @@ function computeCacheKey(): string {
   const streamdownVer = readInstalledVersion('streamdown') ?? 'unknown';
   const codeVer = readInstalledVersion('@streamdown/code') ?? 'unknown';
   const mermaidVer = readInstalledVersion('@streamdown/mermaid') ?? FALLBACK_MERMAID_VERSION;
+  const mathVer = readInstalledVersion('@streamdown/math') ?? FALLBACK_MATH_VERSION;
 
   const hash = createHash('sha256')
-    .update(`streamdown:${streamdownVer}|@streamdown/code:${codeVer}|@streamdown/mermaid:${mermaidVer}`)
+    .update(`streamdown:${streamdownVer}|@streamdown/code:${codeVer}|@streamdown/mermaid:${mermaidVer}|@streamdown/math:${mathVer}`)
     .digest('hex')
     .slice(0, 16);
 
@@ -103,7 +106,7 @@ function cacheFilePath(cacheKey: string): string {
  *
  * Replica la lógica de scripts/build-streamdown-bundle.mjs:
  *  1. Crea un directorio temporal
- *  2. Instala los tres paquetes con npm
+ *  2. Instala los cuatro paquetes con npm
  *  3. Escribe el entry point
  *  4. Ejecuta esbuild.bundle()
  *  5. Escribe el resultado en cacheFile
@@ -128,6 +131,7 @@ async function buildBundle(cacheFile: string, cacheKey: string): Promise<void> {
     const streamdownVer = readInstalledVersion('streamdown');
     const codeVer = readInstalledVersion('@streamdown/code');
     const mermaidVer = readInstalledVersion('@streamdown/mermaid');
+    const mathVer = readInstalledVersion('@streamdown/math');
 
     if (!streamdownVer) {
       throw new Error(
@@ -146,7 +150,11 @@ async function buildBundle(cacheFile: string, cacheKey: string): Promise<void> {
       ? `@streamdown/mermaid@${mermaidVer}`
       : `@streamdown/mermaid@${FALLBACK_MERMAID_VERSION}`;
 
-    const installSpec = `streamdown@${streamdownVer} @streamdown/code@${codeVer} ${mermaidSpec}`;
+    const mathSpec = mathVer
+      ? `@streamdown/math@${mathVer}`
+      : `@streamdown/math@${FALLBACK_MATH_VERSION}`;
+
+    const installSpec = `streamdown@${streamdownVer} @streamdown/code@${codeVer} ${mermaidSpec} ${mathSpec}`;
 
     console.log(`\n▸ streamdown-sidecar: cache miss, building bundle...`);
     console.log(`  installing: ${installSpec}`);
@@ -164,6 +172,7 @@ async function buildBundle(cacheFile: string, cacheKey: string): Promise<void> {
         "export * from 'streamdown';",
         "export { code } from '@streamdown/code';",
         "export { mermaid, createMermaidPlugin } from '@streamdown/mermaid';",
+        "export { math, createMathPlugin } from '@streamdown/math';",
         '',
       ].join('\n'),
     );

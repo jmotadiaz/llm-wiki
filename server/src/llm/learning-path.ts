@@ -208,10 +208,7 @@ function createPlannerNode(
             "Analiza el wiki y emite el plan de learning-paths como JSON, siguiendo el schema y el modo indicado.",
         },
       ],
-      model: "flash",
-      providerOptions: {
-        opencodeZenGo: { reasoningEffort: "max" },
-      },
+      model: "pro",
       maxSteps: 1,
       onStepFinish: (event: any) => {
         stepLogger(summarizeStep(event));

@@ -187,9 +187,6 @@ export async function reviewComment(
       tools,
       model: "flash",
       maxSteps: 15,
-      providerOptions: {
-        opencodeZenGo: { reasoningEffort: "max" },
-      },
       onStepFinish: (event: any) => {
         stepLogger(summarizeStep(event));
         if (debugEnabled) {

@@ -2,10 +2,12 @@ import { memo, useMemo } from "react";
 import { Streamdown, defaultRemarkPlugins } from "streamdown";
 import { code } from "@streamdown/code";
 import { mermaid } from "@streamdown/mermaid";
+import { math } from "@streamdown/math";
 import remarkGfm from "remark-gfm";
 import { useNavigate } from "react-router-dom";
 import remarkHeadingAnchors from "./remarkHeadingAnchors";
 import { useTheme } from "../ThemeContext";
+import "katex/dist/katex.min.css";
 
 interface MarkdownProps {
   content: string;
@@ -49,7 +51,7 @@ const Markdown = memo(function Markdown({
   return (
     <div className={`prose dark:prose-invert max-w-none ${className}`}>
       <Streamdown
-        plugins={{ code, mermaid }}
+        plugins={{ code, mermaid, math }}
         remarkPlugins={remarkPlugins as any}
         mermaid={mermaidConfig}
         controls={{

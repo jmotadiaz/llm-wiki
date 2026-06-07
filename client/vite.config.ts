@@ -35,27 +35,22 @@ const EXTERNALS: ExternalEntry[] = [
   // { name: '@ai-sdk/react',     url: 'https://esm.sh/@ai-sdk/react@3?bundle&external=react,react-dom,ai&target=es2020' },
 
   // ── Markdown / Streamdown ──
-  // streamdown + @streamdown/code + @streamdown/mermaid se sirven como un
-  // ÚNICO sidecar prebundleado en /vendor/streamdown.mjs. Razón: cuando se
-  // externalizan vía esm.sh, el chunk dinámico interno de streamdown
-  // (mermaid-GHXKKRXX.js) se carga como módulo separado, lo que duplica el
-  // createContext(Ve) y rompe el plugin de Mermaid ("Mermaid plugin not
-  // available"). Un bundle único garantiza una sola instancia del contexto.
+  // SIDECAR DESACTIVADO: streamdown y sus plugins (@streamdown/*) se
+  // bundlean localmente desde node_modules en lugar de servirse como
+  // sidecar externo en /vendor/streamdown.mjs.
   //
-  // El sidecar lo genera automáticamente el plugin streamdown-sidecar,
-  // cacheado en node_modules/.cache/streamdown-sidecar/. Se reconstruye
-  // solo cuando cambia la versión instalada de streamdown.
-  //
-  // shiki y mermaid siguen externos a esm.sh — son los paquetes pesados y
-  // ambos cargan sus sub-modulos perezosamente (lenguajes para shiki,
-  // diagramas para mermaid). No participan del problema del contexto.
-  { name: 'streamdown',              url: '/vendor/streamdown.mjs' },
-  { name: '@streamdown/code',        url: '/vendor/streamdown.mjs' },
-  { name: '@streamdown/mermaid',     url: '/vendor/streamdown.mjs' },
+  // Para reactivar: descomentar las 4 entradas de abajo con url
+  // '/vendor/streamdown.mjs', descomentar streamdownSidecarPlugin()
+  // en plugins, y comentar estas líneas de explicación.
+  // { name: 'streamdown',              url: '/vendor/streamdown.mjs' },
+  // { name: '@streamdown/code',        url: '/vendor/streamdown.mjs' },
+  // { name: '@streamdown/mermaid',     url: '/vendor/streamdown.mjs' },
+  // { name: '@streamdown/math',        url: '/vendor/streamdown.mjs' },
   { name: 'shiki',                   url: 'https://esm.sh/shiki@3.19.0?target=es2020'                                                          },
   { name: 'shiki/engine/javascript', url: 'https://esm.sh/shiki@3.19.0/engine/javascript?target=es2020'                                        },
   { name: 'remark-gfm',              url: 'https://esm.sh/remark-gfm@4.0.0?bundle&target=es2020'                                               },
   { name: 'mermaid',                 url: 'https://esm.sh/mermaid@11.15.0?bundle&external=react,react-dom&target=es2020'                       },
+  { name: 'katex',                   url: 'https://esm.sh/katex@0.17.0?target=es2020'                                                          },
 
   // ── Graph ──
   // { name: 'react-force-graph-2d', url: 'https://esm.sh/react-force-graph-2d@1.25.4?bundle&external=react,react-dom&target=es2020' },
@@ -132,15 +127,20 @@ function externalizePlugin(): Plugin {
 export default defineConfig({
   plugins: [
     externalizePlugin(),
-    streamdownSidecarPlugin(),
+    // streamdownSidecarPlugin(),  // DESACTIVADO: streamdown se bundlea localmente
     react(),
   ],
   // Persistent cache for pre-bundled deps + plugin transforms. Survives
   // between `npm run build` invocations so unchanged modules are not
   // re-parsed.
   cacheDir: 'node_modules/.vite',
+  css: {
+    lightningcss: {
+      targets: { chrome: 87, firefox: 78, safari: 14 }, // lightningcss no soporta "ES2020", usa browser targets
+    },
+  },
   build: {
-    target: "ES2020",
+    target: ["chrome87", "firefox78", "safari14"], // browser targets en vez de ES2020 (compatible con lightningcss)
     outDir: "dist",
     // Don't wipe the output dir before each build — Rolldown writes files
     // with content-hashed names, so unchanged sources produce the same
