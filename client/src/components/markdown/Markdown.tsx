@@ -2,8 +2,7 @@ import { memo, useMemo } from "react";
 import { Streamdown, defaultRemarkPlugins } from "streamdown";
 import { code } from "@streamdown/code";
 import { mermaid } from "@streamdown/mermaid";
-import { math } from "@streamdown/math";
-import remarkGfm from "remark-gfm";
+import { createMathPlugin } from "@streamdown/math";
 import { useNavigate } from "react-router-dom";
 import remarkHeadingAnchors from "./remarkHeadingAnchors";
 import { useTheme } from "../ThemeContext";
@@ -23,13 +22,19 @@ const Markdown = memo(function Markdown({
   const navigate = useNavigate();
   const { theme } = useTheme();
 
+  // Math plugin with inline $...$ support (singleDollarTextMath: true)
+  // Memoized so streamdown's effect doesn't re-run on every render.
+  const mathPlugin = useMemo(
+    () => createMathPlugin({ singleDollarTextMath: true }),
+    [],
+  );
+
   // Custom remark plugins: defaults + wiki links + GFM.
   // Must depend on `content` so remarkHeadingAnchors gets a fresh instance
   // (reset headingIndex counter) for each document, matching server output.
   const remarkPlugins = useMemo(
     () => [
       ...Object.values(defaultRemarkPlugins),
-      remarkGfm,
       remarkHeadingAnchors,
     ],
     [content],
@@ -51,7 +56,7 @@ const Markdown = memo(function Markdown({
   return (
     <div className={`prose dark:prose-invert max-w-none ${className}`}>
       <Streamdown
-        plugins={{ code, mermaid, math }}
+        plugins={{ code, mermaid, math: mathPlugin }}
         remarkPlugins={remarkPlugins as any}
         mermaid={mermaidConfig}
         controls={{

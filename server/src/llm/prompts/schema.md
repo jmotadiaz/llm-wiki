@@ -220,6 +220,40 @@ When adding a citation-only contribution, attach the new citation inline immedia
 - `` `code` `` for technical terms, function names, filenames, identifiers
 - Triple backticks with language spec for code blocks
 
+### Math Notation (LaTeX)
+
+The wiki renderer supports LaTeX math via KaTeX. You MUST use the **dollar-sign syntax**, NOT the standard LaTeX bracket syntax.
+
+- **Inline math**: `$...$` — for formulas within a sentence, e.g., `$E=mc^2$`
+- **Display math (block)**: `$$...$$` — for standalone equations on their own line, e.g.,
+  ```
+  $$
+  \int_{a}^{b} f(x) dx = F(b) - F(a)
+  $$
+  ```
+
+**DO NOT use `\(...\)` or `\[...\]`** — these are NOT supported by the renderer. Always convert them to `$...$` and `$$...$$` respectively.
+
+**Examples of correct syntax:**
+
+- Inline: `El embedding se calcula como $\mathbf{v} = \text{encoder}(x)$ donde...`
+- Block:
+  ```
+  $$
+  \begin{aligned}
+  PE_{(pos, 2i)} &= \sin\left(pos / 10000^{2i / d_{\text{model}}}\right) \\
+  PE_{(pos, 2i+1)} &= \cos\left(pos / 10000^{2i / d_{\text{model}}}\right)
+  \end{aligned}
+  $$
+  ```
+
+**When converting from standard LaTeX to dollar-sign syntax:**
+
+- `\(...\)` → `$...$`
+- `\[...\]` → `$$...$$`
+- `\begin{aligned}...\end{aligned}` stays exactly the same inside `$$...$$`
+- All LaTeX commands (\sin, \cos, \frac, \sum, \int, etc.) remain unchanged
+
 ### Diagramas Mermaid
 
 The wiki renderer supports Mermaid diagrams. Use them when a visual representation genuinely aids understanding beyond what prose alone can convey. Include **at most one diagram per page**, placed after the introductory paragraph or at the start of the most relevant section.

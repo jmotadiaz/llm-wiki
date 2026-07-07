@@ -17,48 +17,42 @@ interface ExternalEntry {
 }
 
 const EXTERNALS: ExternalEntry[] = [
-  // ── React core ──
-  // ?target=es2020 alinea el transpile de esm.sh con el target del build de Vite,
-  // evitando código duplicado y garantizando compatibilidad con los módulos locales.
-  { name: 'react',             url: 'https://esm.sh/react@18.2.0?target=es2020',                                              preload: true  },
-  { name: 'react/jsx-runtime', url: 'https://esm.sh/react@18.2.0/jsx-runtime?target=es2020',                                  preload: true  },
-  { name: 'react-dom',         url: 'https://esm.sh/react-dom@18.2.0?bundle&external=react&target=es2020',                   preload: true  },
-  { name: 'react-dom/client',  url: 'https://esm.sh/react-dom@18.2.0/client?external=react,react-dom&target=es2020',          preload: true  },
+  // ── EXTERNALIZACIÓN MÍNIMA ──
+  // Solo se externalizan los paquetes más pesados para evitar OOM en build.
+  // El resto (React, router, streamdown, AI SDK, etc.) se bundlea localmente.
 
-  // ── Router ──
-  { name: 'react-router-dom',  url: 'https://esm.sh/react-router-dom@6.20.1?bundle&external=react,react-dom&target=es2020',  preload: true  },
+  // ── Markdown heavy deps (OOM si se bundlean) ──
+  { name: 'shiki',                   url: 'https://esm.sh/shiki@3.19.0?target=es2020'                                                          },
+  { name: 'shiki/engine/javascript', url: 'https://esm.sh/shiki@3.19.0/engine/javascript?target=es2020'                                        },
+  { name: 'mermaid',                 url: 'https://esm.sh/mermaid@11.15.0?bundle&external=react,react-dom&target=es2020'                       },
+  { name: 'katex',                   url: 'https://esm.sh/katex@0.17.0?target=es2020'                                                          },
 
-  // ── Vercel AI SDK ──
-  // @ai-sdk/react necesita `ai` en ?external para que el browser resuelva ambos
-  // desde el import map y no se creen dos instancias del SDK en memoria.
+  // // ── React core (bundleado localmente) ──
+  // { name: 'react',             url: 'https://esm.sh/react@18.2.0?target=es2020',                                              preload: true  },
+  // { name: 'react/jsx-runtime', url: 'https://esm.sh/react@18.2.0/jsx-runtime?target=es2020',                                  preload: true  },
+  // { name: 'react-dom',         url: 'https://esm.sh/react-dom@18.2.0?bundle&external=react&target=es2020',                   preload: true  },
+  // { name: 'react-dom/client',  url: 'https://esm.sh/react-dom@18.2.0/client?external=react,react-dom&target=es2020',          preload: true  },
+
+  // // ── Router (bundleado localmente) ──
+  // { name: 'react-router-dom',  url: 'https://esm.sh/react-router-dom@6.20.1?bundle&external=react,react-dom&target=es2020',  preload: true  },
+
+  // // ── Vercel AI SDK (bundleado localmente) ──
   // { name: 'ai',                url: 'https://esm.sh/ai@6?bundle&external=react&target=es2020' },
   // { name: '@ai-sdk/react',     url: 'https://esm.sh/@ai-sdk/react@3?bundle&external=react,react-dom,ai&target=es2020' },
 
-  // ── Markdown / Streamdown ──
-  // SIDECAR DESACTIVADO: streamdown y sus plugins (@streamdown/*) se
-  // bundlean localmente desde node_modules en lugar de servirse como
-  // sidecar externo en /vendor/streamdown.mjs.
-  //
-  // Para reactivar: descomentar las 4 entradas de abajo con url
-  // '/vendor/streamdown.mjs', descomentar streamdownSidecarPlugin()
-  // en plugins, y comentar estas líneas de explicación.
+  // // ── Streamdown (bundleado localmente, sidecar desactivado) ──
   // { name: 'streamdown',              url: '/vendor/streamdown.mjs' },
   // { name: '@streamdown/code',        url: '/vendor/streamdown.mjs' },
   // { name: '@streamdown/mermaid',     url: '/vendor/streamdown.mjs' },
   // { name: '@streamdown/math',        url: '/vendor/streamdown.mjs' },
-  { name: 'shiki',                   url: 'https://esm.sh/shiki@3.19.0?target=es2020'                                                          },
-  { name: 'shiki/engine/javascript', url: 'https://esm.sh/shiki@3.19.0/engine/javascript?target=es2020'                                        },
-  { name: 'remark-gfm',              url: 'https://esm.sh/remark-gfm@4.0.0?bundle&target=es2020'                                               },
-  { name: 'mermaid',                 url: 'https://esm.sh/mermaid@11.15.0?bundle&external=react,react-dom&target=es2020'                       },
-  { name: 'katex',                   url: 'https://esm.sh/katex@0.17.0?target=es2020'                                                          },
 
-  // ── Graph ──
+  // // ── remark-gfm (bundleado localmente) ──
+  // { name: 'remark-gfm',              url: 'https://esm.sh/remark-gfm@4.0.0?bundle&target=es2020'                                               },
+
+  // // ── Graph (bundleado localmente) ──
   // { name: 'react-force-graph-2d', url: 'https://esm.sh/react-force-graph-2d@1.25.4?bundle&external=react,react-dom&target=es2020' },
 
-  // ── Utils ──
-  // ❌ NO externalizar: esm.sh genera bundles con instancias duplicadas
-  //    de React que rompen el Router context (useNavigate falla).
-  //    Se mantiene en el bundle local.
+  // // ── Utils (bundleado localmente) ──
   // { name: 'nuqs',               url: 'https://esm.sh/nuqs@2.8.9?bundle&external=react' },
   // { name: 'nuqs/adapters/react-router/v6', url: 'https://esm.sh/nuqs@2.8.9/adapters/react-router/v6?external=react' },
 ];
@@ -126,7 +120,7 @@ function externalizePlugin(): Plugin {
 
 export default defineConfig({
   plugins: [
-    externalizePlugin(),
+    externalizePlugin(),  // REACTIVADO: solo externaliza mermaid, shiki, katex
     // streamdownSidecarPlugin(),  // DESACTIVADO: streamdown se bundlea localmente
     react(),
   ],
